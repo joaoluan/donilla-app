@@ -4,8 +4,28 @@ services:
     build:
       context: .
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      APP_BASE_URL: ${APP_BASE_URL:?APP_BASE_URL is required}
+      AUTH_ADMIN_PASSWORD: ${AUTH_ADMIN_PASSWORD:?AUTH_ADMIN_PASSWORD is required}
+      AUTH_ADMIN_USER: ${AUTH_ADMIN_USER:?AUTH_ADMIN_USER is required}
+      AUTH_APP_PASSWORD: ${AUTH_APP_PASSWORD:?AUTH_APP_PASSWORD is required}
+      AUTH_APP_USER: ${AUTH_APP_USER:?AUTH_APP_USER is required}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?AUTH_PASSWORD is required}
+      AUTH_USER: ${AUTH_USER:?AUTH_USER is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DEBUG_WHATSAPP_BOT: ${DEBUG_WHATSAPP_BOT:?DEBUG_WHATSAPP_BOT is required}
+      HOST: ${HOST:?HOST is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:?JWT_EXPIRES_IN is required}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:?JWT_REFRESH_EXPIRES_IN is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      PORT: ${PORT:?PORT is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      WPP_SECRET_KEY: ${WPP_SECRET_KEY:?WPP_SECRET_KEY is required}
+      WPP_SERVER_URL: ${WPP_SERVER_URL:?WPP_SERVER_URL is required}
+      WPP_SESSION_NAME: ${WPP_SESSION_NAME:?WPP_SESSION_NAME is required}
+      WPP_WEBHOOK_TOKEN: ${WPP_WEBHOOK_TOKEN:?WPP_WEBHOOK_TOKEN is required}
     ports:
       - "127.0.0.1:3000:3000"
     security_opt:
