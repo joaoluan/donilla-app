@@ -1,6 +1,7 @@
 const { AppError } = require('../utils/errors')
 const { cleanLocationField } = require('../utils/deliveryFees')
 const { getDefaultStoreSettings, normalizeStoreSettings } = require('../utils/storeSettings')
+const { assertSafeExternalUrl } = require('../utils/security')
 
 function normalizeDeliveryFeeData(data) {
   return {
@@ -277,6 +278,7 @@ function toNotificationOrderData(order) {
 function adminPanelService(prisma, deps = {}) {
   const whatsappNotifier = deps.whatsappNotifier || null
   const whatsappTransport = deps.whatsappTransport || null
+  const assertSafeTargetUrl = deps.assertSafeTargetUrl || assertSafeExternalUrl
 
   async function getStoreSettingsConfig() {
     const config = await prisma.configuracoes_loja.findFirst({
@@ -290,6 +292,12 @@ function adminPanelService(prisma, deps = {}) {
     if (!whatsappTransport) {
       throw new AppError(500, 'Transporte WhatsApp indisponivel no servidor.')
     }
+  }
+
+  async function assertSafeWebhookUrl(value) {
+    const webhookUrl = String(value || '').trim()
+    if (!webhookUrl) return null
+    return assertSafeTargetUrl(webhookUrl)
   }
 
   function normalizeQrCodePayload(raw) {
@@ -430,6 +438,9 @@ function adminPanelService(prisma, deps = {}) {
         ...data,
       })
       const { id, ...persistedData } = merged
+      if (persistedData.whatsapp_webhook_url) {
+        persistedData.whatsapp_webhook_url = await assertSafeWebhookUrl(persistedData.whatsapp_webhook_url)
+      }
       ensureStoreSettingsRange(merged)
       ensureWhatsAppSettings(merged, { whatsappTransport })
 
@@ -450,6 +461,9 @@ function adminPanelService(prisma, deps = {}) {
       }
 
       const config = await getStoreSettingsConfig()
+      if (config.whatsapp_webhook_url) {
+        config.whatsapp_webhook_url = await assertSafeWebhookUrl(config.whatsapp_webhook_url)
+      }
       const result = await whatsappNotifier.sendTestMessage({
         config,
         customer: input,

@@ -1,6 +1,7 @@
 const { AppError } = require('../utils/errors')
 const { normalizeWhatsAppPhone } = require('../utils/phone')
 const { normalizeStoreSettings } = require('../utils/storeSettings')
+const { assertSafeExternalUrl } = require('../utils/security')
 
 const WEBHOOK_TIMEOUT_MS = 8000
 
@@ -165,7 +166,12 @@ function extractResponseDetails(responseBody) {
   }
 }
 
-function createWhatsAppNotificationService({ fetchImpl = globalThis.fetch, logger = console, transportService = null } = {}) {
+function createWhatsAppNotificationService({
+  fetchImpl = globalThis.fetch,
+  logger = console,
+  transportService = null,
+  assertSafeTargetUrl = assertSafeExternalUrl,
+} = {}) {
   if (typeof fetchImpl !== 'function') {
     throw new Error('Fetch API indisponivel para a integracao WhatsApp.')
   }
@@ -193,10 +199,12 @@ function createWhatsAppNotificationService({ fetchImpl = globalThis.fetch, logge
       throw new AppError(400, 'Configure a URL do webhook do bot de WhatsApp.')
     }
 
+    const safeWebhookUrl = await assertSafeTargetUrl(webhookUrl)
+
     const { signal, clear } = createTimeoutSignal(WEBHOOK_TIMEOUT_MS)
 
     try {
-      const response = await fetchImpl(webhookUrl, {
+      const response = await fetchImpl(safeWebhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

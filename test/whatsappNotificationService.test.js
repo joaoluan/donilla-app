@@ -95,6 +95,9 @@ test('notifyOrderCreated retorna skipped quando integracao esta desativada', asy
 test('sendTestMessage envia payload para o webhook do bot', async () => {
   const calls = []
   const service = createWhatsAppNotificationService({
+    async assertSafeTargetUrl(url) {
+      return url
+    },
     async fetchImpl(url, options) {
       calls.push({ url, options })
       return {
@@ -128,6 +131,25 @@ test('sendTestMessage envia payload para o webhook do bot', async () => {
   assert.equal(body.event, 'integration.test')
   assert.equal(body.recipient.telefone_whatsapp, '5511999990000')
   assert.match(body.message, /Teste da Donilla/)
+})
+
+test('sendTestMessage bloqueia webhook apontando para localhost', async () => {
+  const service = createWhatsAppNotificationService()
+
+  await assert.rejects(
+    () =>
+      service.sendTestMessage({
+        config: {
+          whatsapp_ativo: false,
+          whatsapp_webhook_url: 'http://127.0.0.1:8080/webhook',
+        },
+        customer: {
+          nome: 'Cliente Teste',
+          telefone_whatsapp: '(11) 99999-0000',
+        },
+      }),
+    /ip privado|loopback|reservado/i,
+  )
 })
 
 test('notifyOrderCreated usa transporte WhatsApp configurado', async () => {

@@ -325,3 +325,42 @@ test('updateStoreSettings bloqueia ativacao do WhatsApp sem WPPConnect nem webho
     /configure o WPPConnect no ambiente do servidor ou informe uma URL de webhook externa/i,
   )
 })
+
+test('updateStoreSettings bloqueia webhook externo apontando para rede interna', async () => {
+  const prisma = {
+    configuracoes_loja: {
+      findFirst() {
+        return Promise.resolve({
+          id: 3,
+          loja_aberta: true,
+          tempo_entrega_minutos: 40,
+          tempo_entrega_max_minutos: 60,
+          taxa_entrega_padrao: 0,
+          mensagem_aviso: null,
+          whatsapp_ativo: false,
+          whatsapp_webhook_url: null,
+          whatsapp_webhook_secret: null,
+          whatsapp_mensagem_novo_pedido: null,
+          whatsapp_mensagem_status: null,
+        })
+      },
+      update() {
+        throw new Error('nao deveria atualizar')
+      },
+    },
+  }
+
+  const service = adminPanelService(prisma)
+
+  await assert.rejects(
+    () =>
+      service.updateStoreSettings({
+        loja_aberta: true,
+        tempo_entrega_minutos: 40,
+        tempo_entrega_max_minutos: 60,
+        whatsapp_ativo: true,
+        whatsapp_webhook_url: 'http://localhost:8080/webhook',
+      }),
+    /localhost|internos|privados/i,
+  )
+})

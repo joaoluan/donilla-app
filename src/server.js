@@ -4,6 +4,7 @@ const pathLib = require('node:path')
 const { createRouter } = require('./routes')
 const { AppError } = require('./utils/errors')
 const { sendError, sendRaw, sendSuccess } = require('./utils/http')
+const { createRateLimitGuard, getServerTimeoutConfig, shouldExposeErrorDetails } = require('./utils/security')
 
 // Keep public entrypoints explicit so production URLs stay predictable.
 const STATIC_ROUTES = {
@@ -29,8 +30,9 @@ async function serveStatic(req, res, routePath) {
   if (!route) return false
 
   if (route.type === 'redirect') {
-    res.writeHead(route.statusCode || 302, { Location: route.location })
-    res.end()
+    sendRaw(res, route.statusCode || 302, '', 'text/plain; charset=utf-8', {
+      Location: route.location,
+    })
     return true
   }
 
@@ -40,14 +42,22 @@ async function serveStatic(req, res, routePath) {
   const mime = MIME_TYPES[ext] || 'text/plain; charset=utf-8'
   const content = await readFile(filePath)
 
-  res.writeHead(200, { 'Content-Type': mime })
-  res.end(content)
+  sendRaw(res, 200, content, mime)
   return true
 }
 
 function handleError(res, error) {
   if (error instanceof AppError) {
-    sendError(res, error.statusCode, error.message, error.details)
+    if (error.statusCode >= 500) {
+      console.error('Erro interno da aplicacao:', error)
+    }
+
+    sendError(
+      res,
+      error.statusCode,
+      error.message,
+      shouldExposeErrorDetails(error.statusCode) ? error.details : undefined,
+    )
     return
   }
 
@@ -82,7 +92,7 @@ function handleError(res, error) {
   }
 
   if (error?.name === 'PrismaClientValidationError') {
-    sendError(res, 400, 'Dados invalidos.', error.message)
+    sendError(res, 400, 'Dados invalidos.', shouldExposeErrorDetails(400) ? error.message : undefined)
     return
   }
 
@@ -91,13 +101,19 @@ function handleError(res, error) {
     return
   }
 
-  sendError(res, 500, 'Erro interno no servidor.', error?.message || String(error))
+  console.error('Erro interno nao tratado:', error)
+  sendError(
+    res,
+    500,
+    'Erro interno no servidor.',
+    shouldExposeErrorDetails(500) ? error?.message || String(error) : undefined,
+  )
 }
 
 function createApp(prisma) {
   const route = createRouter(prisma)
-
-  return createServer(async (req, res) => {
+  const checkRateLimit = createRateLimitGuard()
+  const server = createServer(async (req, res) => {
     const method = req.method || 'GET'
     const url = new URL(req.url || '/', 'http://localhost')
     const path = url.pathname
@@ -106,6 +122,18 @@ function createApp(prisma) {
     try {
       const served = await serveStatic(req, res, normalizedPath)
       if (served) return
+
+      const rateLimit = checkRateLimit(req, method, normalizedPath)
+      if (rateLimit) {
+        sendError(
+          res,
+          429,
+          'Muitas requisicoes. Tente novamente em instantes.',
+          undefined,
+          { 'Retry-After': String(rateLimit.retryAfterSeconds) },
+        )
+        return
+      }
 
       const response = await route(req, method, normalizedPath, url)
 
@@ -128,11 +156,19 @@ function createApp(prisma) {
       const statusCode = response?.statusCode || 200
       const data = Object.prototype.hasOwnProperty.call(response || {}, 'data') ? response.data : response
       const meta = response?.meta
-      sendSuccess(res, statusCode, data, meta)
+      sendSuccess(res, statusCode, data, meta, response?.headers || {})
     } catch (error) {
       handleError(res, error)
     }
   })
+
+  const timeoutConfig = getServerTimeoutConfig()
+  server.headersTimeout = timeoutConfig.headersTimeout
+  server.requestTimeout = timeoutConfig.requestTimeout
+  server.keepAliveTimeout = timeoutConfig.keepAliveTimeout
+  server.maxRequestsPerSocket = timeoutConfig.maxRequestsPerSocket
+
+  return server
 }
 
 module.exports = { createApp }

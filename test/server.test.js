@@ -1,11 +1,18 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
+const { EventEmitter } = require('node:events')
 
 const { createApp } = require('../src/server')
 
-function requestApp(server, { method = 'GET', url = '/' } = {}) {
+function requestApp(server, { method = 'GET', url = '/', headers = {}, body = '', remoteAddress = '127.0.0.1' } = {}) {
   return new Promise((resolve, reject) => {
-    const req = { method, url, headers: {} }
+    const req = new EventEmitter()
+    req.method = method
+    req.url = url
+    req.headers = headers
+    req.socket = { remoteAddress }
+    req.destroy = () => {}
+
     const response = {
       statusCode: 200,
       headers: {},
@@ -26,6 +33,10 @@ function requestApp(server, { method = 'GET', url = '/' } = {}) {
 
     try {
       server.emit('request', req, response)
+      process.nextTick(() => {
+        if (body) req.emit('data', body)
+        req.emit('end')
+      })
     } catch (error) {
       reject(error)
     }
@@ -38,6 +49,7 @@ test('rotas web canonicas devem servir as paginas corretas', async () => {
   const storeResponse = await requestApp(app, { url: '/' })
   assert.equal(storeResponse.statusCode, 200)
   assert.match(storeResponse.body, /<title>Donilla - Loja Online<\/title>/)
+  assert.equal(storeResponse.headers['X-Frame-Options'], 'DENY')
 
   const aliasResponse = await requestApp(app, { url: '/loja' })
   assert.equal(aliasResponse.statusCode, 200)
@@ -92,5 +104,70 @@ test('webhook do WhatsApp deve responder ok em texto puro', async () => {
     else process.env.WPP_SESSION_NAME = previousSession
     if (previousSecret === undefined) delete process.env.WPP_SECRET_KEY
     else process.env.WPP_SECRET_KEY = previousSecret
+  }
+})
+
+test('rotas sensiveis devem aplicar rate limit por IP', async () => {
+  const previousSecret = process.env.JWT_SECRET
+  process.env.JWT_SECRET = 'test-secret'
+
+  const app = createApp({
+    usuarios: {
+      findUnique() {
+        return Promise.resolve(null)
+      },
+    },
+  })
+
+  try {
+    let lastResponse = null
+
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      lastResponse = await requestApp(app, {
+        method: 'POST',
+        url: '/auth/login',
+        headers: {
+          'content-length': '40',
+          'x-forwarded-for': '203.0.113.50',
+        },
+        body: JSON.stringify({ username: 'admin', password: 'senha' }),
+      })
+    }
+
+    assert.equal(lastResponse.statusCode, 429)
+    assert.equal(lastResponse.headers['Retry-After'], '600')
+  } finally {
+    if (previousSecret === undefined) delete process.env.JWT_SECRET
+    else process.env.JWT_SECRET = previousSecret
+  }
+})
+
+test('payloads JSON acima do limite devem ser bloqueados', async () => {
+  const previousLimit = process.env.MAX_JSON_BODY_BYTES
+  process.env.MAX_JSON_BODY_BYTES = '32'
+
+  const app = createApp({
+    usuarios: {
+      findUnique() {
+        return Promise.resolve(null)
+      },
+    },
+  })
+
+  try {
+    const response = await requestApp(app, {
+      method: 'POST',
+      url: '/auth/login',
+      headers: {
+        'content-length': '64',
+      },
+      body: JSON.stringify({ username: 'admin', password: 'senha' }),
+    })
+
+    assert.equal(response.statusCode, 413)
+    assert.match(response.body, /tamanho maximo permitido/i)
+  } finally {
+    if (previousLimit === undefined) delete process.env.MAX_JSON_BODY_BYTES
+    else process.env.MAX_JSON_BODY_BYTES = previousLimit
   }
 })
