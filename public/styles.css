@@ -2112,33 +2112,32 @@ button {
   -webkit-appearance: none;
   width: 100%;
   text-align: left;
-  border: 1px solid rgba(201, 164, 106, 0.35);
-  border-radius: 16px;
-  padding: 16px;
-  background:
-    radial-gradient(circle at top right, rgba(201, 164, 106, 0.12), transparent 35%),
-    linear-gradient(165deg, #fffdf9 0%, #f6fbf8 100%);
+  border: 1px solid var(--slate-200);
+  border-radius: 18px;
+  padding: 18px;
+  background: #fff;
   color: var(--slate-900);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  box-shadow: var(--shadow-thin);
   transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
 .crm-customer-card:hover {
   transform: translateY(-1px);
   border-color: rgba(201, 164, 106, 0.62);
-  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.08);
+  box-shadow: 0 14px 28px rgba(17, 24, 39, 0.08);
 }
 
 .crm-customer-card.active {
-  border-color: rgba(47, 107, 85, 0.65);
+  border-color: rgba(201, 164, 106, 0.82);
   box-shadow: 0 0 0 2px rgba(47, 107, 85, 0.12), 0 14px 28px rgba(17, 24, 39, 0.1);
 }
 
-.crm-customer-top,
+.crm-customer-heading,
 .crm-order-card-head,
-.crm-profile-head {
+.crm-profile-main {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2148,35 +2147,16 @@ button {
   min-width: 0;
 }
 
-.crm-customer-ident {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.crm-customer-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, rgba(47, 107, 85, 0.18) 0%, rgba(201, 164, 106, 0.26) 100%);
-  color: var(--ifood-red-strong);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
-}
-
 .crm-customer-main strong {
   display: block;
-  font-size: 1rem;
+  font-size: 1.08rem;
+  line-height: 1.2;
 }
 
 .crm-customer-main small,
 .crm-order-card-head small {
   color: var(--slate-500);
+  font-size: 0.92rem;
 }
 
 .crm-customer-badges,
@@ -2227,48 +2207,38 @@ button {
   border-color: #fca5a5;
 }
 
-.crm-customer-stats,
-.crm-profile-meta,
-.crm-order-card-meta {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px 10px;
-  color: var(--slate-700);
-  font-size: 0.92rem;
-}
-
 .crm-order-card-items,
 .crm-order-card-note,
-.crm-profile-head p {
+.crm-profile-copy p {
   margin: 0;
   color: var(--slate-600);
   white-space: pre-wrap;
 }
 
-.crm-customer-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.crm-customer-inline-stats {
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.crm-customer-kpi {
-  border: 1px solid rgba(209, 213, 219, 0.72);
-  border-radius: 14px;
+.crm-inline-pill {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 112px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.82);
+  border-radius: 14px;
+  border: 1px solid var(--slate-200);
+  background: var(--slate-50);
+  color: var(--slate-700);
+  font-size: 0.85rem;
 }
 
-.crm-customer-kpi small {
-  display: block;
+.crm-inline-pill b {
+  font-size: 0.72rem;
   color: var(--slate-500);
-  font-size: 0.76rem;
-}
-
-.crm-customer-kpi strong {
-  display: block;
-  margin-top: 6px;
-  font-size: 0.94rem;
-  line-height: 1.25;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .crm-customer-footer {
@@ -2281,11 +2251,13 @@ button {
 
 .crm-customer-caption {
   color: var(--slate-700);
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .crm-customer-location {
   color: var(--slate-500);
+  line-height: 1.4;
 }
 
 .crm-detail-empty {
@@ -2307,17 +2279,43 @@ button {
 }
 
 .crm-profile-card {
-  border: 1px solid rgba(201, 164, 106, 0.5);
+  border: 1px solid var(--slate-200);
   border-radius: 18px;
-  padding: 16px;
-  background:
-    radial-gradient(circle at top right, rgba(201, 164, 106, 0.18), transparent 30%),
-    linear-gradient(145deg, #f9f4eb 0%, #edf5f0 100%);
+  padding: 18px;
+  background: linear-gradient(145deg, #fffdfa 0%, #f7faf8 100%);
+  box-shadow: var(--shadow-thin);
 }
 
-.crm-profile-head h3 {
+.crm-profile-copy h3 {
   margin: 0;
-  font-size: 1.18rem;
+  font-size: 1.32rem;
+}
+
+.crm-profile-facts {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.crm-profile-fact {
+  border: 1px solid var(--slate-200);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.crm-profile-fact small {
+  display: block;
+  color: var(--slate-500);
+  font-size: 0.76rem;
+}
+
+.crm-profile-fact strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.96rem;
+  line-height: 1.35;
 }
 
 .crm-detail-grid {
@@ -2337,6 +2335,22 @@ button {
 .crm-detail-card h3 {
   margin: 0 0 10px;
   font-size: 1rem;
+}
+
+.crm-card-head {
+  margin-bottom: 12px;
+}
+
+.crm-card-head h3 {
+  margin: 0;
+}
+
+.crm-card-head p {
+  margin: 4px 0 0;
+}
+
+.crm-summary-card {
+  grid-column: 1 / -1;
 }
 
 .crm-mini-grid {
@@ -2933,18 +2947,12 @@ button {
     align-items: start;
   }
 
-  .crm-customer-top,
-  .crm-profile-head,
+  .crm-customer-heading,
+  .crm-profile-main,
   .crm-order-card-head {
     flex-direction: row;
     justify-content: space-between;
     align-items: flex-start;
-  }
-
-  .crm-customer-stats,
-  .crm-profile-meta,
-  .crm-order-card-meta {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .crm-customer-list {
