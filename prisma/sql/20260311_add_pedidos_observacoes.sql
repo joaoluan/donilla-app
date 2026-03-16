@@ -1,0 +1,2 @@
+ALTER TABLE public.pedidos
+ADD COLUMN IF NOT EXISTS observacoes VARCHAR(500);

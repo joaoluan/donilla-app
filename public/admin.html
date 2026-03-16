@@ -1,0 +1,2415 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Donilla - Portal de Controle</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="page-admin">
+  <div id="adminLayout" class="admin-layout logged-out">
+    <aside class="admin-sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-dot"></span>
+        <div>
+          <strong>Donilla Portal</strong>
+          <small>Operação da loja</small>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav admin-sidebar-nav">
+        <a href="#dashboard" data-admin-view-link="dashboard" class="active">Resumo</a>
+        <a href="#cardapio" data-admin-view-link="cardapio">Cardápio</a>
+        <a href="#pedidos" data-admin-view-link="pedidos">Pedidos</a>
+        <a href="#config" data-admin-view-link="config">Configurações</a>
+        <a href="/">Ir para loja</a>
+      </nav>
+
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-topbar">
+        <div>
+          <h1>Painel de Controle</h1>
+          <p id="adminTopbarDescription">Indicadores e fotografia rápida da operação da loja.</p>
+        </div>
+
+        <div class="session-box">
+          <span id="sessionLabel" class="muted">Sem sessão ativa</span>
+          <button id="logoutBtn" class="ghost-btn" type="button">Sair</button>
+        </div>
+      </header>
+
+      <section id="loginCard" class="card admin-card login-card">
+        <h2>Login do administrador</h2>
+        <form id="loginForm" class="form-grid">
+          <input name="username" autocomplete="username" placeholder="Usuário admin" required />
+          <input name="password" type="password" autocomplete="current-password" placeholder="Senha" required />
+          <button class="primary-btn" type="submit">Entrar</button>
+        </form>
+        <p id="loginStatus" class="status-text muted"></p>
+      </section>
+
+      <section id="adminViews" class="admin-views">
+        <article id="dashboard" class="card admin-card dashboard-panel admin-panel-view" data-admin-view="dashboard" aria-label="Resumo do dia">
+          <header class="section-head section-head-with-actions">
+            <div class="section-copy">
+              <h2>Resumo operacional</h2>
+              <p id="dashboardRangeMeta" class="muted">Faça login para carregar indicadores.</p>
+            </div>
+            <div class="section-actions section-actions-wrap">
+              <select id="dashboardRangePreset">
+                <option value="7d">Últimos 7 dias</option>
+                <option value="30d">Últimos 30 dias</option>
+                <option value="month">Este mês</option>
+                <option value="all">Todo o período</option>
+                <option value="custom">Período personalizado</option>
+              </select>
+              <input id="dashboardFromDate" type="date" aria-label="Data inicial do resumo" />
+              <input id="dashboardToDate" type="date" aria-label="Data final do resumo" />
+              <button id="dashboardApplyBtn" class="ghost-btn" type="button">Aplicar</button>
+            </div>
+          </header>
+          <p id="dashboardStatus" class="status-text muted"></p>
+
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <small>Total de pedidos</small>
+              <strong id="kpiTotalPedidos">--</strong>
+            </article>
+            <article class="kpi-card">
+              <small>Pendentes</small>
+              <strong id="kpiPendentes">--</strong>
+            </article>
+            <article class="kpi-card">
+              <small>Em preparo</small>
+              <strong id="kpiPreparando">--</strong>
+            </article>
+            <article class="kpi-card">
+              <small>Entregues</small>
+              <strong id="kpiEntregues">--</strong>
+            </article>
+            <article class="kpi-card highlight">
+              <small>Faturamento</small>
+              <strong id="kpiFaturamento">--</strong>
+            </article>
+          </div>
+        </article>
+
+        <article id="cardapio" class="card admin-card admin-panel-view hidden" data-admin-view="cardapio">
+          <header class="section-head">
+            <div>
+              <h2>Cardápio</h2>
+              <p class="muted">Gerencie categorias e itens: preço, disponibilidade e estoque.</p>
+            </div>
+          </header>
+
+          <div class="menu-admin-layout">
+            <section class="menu-admin-card">
+              <h3>Categoria</h3>
+              <form id="categoryForm" class="menu-admin-form">
+                <input type="hidden" id="categoriaId" name="id" />
+                <input id="categoriaNome" name="nome" placeholder="Nome da categoria" required />
+                <input id="categoriaOrdem" name="ordem_exibicao" type="number" min="0" placeholder="Ordem de exibição (opcional)" />
+
+                <div class="lookup-row">
+                  <button id="categoriaSubmitBtn" class="primary-btn" type="submit">Salvar categoria</button>
+                  <button id="categoriaCancelBtn" class="ghost-btn" type="button">Cancelar</button>
+                </div>
+                <p id="categoryStatus" class="status-text muted"></p>
+              </form>
+
+              <div class="menu-admin-toolbar">
+                <input id="categorySearchInput" placeholder="Buscar categoria" />
+                <select id="categorySortInput">
+                  <option value="ordem_exibicao">Ordenar por ordem</option>
+                  <option value="nome">Ordenar por nome</option>
+                  <option value="id">Ordenar por cadastro</option>
+                </select>
+                <select id="categoryPageSizeInput">
+                  <option value="6">6 por página</option>
+                  <option value="10" selected>10 por página</option>
+                  <option value="20">20 por página</option>
+                </select>
+              </div>
+
+              <div id="categoryList" class="menu-admin-list"></div>
+              <div class="list-footer">
+                <p id="categoryMeta" class="muted">Faça login para carregar categorias.</p>
+                <div class="pager">
+                  <button id="categoryPrevBtn" class="ghost-btn" type="button">Anterior</button>
+                  <button id="categoryNextBtn" class="ghost-btn" type="button">Próxima</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="menu-admin-card">
+              <h3>Itens</h3>
+              <form id="produtoForm" class="menu-admin-form">
+                <input type="hidden" id="produtoId" name="id" />
+                <select id="produtoCategoria" name="categoria_id" required>
+                  <option value="">Selecione a categoria</option>
+                </select>
+                <input id="produtoNome" name="nome_doce" placeholder="Nome do doce" required />
+                <input id="produtoDescricao" name="descricao" placeholder="Descrição" />
+                <div class="split-2">
+                  <input id="produtoPreco" name="preco" type="number" min="0" step="0.01" placeholder="Preço" required />
+                  <input id="produtoEstoque" name="estoque_disponivel" type="number" min="0" placeholder="Estoque (deixe vazio para ilimitado)" />
+                </div>
+
+                <label class="toggle-line">
+                  <input id="produtoAtivo" name="ativo" type="checkbox" checked />
+                  <span>Item disponível no cardápio</span>
+                </label>
+
+                <div class="split-2">
+                  <div>
+                    <label for="produtoImagem" class="muted">Imagem do item</label>
+                    <input id="produtoImagem" name="imagem" type="file" accept="image/*" />
+                    <small class="muted">JPG/PNG/WebP recomendados. Tente manter até 1100px e ~1.5MB.</small>
+                  </div>
+                  <label class="toggle-line" style="margin-top: 20px;">
+                    <input id="produtoClearImagem" name="clear_imagem_url" type="checkbox" />
+                    <span>Remover imagem atual</span>
+                  </label>
+                </div>
+
+                <img id="produtoImagemPreview" class="produto-imagem-preview hidden" alt="Preview da imagem" />
+
+                <div class="lookup-row">
+                  <button id="produtoSubmitBtn" class="primary-btn" type="submit">Salvar item</button>
+                  <button id="produtoCancelBtn" class="ghost-btn" type="button">Cancelar</button>
+                </div>
+                <p id="produtoStatus" class="status-text muted"></p>
+              </form>
+
+              <div class="menu-admin-toolbar">
+                <input id="produtoSearchInput" placeholder="Buscar item" />
+                <select id="produtoSortInput">
+                  <option value="nome_doce">Ordenar por nome</option>
+                  <option value="preco">Ordenar por preço</option>
+                  <option value="estoque_disponivel">Ordenar por estoque</option>
+                  <option value="categoria">Ordenar por categoria</option>
+                </select>
+                <select id="produtoDisponibilidadeFilter">
+                  <option value="all">Todos</option>
+                  <option value="disponiveis">Disponíveis</option>
+                  <option value="inativos">Inativos</option>
+                  <option value="sem_estoque">Sem estoque</option>
+                </select>
+                <select id="produtoCategoriaFilter">
+                  <option value="all">Todas as categorias</option>
+                </select>
+                <select id="produtoPageSizeInput">
+                  <option value="8">8 por página</option>
+                  <option value="12" selected>12 por página</option>
+                  <option value="24">24 por página</option>
+                </select>
+              </div>
+
+              <div id="produtoList" class="menu-admin-list"></div>
+              <div class="list-footer">
+                <p id="produtoMeta" class="muted">Faça login para carregar itens.</p>
+                <div class="pager">
+                  <button id="produtoPrevBtn" class="ghost-btn" type="button">Anterior</button>
+                  <button id="produtoNextBtn" class="ghost-btn" type="button">Próxima</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article id="pedidos" class="card admin-card admin-panel-view hidden" data-admin-view="pedidos">
+          <header class="section-head section-head-with-actions">
+            <div class="section-copy">
+              <h2>Gestão de pedidos</h2>
+              <p id="ordersMeta" class="muted">Faça login para carregar pedidos.</p>
+            </div>
+            <div class="section-actions section-actions-wrap">
+              <input id="ordersSearchInput" placeholder="Pedido, cliente ou WhatsApp" />
+              <select id="statusFilter">
+                <option value="all">Todos os status</option>
+                <option value="pendente">Pendente</option>
+                <option value="preparando">Preparando</option>
+                <option value="saiu_para_entrega">Saiu para entrega</option>
+                <option value="entregue">Entregue</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+              <select id="ordersRangePreset">
+                <option value="7d">Últimos 7 dias</option>
+                <option value="30d">Últimos 30 dias</option>
+                <option value="month">Este mês</option>
+                <option value="all">Todo o período</option>
+                <option value="custom">Período personalizado</option>
+              </select>
+              <input id="ordersFromDate" type="date" aria-label="Data inicial dos pedidos" />
+              <input id="ordersToDate" type="date" aria-label="Data final dos pedidos" />
+              <select id="ordersPageSizeInput">
+                <option value="10" selected>10 por página</option>
+                <option value="20">20 por página</option>
+                <option value="40">40 por página</option>
+              </select>
+              <button id="applyOrdersFiltersBtn" class="ghost-btn" type="button">Aplicar</button>
+              <button id="refreshOrdersBtn" class="ghost-btn" type="button">Atualizar</button>
+            </div>
+          </header>
+          <p id="ordersStatus" class="status-text muted"></p>
+
+          <div id="ordersList" class="orders-list">
+            <p class="muted">Nenhum dado carregado.</p>
+          </div>
+          <div class="list-footer">
+            <span></span>
+            <div class="pager">
+              <button id="ordersPrevBtn" class="ghost-btn" type="button">Anterior</button>
+              <button id="ordersNextBtn" class="ghost-btn" type="button">Próxima</button>
+            </div>
+          </div>
+        </article>
+
+        <article id="config" class="card admin-card admin-panel-view hidden" data-admin-view="config">
+          <header class="section-head">
+            <div>
+              <h2>Configuração da loja</h2>
+              <p class="muted">Defina disponibilidade, tempo e avisos da loja. As taxas são gerenciadas por local logo abaixo.</p>
+            </div>
+          </header>
+
+          <form id="settingsForm" class="settings-form">
+            <label class="toggle-line">
+              <input type="checkbox" name="loja_aberta" />
+              <span>Loja aberta para pedidos</span>
+            </label>
+
+            <div class="split-2">
+              <input name="tempo_entrega_minutos" type="number" min="1" max="240" placeholder="Tempo mínimo (min)" />
+              <input name="tempo_entrega_max_minutos" type="number" min="1" max="240" placeholder="Tempo máximo (min)" />
+            </div>
+
+            <textarea name="mensagem_aviso" rows="4" placeholder="Mensagem para clientes (opcional)"></textarea>
+
+            <section class="delivery-fee-admin-section">
+              <header class="section-head stacked-section-head">
+                <div>
+                  <h3>WhatsApp da loja</h3>
+                  <p class="muted">Use esta área para conectar o número da loja ao WPPConnect, enviar mensagens automáticas e responder consultas simples de pedido no WhatsApp.</p>
+                </div>
+              </header>
+
+              <div class="whatsapp-admin-guide">
+                <article class="whatsapp-admin-note whatsapp-admin-note-primary">
+                  <h4>Modo recomendado</h4>
+                  <p>A Donilla usa o WPPConnect do próprio servidor para enviar mensagens automáticas e responder consultas simples no WhatsApp. Esse é o modo principal desta tela.</p>
+                </article>
+
+                <article class="whatsapp-admin-note">
+                  <h4>O que precisa estar pronto</h4>
+                  <p><code>WPP_SERVER_URL</code> aponta para o WPPConnect, <code>WPP_SESSION_NAME</code> define a sessão, <code>WPP_SECRET_KEY</code> autentica a integração e <code>APP_BASE_URL</code> informa a URL pública deste backend. O webhook interno usado pelo sistema será <code>/whatsapp/webhook</code>.</p>
+                </article>
+
+                <article class="whatsapp-admin-note">
+                  <h4>Passo a passo</h4>
+                  <ol>
+                    <li>Consulte a sessão para ver o estado atual.</li>
+                    <li>Inicie a sessão no WPPConnect.</li>
+                    <li>Busque o QR Code e escaneie no celular da loja.</li>
+                    <li>Ative as mensagens automáticas e envie um teste.</li>
+                  </ol>
+                </article>
+              </div>
+
+              <label class="toggle-line">
+                <input type="checkbox" name="whatsapp_ativo" />
+                <span>Ativar mensagens automáticas de novo pedido e atualização de status</span>
+              </label>
+
+              <div class="whatsapp-admin-actions">
+                <article class="whatsapp-admin-card-block">
+                  <div class="whatsapp-admin-card-head">
+                    <strong>Conexão do número</strong>
+                    <span id="whatsappSessionMeta" class="muted">Sessão ainda não consultada.</span>
+                  </div>
+
+                  <p class="muted">Primeiro consulte a sessão. Se o número ainda não estiver conectado, inicie a sessão e depois busque o QR Code para parear o aparelho.</p>
+
+                  <div class="split-2">
+                    <button id="whatsappSessionStatusBtn" class="ghost-btn" type="button">Consultar sessão</button>
+                    <button id="whatsappSessionStartBtn" class="ghost-btn" type="button">Iniciar sessão</button>
+                  </div>
+
+                  <div class="split-2">
+                    <button id="whatsappSessionQrBtn" class="ghost-btn" type="button">Buscar QR Code</button>
+                    <span class="whatsapp-admin-inline-tip">Depois de iniciar, carregue o QR Code para escanear no WhatsApp do número da loja.</span>
+                  </div>
+
+                  <p id="whatsappSessionStatus" class="status-text muted"></p>
+                </article>
+
+                <article class="whatsapp-admin-card-block">
+                  <div class="whatsapp-admin-card-head">
+                    <strong>QR Code para parear</strong>
+                    <span class="muted">Leia com o celular da loja</span>
+                  </div>
+
+                  <p class="muted">Quando o QR estiver visível, abra o WhatsApp do número da loja, entre em aparelhos conectados e escaneie o código para concluir a conexão.</p>
+                  <img id="whatsappQrPreview" class="hidden" alt="QR Code do WhatsApp" style="max-width: 260px; border-radius: 1rem; border: 1px solid rgba(15, 23, 42, 0.12);" />
+                </article>
+              </div>
+
+              <details>
+                <summary>Integração externa opcional</summary>
+                <p class="muted" style="margin-top: 0.75rem;">Use esta opção apenas se você <b>não</b> quiser usar o WPPConnect interno da Donilla. Nesse modo, a Donilla só repassa os dados do pedido para outro sistema seu, e esse sistema externo assume o envio das mensagens.</p>
+                <p class="muted">Exemplo: você já tem outro bot, outro servidor ou outra automação e quer que a Donilla envie um webhook para ele sempre que um pedido for criado ou atualizado.</p>
+                <div class="settings-form" style="margin-top: 0.75rem;">
+                  <input name="whatsapp_webhook_url" type="url" placeholder="URL do webhook externo que vai receber os eventos da Donilla" />
+                  <input name="whatsapp_webhook_secret" placeholder="Secret opcional enviado no header x-donilla-bot-secret" />
+                </div>
+              </details>
+
+              <div class="whatsapp-copy-grid">
+                <label class="whatsapp-copy-card">
+                  <strong>Mensagem de novo pedido</strong>
+                  <span class="muted">Essa é a mensagem enviada assim que o pedido entra no painel.</span>
+                  <textarea
+                    name="whatsapp_mensagem_novo_pedido"
+                    rows="6"
+                    placeholder="Ex.: Oi {cliente_nome}, recebemos seu pedido #{pedido_id}."
+                  ></textarea>
+                  <small>Prefira um texto leve e acolhedor. O ideal é confirmar o pedido e informar apenas o essencial, sem repetir muitos detalhes.</small>
+                </label>
+
+                <label class="whatsapp-copy-card">
+                  <strong>Mensagem de atualização de status</strong>
+                  <span class="muted">Essa é a mensagem enviada quando o status do pedido muda no painel.</span>
+                  <textarea
+                    name="whatsapp_mensagem_status"
+                    rows="6"
+                    placeholder="Ex.: Oi {cliente_nome}, passando para te atualizar sobre o pedido #{pedido_id}. {status_mensagem}"
+                  ></textarea>
+                  <small>Evite repetir status, total e prazo em toda atualizacao. Use <code>{status_mensagem}</code> para deixar o sistema adaptar o texto automaticamente em cada etapa.</small>
+                </label>
+              </div>
+
+              <p class="muted"><b>Variáveis disponíveis nas mensagens:</b> <code>{cliente_nome}</code>, <code>{cliente_telefone}</code>, <code>{pedido_id}</code>, <code>{status_entrega_label}</code>, <code>{status_anterior_label}</code>, <code>{status_mensagem}</code>, <code>{valor_total}</code>, <code>{valor_entrega}</code>, <code>{metodo_pagamento}</code>, <code>{observacoes}</code>, <code>{endereco_resumo}</code>, <code>{itens_resumo}</code>, <code>{tempo_entrega_min}</code>, <code>{tempo_entrega_max}</code> e <code>{previsao_entrega}</code>. Você pode usar quebras de linha normalmente.</p>
+
+              <div class="whatsapp-admin-card-block whatsapp-admin-test-block">
+                <div class="whatsapp-admin-card-head">
+                  <strong>Teste antes de usar</strong>
+                  <span class="muted">Valide o envio manualmente</span>
+                </div>
+
+                <p class="muted">Use este teste para confirmar se o número está conectado, se o envio está funcionando e se o texto chega como esperado.</p>
+
+                <div class="split-2">
+                  <input id="whatsappTestPhone" type="tel" placeholder="Telefone para teste, de preferência com DDI. Ex.: 5551999999999" />
+                  <button id="whatsappTestBtn" class="ghost-btn" type="button">Enviar teste</button>
+                </div>
+              </div>
+              <p id="whatsappTestStatus" class="status-text muted"></p>
+            </section>
+
+            <button class="primary-btn" type="submit">Salvar configuração</button>
+            <p id="settingsStatus" class="status-text muted"></p>
+          </form>
+
+          <section class="delivery-fee-admin-section">
+            <header class="section-head stacked-section-head">
+              <div>
+                <h3>Taxas por local</h3>
+                <p class="muted">Cadastre por bairro, por cidade inteira, ou pelos dois juntos. Para cidade inteira, deixe o bairro vazio.</p>
+              </div>
+            </header>
+
+            <form id="deliveryFeeForm" class="menu-admin-form">
+              <input type="hidden" id="deliveryFeeId" />
+              <div class="split-2">
+                <input id="deliveryFeeBairro" name="bairro" placeholder="Bairro (opcional para cidade inteira)" />
+                <input id="deliveryFeeCidade" name="cidade" placeholder="Cidade (opcional)" />
+              </div>
+              <div class="split-2">
+                <input id="deliveryFeeValor" name="valor_entrega" type="number" min="0" step="0.01" placeholder="Valor da entrega" required />
+                <select id="deliveryFeeAtivo" name="ativo">
+                  <option value="true">Ativa</option>
+                  <option value="false">Inativa</option>
+                </select>
+              </div>
+              <div class="lookup-row">
+                <button id="deliveryFeeSubmitBtn" class="primary-btn" type="submit">Salvar taxa</button>
+                <button id="deliveryFeeCancelBtn" class="ghost-btn" type="button">Cancelar</button>
+              </div>
+              <p id="deliveryFeeStatus" class="status-text muted"></p>
+            </form>
+
+            <div class="menu-admin-toolbar">
+              <input id="deliveryFeeSearchInput" placeholder="Buscar bairro ou cidade" />
+            </div>
+
+            <div id="deliveryFeeList" class="menu-admin-list"></div>
+          </section>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
+    const STATUS_LABELS = {
+      pendente: 'Pendente',
+      preparando: 'Preparando',
+      saiu_para_entrega: 'Saiu para entrega',
+      entregue: 'Entregue',
+      cancelado: 'Cancelado',
+    };
+
+    const adminLayoutEl = document.getElementById('adminLayout');
+    const loginCardEl = document.getElementById('loginCard');
+    const loginFormEl = document.getElementById('loginForm');
+    const loginStatusEl = document.getElementById('loginStatus');
+    const adminTopbarDescriptionEl = document.getElementById('adminTopbarDescription');
+
+    const sessionLabelEl = document.getElementById('sessionLabel');
+    const logoutBtnEl = document.getElementById('logoutBtn');
+    const adminViewLinks = Array.from(document.querySelectorAll('[data-admin-view-link]'));
+    const adminPanelViews = Array.from(document.querySelectorAll('[data-admin-view]'));
+
+    const dashboardRangeMetaEl = document.getElementById('dashboardRangeMeta');
+    const dashboardStatusEl = document.getElementById('dashboardStatus');
+    const dashboardRangePresetEl = document.getElementById('dashboardRangePreset');
+    const dashboardFromDateEl = document.getElementById('dashboardFromDate');
+    const dashboardToDateEl = document.getElementById('dashboardToDate');
+    const dashboardApplyBtnEl = document.getElementById('dashboardApplyBtn');
+    const kpiTotalPedidosEl = document.getElementById('kpiTotalPedidos');
+    const kpiPendentesEl = document.getElementById('kpiPendentes');
+    const kpiPreparandoEl = document.getElementById('kpiPreparando');
+    const kpiEntreguesEl = document.getElementById('kpiEntregues');
+    const kpiFaturamentoEl = document.getElementById('kpiFaturamento');
+
+    const ordersMetaEl = document.getElementById('ordersMeta');
+    const ordersSearchInputEl = document.getElementById('ordersSearchInput');
+    const statusFilterEl = document.getElementById('statusFilter');
+    const ordersRangePresetEl = document.getElementById('ordersRangePreset');
+    const ordersFromDateEl = document.getElementById('ordersFromDate');
+    const ordersToDateEl = document.getElementById('ordersToDate');
+    const ordersPageSizeInputEl = document.getElementById('ordersPageSizeInput');
+    const applyOrdersFiltersBtnEl = document.getElementById('applyOrdersFiltersBtn');
+    const refreshOrdersBtnEl = document.getElementById('refreshOrdersBtn');
+    const ordersStatusEl = document.getElementById('ordersStatus');
+    const ordersListEl = document.getElementById('ordersList');
+    const ordersPrevBtnEl = document.getElementById('ordersPrevBtn');
+    const ordersNextBtnEl = document.getElementById('ordersNextBtn');
+
+    const settingsFormEl = document.getElementById('settingsForm');
+    const settingsStatusEl = document.getElementById('settingsStatus');
+    const whatsappSessionStatusBtnEl = document.getElementById('whatsappSessionStatusBtn');
+    const whatsappSessionStartBtnEl = document.getElementById('whatsappSessionStartBtn');
+    const whatsappSessionQrBtnEl = document.getElementById('whatsappSessionQrBtn');
+    const whatsappSessionMetaEl = document.getElementById('whatsappSessionMeta');
+    const whatsappSessionStatusEl = document.getElementById('whatsappSessionStatus');
+    const whatsappQrPreviewEl = document.getElementById('whatsappQrPreview');
+    const whatsappTestPhoneEl = document.getElementById('whatsappTestPhone');
+    const whatsappTestBtnEl = document.getElementById('whatsappTestBtn');
+    const whatsappTestStatusEl = document.getElementById('whatsappTestStatus');
+    const deliveryFeeFormEl = document.getElementById('deliveryFeeForm');
+    const deliveryFeeIdEl = document.getElementById('deliveryFeeId');
+    const deliveryFeeBairroEl = document.getElementById('deliveryFeeBairro');
+    const deliveryFeeCidadeEl = document.getElementById('deliveryFeeCidade');
+    const deliveryFeeValorEl = document.getElementById('deliveryFeeValor');
+    const deliveryFeeAtivoEl = document.getElementById('deliveryFeeAtivo');
+    const deliveryFeeSubmitBtnEl = document.getElementById('deliveryFeeSubmitBtn');
+    const deliveryFeeCancelBtnEl = document.getElementById('deliveryFeeCancelBtn');
+    const deliveryFeeSearchInputEl = document.getElementById('deliveryFeeSearchInput');
+    const deliveryFeeStatusEl = document.getElementById('deliveryFeeStatus');
+    const deliveryFeeListEl = document.getElementById('deliveryFeeList');
+
+    const categoryFormEl = document.getElementById('categoryForm');
+    const categoryIdEl = document.getElementById('categoriaId');
+    const categoryNomeEl = document.getElementById('categoriaNome');
+    const categoryOrdemEl = document.getElementById('categoriaOrdem');
+    const categorySubmitBtn = document.getElementById('categoriaSubmitBtn');
+    const categoryCancelBtn = document.getElementById('categoriaCancelBtn');
+    const categoryStatusEl = document.getElementById('categoryStatus');
+    const categoryListEl = document.getElementById('categoryList');
+    const categorySearchInputEl = document.getElementById('categorySearchInput');
+    const categorySortInputEl = document.getElementById('categorySortInput');
+    const categoryPageSizeInputEl = document.getElementById('categoryPageSizeInput');
+    const categoryMetaEl = document.getElementById('categoryMeta');
+    const categoryPrevBtnEl = document.getElementById('categoryPrevBtn');
+    const categoryNextBtnEl = document.getElementById('categoryNextBtn');
+
+    const produtoFormEl = document.getElementById('produtoForm');
+    const produtoIdEl = document.getElementById('produtoId');
+    const produtoCategoriaEl = document.getElementById('produtoCategoria');
+    const produtoNomeEl = document.getElementById('produtoNome');
+    const produtoDescricaoEl = document.getElementById('produtoDescricao');
+    const produtoPrecoEl = document.getElementById('produtoPreco');
+    const produtoEstoqueEl = document.getElementById('produtoEstoque');
+    const produtoAtivoEl = document.getElementById('produtoAtivo');
+    const produtoImagemEl = document.getElementById('produtoImagem');
+    const produtoClearImagemEl = document.getElementById('produtoClearImagem');
+    const produtoImagemPreviewEl = document.getElementById('produtoImagemPreview');
+    const produtoSubmitBtn = document.getElementById('produtoSubmitBtn');
+    const produtoCancelBtn = document.getElementById('produtoCancelBtn');
+    const produtoStatusEl = document.getElementById('produtoStatus');
+    const produtoListEl = document.getElementById('produtoList');
+    const produtoSearchInputEl = document.getElementById('produtoSearchInput');
+    const produtoSortInputEl = document.getElementById('produtoSortInput');
+    const produtoDisponibilidadeFilterEl = document.getElementById('produtoDisponibilidadeFilter');
+    const produtoCategoriaFilterEl = document.getElementById('produtoCategoriaFilter');
+    const produtoPageSizeInputEl = document.getElementById('produtoPageSizeInput');
+    const produtoMetaEl = document.getElementById('produtoMeta');
+    const produtoPrevBtnEl = document.getElementById('produtoPrevBtn');
+    const produtoNextBtnEl = document.getElementById('produtoNextBtn');
+
+    let accessToken = localStorage.getItem('donilla_access_token') || '';
+    let currentUser = null;
+    let allOrders = [];
+    let menuCategorias = [];
+    let allCategorias = [];
+    let menuProdutos = [];
+    let deliveryFees = [];
+    let produtoImagemDataUrl = '';
+    let productImageWebpSupported = null;
+    let ordersPaginationMeta = null;
+    let categoryPaginationMeta = null;
+    let produtoPaginationMeta = null;
+
+    const dashboardFilters = {
+      period: dashboardRangePresetEl?.value || '7d',
+      from: '',
+      to: '',
+    };
+
+    const ordersState = {
+      page: 1,
+      pageSize: Number(ordersPageSizeInputEl?.value || 10),
+      status: statusFilterEl?.value || 'all',
+      search: '',
+      period: ordersRangePresetEl?.value || '7d',
+      from: '',
+      to: '',
+    };
+
+    const categoryState = {
+      page: 1,
+      pageSize: Number(categoryPageSizeInputEl?.value || 10),
+      search: '',
+      sort: categorySortInputEl?.value || 'ordem_exibicao',
+    };
+
+    const produtoState = {
+      page: 1,
+      pageSize: Number(produtoPageSizeInputEl?.value || 12),
+      search: '',
+      sort: produtoSortInputEl?.value || 'nome_doce',
+      disponibilidade: produtoDisponibilidadeFilterEl?.value || 'all',
+      categoria_id: 'all',
+    };
+
+    const DEFAULT_ADMIN_VIEW = 'dashboard';
+    const ADMIN_VIEW_DESCRIPTIONS = {
+      dashboard: 'Indicadores e fotografia rápida da operação da loja.',
+      cardapio: 'Categorias, itens, estoque e disponibilidade do cardápio.',
+      pedidos: 'Acompanhe, filtre e atualize pedidos em tempo real.',
+      config: 'Horários, avisos e taxas por local da operação.',
+    };
+
+    function brl(value) {
+      return Number(value || 0).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      });
+    }
+
+    function dateTime(value) {
+      if (!value) return '--';
+      return new Date(value).toLocaleString('pt-BR');
+    }
+
+    function formatAddress(endereco) {
+      if (!endereco) return '--';
+      const rua = escapeHtml(endereco.rua || '');
+      const numero = escapeHtml(endereco.numero || '');
+      const bairro = escapeHtml(endereco.bairro || '');
+      const cidade = endereco.cidade ? ` - ${escapeHtml(endereco.cidade)}` : '';
+      const complemento = endereco.complemento ? `, ${escapeHtml(endereco.complemento)}` : '';
+      const referencia = endereco.referencia ? ` (Ref: ${escapeHtml(endereco.referencia)})` : '';
+      return `${rua}, ${numero} - ${bairro}${cidade}${complemento}${referencia}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function setStatus(target, message, type = 'muted') {
+      target.textContent = message;
+      target.className = `status-text ${type}`;
+    }
+
+    function clearStatus(target) {
+      if (!target) return;
+      setStatus(target, '', 'muted');
+    }
+
+    function adminViewExists(view) {
+      return adminPanelViews.some((panel) => panel.dataset.adminView === view);
+    }
+
+    function normalizeAdminView(rawView) {
+      const view = String(rawView || '').trim().replace(/^#/, '');
+      return adminViewExists(view) ? view : DEFAULT_ADMIN_VIEW;
+    }
+
+    function activeAdminViewFromLocation() {
+      return normalizeAdminView(window.location.hash);
+    }
+
+    function setAdminTopbarDescription(view) {
+      if (!adminTopbarDescriptionEl) return;
+      adminTopbarDescriptionEl.textContent = ADMIN_VIEW_DESCRIPTIONS[view] || ADMIN_VIEW_DESCRIPTIONS[DEFAULT_ADMIN_VIEW];
+    }
+
+    function renderAdminView(view) {
+      const activeView = normalizeAdminView(view);
+
+      adminPanelViews.forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.adminView !== activeView);
+      });
+
+      adminViewLinks.forEach((link) => {
+        link.classList.toggle('active', link.dataset.adminViewLink === activeView);
+      });
+
+      setAdminTopbarDescription(activeView);
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+
+    function syncAdminViewFromLocation({ replace = false } = {}) {
+      const activeView = activeAdminViewFromLocation();
+      renderAdminView(activeView);
+
+      if (replace || window.location.hash !== `#${activeView}`) {
+        history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${activeView}`);
+      }
+    }
+
+    function createDebounce(delay, callback) {
+      let timer = null;
+      return (...args) => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => callback(...args), delay);
+      };
+    }
+
+    function authHeaders(extra = {}) {
+      return {
+        Authorization: `Bearer ${accessToken}`,
+        ...extra,
+      };
+    }
+
+    async function parseEnvelope(response) {
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const message = payload?.error?.message || `Erro HTTP ${response.status}`;
+        const error = new Error(message);
+        error.status = response.status;
+        throw error;
+      }
+
+      return payload || { success: true, data: null, meta: null };
+    }
+
+    async function parseResponse(response) {
+      const payload = await parseEnvelope(response);
+      return payload?.data;
+    }
+
+    function normalizeEstoque(value) {
+      if (value === null || value === undefined || value === '') return null;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed < 0) return null;
+      return Math.floor(parsed);
+    }
+
+    function availabilityLabel(produto) {
+      const estoque = normalizeEstoque(produto.estoque_disponivel);
+      if (!produto.ativo) return 'Indisponível';
+      if (estoque === null) return 'Disponível';
+      if (estoque <= 0) return 'Sem estoque';
+      return `Em estoque (${estoque})`;
+    }
+
+    function isProdutoDisponivel(produto) {
+      const estoque = normalizeEstoque(produto.estoque_disponivel);
+      return produto.ativo && (estoque === null || estoque > 0);
+    }
+
+    function readImageAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Falha ao ler a imagem.'));
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function estimateDataUrlBytes(dataUrl) {
+      const base64 = String(dataUrl).split(',')[1] || '';
+      const normalized = base64.replace(/\s/g, '');
+      if (!normalized) return 0;
+      return Math.floor((normalized.length * 3) / 4);
+    }
+
+    function imageFileIsValid(file) {
+      return Boolean(file && typeof file.type === 'string' && file.type.startsWith('image/'));
+    }
+
+    function isWebpSupported() {
+      if (productImageWebpSupported !== null) return productImageWebpSupported;
+      const canvas = document.createElement('canvas');
+      productImageWebpSupported = canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+      return productImageWebpSupported;
+    }
+
+    function loadImageFromDataUrl(dataUrl) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onerror = () => reject(new Error('Não foi possível carregar a imagem.'));
+        image.onload = () => resolve(image);
+        image.src = dataUrl;
+      });
+    }
+
+    async function compressImageDataUrl(file) {
+      if (!imageFileIsValid(file)) {
+        throw new Error('Selecione um arquivo de imagem válido.');
+      }
+
+      const source = await readImageAsDataUrl(file);
+      const isNotRecompressible = /^data:image\/(svg\+xml|gif);/i.test(source);
+      const sourceBytes = estimateDataUrlBytes(source);
+      const maxBytes = 1.5 * 1024 * 1024;
+
+      if (isNotRecompressible && sourceBytes <= maxBytes) return source;
+      if (sourceBytes <= maxBytes) return source;
+
+      const image = await loadImageFromDataUrl(source);
+      const naturalWidth = Number(image.naturalWidth) || 0;
+      const naturalHeight = Number(image.naturalHeight) || 0;
+
+      if (!naturalWidth || !naturalHeight) {
+        return source;
+      }
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Seu navegador não suporta compressão de imagem.');
+      }
+      const outputTypes = isWebpSupported() ? ['image/webp', 'image/jpeg'] : ['image/jpeg'];
+      const maxSide = 1100;
+      const minQuality = 0.45;
+      const qualityStep = 0.08;
+      const scaleBase = Math.min(1, maxSide / Math.max(naturalWidth, naturalHeight));
+      let width = Math.max(1, Math.round(naturalWidth * scaleBase));
+      let height = Math.max(1, Math.round(naturalHeight * scaleBase));
+
+      for (const outputType of outputTypes) {
+        let quality = 0.82;
+        let currentWidth = width;
+        let currentHeight = height;
+
+        while (currentWidth >= 1 && currentHeight >= 1) {
+          canvas.width = currentWidth;
+          canvas.height = currentHeight;
+          ctx.drawImage(image, 0, 0, currentWidth, currentHeight);
+
+          let dataUrl = canvas.toDataURL(outputType, quality);
+          while (estimateDataUrlBytes(dataUrl) > maxBytes && quality > minQuality) {
+            quality = Math.max(minQuality, quality - qualityStep);
+            dataUrl = canvas.toDataURL(outputType, quality);
+          }
+
+          if (estimateDataUrlBytes(dataUrl) <= maxBytes) {
+            return dataUrl;
+          }
+
+          quality = 0.82;
+          currentWidth = Math.max(1, Math.round(currentWidth * 0.85));
+          currentHeight = Math.max(1, Math.round(currentHeight * 0.85));
+        }
+      }
+
+      if (sourceBytes <= maxBytes) return source;
+      throw new Error('Imagem muito grande. Use uma foto menor e tente novamente.');
+    }
+
+    function resetImagePreview() {
+      produtoImagemPreviewEl.removeAttribute('src');
+      produtoImagemPreviewEl.classList.add('hidden');
+    }
+
+    function buildImagePreview(value) {
+      if (!value) {
+        resetImagePreview();
+        return;
+      }
+
+      produtoImagemPreviewEl.src = value;
+      produtoImagemPreviewEl.classList.remove('hidden');
+    }
+
+    function buildQueryString(params) {
+      const query = new URLSearchParams();
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return;
+        query.set(key, String(value));
+      });
+      return query.toString();
+    }
+
+    function formatRangeMeta(filters) {
+      if (!filters) return 'Todo o período';
+      if (filters.from && filters.to) return `${filters.label} (${filters.from} a ${filters.to})`;
+      if (filters.from) return `${filters.label} (desde ${filters.from})`;
+      if (filters.to) return `${filters.label} (até ${filters.to})`;
+      return filters.label || 'Todo o período';
+    }
+
+    function syncRangeInputs(presetEl, fromEl, toEl, state) {
+      if (!presetEl || !fromEl || !toEl) return;
+      presetEl.value = state.period || '7d';
+      fromEl.value = state.from || '';
+      toEl.value = state.to || '';
+      const isCustom = presetEl.value === 'custom';
+      fromEl.disabled = !isCustom;
+      toEl.disabled = !isCustom;
+    }
+
+    function validateRangeState(state, statusTarget, label) {
+      if (!state || state.period !== 'custom') {
+        clearStatus(statusTarget);
+        return true;
+      }
+
+      if (!state.from && !state.to) {
+        setStatus(statusTarget, `Escolha ao menos uma data para o filtro personalizado de ${label}.`, 'muted');
+        return false;
+      }
+
+      if (state.from && state.to && state.from > state.to) {
+        setStatus(statusTarget, 'A data inicial deve ser menor ou igual a data final.', 'err');
+        return false;
+      }
+
+      clearStatus(statusTarget);
+      return true;
+    }
+
+    function updateDashboardControlsFromMeta(filters) {
+      if (!filters) return;
+      dashboardFilters.period = filters.period || dashboardFilters.period;
+      dashboardFilters.from = filters.from || '';
+      dashboardFilters.to = filters.to || '';
+      syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
+    }
+
+    function updateOrdersControlsFromState() {
+      if (statusFilterEl) statusFilterEl.value = ordersState.status;
+      if (ordersSearchInputEl) ordersSearchInputEl.value = ordersState.search;
+      if (ordersPageSizeInputEl) ordersPageSizeInputEl.value = String(ordersState.pageSize);
+      syncRangeInputs(ordersRangePresetEl, ordersFromDateEl, ordersToDateEl, ordersState);
+    }
+
+    function populateCategoriaOptions(selectedId = '') {
+      const options = [
+        '<option value="">Selecione a categoria</option>',
+        ...allCategorias.map((categoria) => {
+          const checked = String(selectedId) === String(categoria.id) ? 'selected' : '';
+          return `<option value="${categoria.id}" ${checked}>${escapeHtml(categoria.nome)}</option>`;
+        }),
+      ];
+
+      produtoCategoriaEl.innerHTML = options.join('');
+      produtoCategoriaEl.disabled = allCategorias.length === 0;
+    }
+
+    function populateProdutoCategoriaFilterOptions() {
+      const options = [
+        '<option value="all">Todas as categorias</option>',
+        ...allCategorias.map((categoria) => {
+          const checked = String(produtoState.categoria_id) === String(categoria.id) ? 'selected' : '';
+          return `<option value="${categoria.id}" ${checked}>${escapeHtml(categoria.nome)}</option>`;
+        }),
+      ];
+
+      produtoCategoriaFilterEl.innerHTML = options.join('');
+    }
+
+    function productCategoryName(categoriaId) {
+      const categoria = allCategorias.find((item) => item.id === categoriaId);
+      return categoria?.nome || 'Categoria não encontrada';
+    }
+
+    function resetCategoriaForm() {
+      categoryIdEl.value = '';
+      categoryNomeEl.value = '';
+      categoryOrdemEl.value = '';
+      categorySubmitBtn.textContent = 'Salvar categoria';
+      categoryStatusEl.textContent = '';
+    }
+
+    function resetProdutoForm() {
+      produtoIdEl.value = '';
+      produtoCategoriaEl.selectedIndex = 0;
+      produtoNomeEl.value = '';
+      produtoDescricaoEl.value = '';
+      produtoPrecoEl.value = '';
+      produtoEstoqueEl.value = '';
+      produtoAtivoEl.checked = true;
+      produtoImagemEl.value = '';
+      produtoClearImagemEl.checked = false;
+      produtoSubmitBtn.textContent = 'Salvar item';
+      produtoStatusEl.textContent = '';
+      produtoImagemDataUrl = '';
+      resetImagePreview();
+    }
+
+    function applySessionUi() {
+      const hasSession = Boolean(accessToken && currentUser);
+      adminLayoutEl.classList.toggle('logged-out', !hasSession);
+      loginCardEl.classList.toggle('hidden', hasSession);
+      logoutBtnEl.disabled = !hasSession;
+      sessionLabelEl.textContent = hasSession
+        ? `Logado como ${currentUser.username} (${currentUser.role})`
+        : 'Sem sessão ativa';
+    }
+
+    function clearSession() {
+      accessToken = '';
+      currentUser = null;
+      localStorage.removeItem('donilla_access_token');
+      allOrders = [];
+      menuCategorias = [];
+      menuProdutos = [];
+      deliveryFees = [];
+      allCategorias = [];
+      ordersPaginationMeta = null;
+      categoryPaginationMeta = null;
+      produtoPaginationMeta = null;
+      applySessionUi();
+      renderOrders();
+      renderDashboard();
+      resetCategoriaForm();
+      resetProdutoForm();
+      resetDeliveryFeeForm();
+      if (categoryListEl) {
+        categoryListEl.innerHTML = '<p class="muted">Faça login para carregar categorias.</p>';
+      }
+      if (produtoListEl) {
+        produtoListEl.innerHTML = '<p class="muted">Faça login para carregar itens.</p>';
+      }
+      if (deliveryFeeListEl) {
+        deliveryFeeListEl.innerHTML = '<p class="muted">Faça login para gerenciar taxas de entrega.</p>';
+      }
+      if (categorySearchInputEl) {
+        categorySearchInputEl.value = '';
+      }
+      if (categorySortInputEl) {
+        categorySortInputEl.value = 'ordem_exibicao';
+      }
+      if (categoryPageSizeInputEl) {
+        categoryPageSizeInputEl.value = String(categoryState.pageSize);
+      }
+      if (produtoSearchInputEl) {
+        produtoSearchInputEl.value = '';
+      }
+      if (produtoSortInputEl) {
+        produtoSortInputEl.value = 'nome_doce';
+      }
+      if (produtoDisponibilidadeFilterEl) {
+        produtoDisponibilidadeFilterEl.value = 'all';
+      }
+      if (produtoCategoriaFilterEl) {
+        produtoCategoriaFilterEl.innerHTML = '<option value="all">Todas as categorias</option>';
+      }
+      if (produtoPageSizeInputEl) {
+        produtoPageSizeInputEl.value = String(produtoState.pageSize);
+      }
+      if (deliveryFeeSearchInputEl) {
+        deliveryFeeSearchInputEl.value = '';
+      }
+      if (produtoCategoriaEl) {
+        produtoCategoriaEl.innerHTML = '<option value="">Selecione a categoria</option>';
+      }
+      if (categoryMetaEl) {
+        categoryMetaEl.textContent = 'Faça login para carregar categorias.';
+      }
+      if (produtoMetaEl) {
+        produtoMetaEl.textContent = 'Faça login para carregar itens.';
+      }
+      if (ordersPrevBtnEl) ordersPrevBtnEl.disabled = true;
+      if (ordersNextBtnEl) ordersNextBtnEl.disabled = true;
+      if (categoryPrevBtnEl) categoryPrevBtnEl.disabled = true;
+      if (categoryNextBtnEl) categoryNextBtnEl.disabled = true;
+      if (produtoPrevBtnEl) produtoPrevBtnEl.disabled = true;
+      if (produtoNextBtnEl) produtoNextBtnEl.disabled = true;
+      dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
+      updateOrdersControlsFromState();
+      syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
+      clearStatus(dashboardStatusEl);
+      clearStatus(ordersStatusEl);
+      setStatus(settingsStatusEl, 'Faça login para editar configurações.', 'muted');
+      setStatus(deliveryFeeStatusEl, 'Faça login para editar taxas de entrega.', 'muted');
+    }
+
+    function renderDashboard(dashboard, meta = null) {
+      if (!dashboard) {
+        kpiTotalPedidosEl.textContent = '--';
+        kpiPendentesEl.textContent = '--';
+        kpiPreparandoEl.textContent = '--';
+        kpiEntreguesEl.textContent = '--';
+        kpiFaturamentoEl.textContent = '--';
+        dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
+        return;
+      }
+
+      kpiTotalPedidosEl.textContent = String(dashboard.totalPedidos ?? 0);
+      kpiPendentesEl.textContent = String(dashboard.status?.pendentes ?? 0);
+      kpiPreparandoEl.textContent = String(dashboard.status?.preparando ?? 0);
+      kpiEntreguesEl.textContent = String(dashboard.status?.entregues ?? 0);
+      kpiFaturamentoEl.textContent = brl(dashboard.faturamento || 0);
+
+      const filters = meta?.filters || null;
+      dashboardRangeMetaEl.textContent = filters ? formatRangeMeta(filters) : 'Todo o período';
+      updateDashboardControlsFromMeta(filters || dashboardFilters);
+    }
+
+    function orderCard(order) {
+      const status = order.status_entrega || 'pendente';
+      const itensHtml = (order.itens_pedido || [])
+        .map((item) => {
+          const nome = item.produtos?.nome_doce || `Produto ${item.produto_id}`;
+          return `<li>${item.quantidade}x ${escapeHtml(nome)} · ${brl(item.subtotal)}</li>`;
+        })
+        .join('');
+
+      const statusOptions = STATUS_OPTIONS.map((value) => {
+        const selected = value === status ? 'selected' : '';
+        return `<option value="${value}" ${selected}>${STATUS_LABELS[value]}</option>`;
+      }).join('');
+
+      return `
+        <article class="order-card">
+          <header>
+            <div>
+              <strong>Pedido #${order.id}</strong>
+              <small>${dateTime(order.criado_em)}</small>
+            </div>
+            <span class="status-chip status-${status}">${STATUS_LABELS[status] || status}</span>
+          </header>
+
+        <div class="order-meta">
+            <span><b>Cliente:</b> ${escapeHtml(order.clientes?.nome || '--')}</span>
+            <span><b>WhatsApp:</b> ${escapeHtml(order.clientes?.telefone_whatsapp || '--')}</span>
+            <span><b>Endereço:</b> ${formatAddress(order.enderecos)}</span>
+            <span><b>Pagamento:</b> ${escapeHtml(order.metodo_pagamento || '--')}</span>
+            <span><b>Total:</b> ${brl(order.valor_total)}</span>
+          </div>
+
+          ${order.observacoes ? `<p class="order-note"><b>Observações:</b> ${escapeHtml(order.observacoes)}</p>` : ''}
+
+          <ul class="order-items">${itensHtml || '<li>Sem itens.</li>'}</ul>
+
+          <footer class="order-actions">
+            <select data-status-select="${order.id}">${statusOptions}</select>
+            <button type="button" class="primary-btn" data-status-save="${order.id}">Atualizar status</button>
+          </footer>
+        </article>
+      `;
+    }
+
+    function renderOrders() {
+      if (!accessToken) {
+        ordersListEl.innerHTML = '<p class="muted">Faça login para visualizar pedidos.</p>';
+        ordersMetaEl.textContent = 'Faça login para carregar pedidos.';
+        return;
+      }
+
+      const total = Number(ordersPaginationMeta?.total || 0);
+      const totalPages = Number(ordersPaginationMeta?.totalPages || 1);
+      const page = Number(ordersPaginationMeta?.page || ordersState.page || 1);
+      const pageSize = Number(ordersPaginationMeta?.pageSize || ordersState.pageSize || 10);
+      const filters = ordersPaginationMeta?.filters || null;
+      const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
+      const end = total === 0 ? 0 : Math.min(total, page * pageSize);
+
+      ordersMetaEl.textContent = `${start}-${end} de ${total} pedidos · ${formatRangeMeta(filters)}`;
+      ordersPrevBtnEl.disabled = page <= 1;
+      ordersNextBtnEl.disabled = page >= totalPages;
+
+      if (allOrders.length === 0) {
+        ordersListEl.innerHTML = '<p class="muted">Nenhum pedido encontrado para este filtro.</p>';
+        return;
+      }
+
+      ordersListEl.innerHTML = allOrders.map(orderCard).join('');
+    }
+
+    async function loadCurrentUser() {
+      const response = await fetch('/auth/me', { headers: authHeaders() });
+      const data = await parseResponse(response);
+      currentUser = data.user;
+      applySessionUi();
+    }
+
+    function dashboardQueryString() {
+      return buildQueryString({
+        period: dashboardFilters.period,
+        from: dashboardFilters.period === 'custom' ? dashboardFilters.from : undefined,
+        to: dashboardFilters.period === 'custom' ? dashboardFilters.to : undefined,
+      });
+    }
+
+    async function loadDashboard() {
+      if (!validateRangeState(dashboardFilters, dashboardStatusEl, 'resumo')) return;
+
+      const query = dashboardQueryString();
+      const response = await fetch(`/admin/dashboard${query ? `?${query}` : ''}`, { headers: authHeaders() });
+      const payload = await parseEnvelope(response);
+      clearStatus(dashboardStatusEl);
+      renderDashboard(payload.data, payload.meta);
+    }
+
+    function ordersQueryString() {
+      return buildQueryString({
+        page: ordersState.page,
+        pageSize: ordersState.pageSize,
+        status: ordersState.status,
+        search: ordersState.search,
+        period: ordersState.period,
+        from: ordersState.period === 'custom' ? ordersState.from : undefined,
+        to: ordersState.period === 'custom' ? ordersState.to : undefined,
+      });
+    }
+
+    async function loadOrders() {
+      if (!validateRangeState(ordersState, ordersStatusEl, 'pedidos')) return;
+
+      const query = ordersQueryString();
+      const response = await fetch(`/admin/orders?${query}`, { headers: authHeaders() });
+      const payload = await parseEnvelope(response);
+      allOrders = Array.isArray(payload.data) ? payload.data : [];
+      ordersPaginationMeta = payload.meta || null;
+
+      if (ordersPaginationMeta && ordersState.page > Number(ordersPaginationMeta.totalPages || 1)) {
+        ordersState.page = Number(ordersPaginationMeta.totalPages || 1);
+        return loadOrders();
+      }
+
+      clearStatus(ordersStatusEl);
+      renderOrders();
+    }
+
+    async function loadStoreSettings() {
+      const response = await fetch('/admin/store-settings', { headers: authHeaders() });
+      const config = await parseResponse(response);
+
+      settingsFormEl.elements.loja_aberta.checked = Boolean(config.loja_aberta);
+      settingsFormEl.elements.tempo_entrega_minutos.value = Number(config.tempo_entrega_minutos || 40);
+      settingsFormEl.elements.tempo_entrega_max_minutos.value = Number(config.tempo_entrega_max_minutos || 60);
+      settingsFormEl.elements.mensagem_aviso.value = config.mensagem_aviso || '';
+      settingsFormEl.elements.whatsapp_ativo.checked = Boolean(config.whatsapp_ativo);
+      settingsFormEl.elements.whatsapp_webhook_url.value = config.whatsapp_webhook_url || '';
+      settingsFormEl.elements.whatsapp_webhook_secret.value = config.whatsapp_webhook_secret || '';
+      settingsFormEl.elements.whatsapp_mensagem_novo_pedido.value = config.whatsapp_mensagem_novo_pedido || '';
+      settingsFormEl.elements.whatsapp_mensagem_status.value = config.whatsapp_mensagem_status || '';
+      clearStatus(whatsappTestStatusEl);
+    }
+
+    function describeWhatsAppSessionState(data) {
+      const configured = Boolean(data?.configured);
+      const raw = data?.raw || {};
+      const sourceValue = raw?.status ?? raw?.state ?? raw?.response ?? raw?.message ?? null;
+      const normalized = String(sourceValue ?? '').trim().toUpperCase();
+
+      if (!configured) {
+        return 'WPPConnect nao configurado no servidor.';
+      }
+
+      if (normalized === 'CONNECTED') {
+        return 'Conectado e pronto para enviar mensagens.';
+      }
+
+      if (normalized === 'CLOSED' || normalized === 'DISCONNECTED' || normalized === 'FALSE') {
+        return 'Desconectado. Inicie a sessao e leia o QR Code para conectar o numero.';
+      }
+
+      if (normalized.includes('QRCODE') || normalized.includes('QR')) {
+        return 'Aguardando leitura do QR Code.';
+      }
+
+      if (normalized.includes('START') || normalized.includes('OPEN') || normalized.includes('INIT')) {
+        return 'Sessao em inicializacao no WPPConnect.';
+      }
+
+      if (sourceValue) {
+        return String(sourceValue);
+      }
+
+      return 'WPPConnect configurado.';
+    }
+
+    function renderWhatsAppSessionState(data) {
+      const configured = Boolean(data?.configured);
+      const webhookUrl = data?.webhook_url || null;
+      const connectedState = describeWhatsAppSessionState(data);
+
+      whatsappSessionMetaEl.textContent = webhookUrl
+        ? `${connectedState}${configured ? ` Webhook interno: ${webhookUrl}` : ''}`
+        : String(connectedState);
+    }
+
+    async function loadWhatsAppSessionStatus() {
+      const response = await fetch('/admin/whatsapp/session/status', { headers: authHeaders() });
+      const data = await parseResponse(response);
+      renderWhatsAppSessionState(data);
+      return data;
+    }
+
+    async function loadWhatsAppQrCode() {
+      const response = await fetch('/admin/whatsapp/session/qrcode', { headers: authHeaders() });
+      const data = await parseResponse(response);
+      renderWhatsAppSessionState(data);
+
+      if (data?.qrCodeDataUrl) {
+        whatsappQrPreviewEl.src = data.qrCodeDataUrl;
+        whatsappQrPreviewEl.classList.remove('hidden');
+      } else {
+        whatsappQrPreviewEl.removeAttribute('src');
+        whatsappQrPreviewEl.classList.add('hidden');
+      }
+
+      return data;
+    }
+
+    function deliveryFeeScopeLabel(fee) {
+      const bairro = String(fee?.bairro || '').trim();
+      const cidade = String(fee?.cidade || '').trim();
+      if (bairro && cidade) return `${bairro} - ${cidade}`;
+      if (bairro) return bairro;
+      if (cidade) return `${cidade} (cidade inteira)`;
+      return 'Local não informado';
+    }
+
+    function resetDeliveryFeeForm() {
+      deliveryFeeIdEl.value = '';
+      deliveryFeeBairroEl.value = '';
+      deliveryFeeCidadeEl.value = '';
+      deliveryFeeValorEl.value = '';
+      deliveryFeeAtivoEl.value = 'true';
+      deliveryFeeSubmitBtnEl.textContent = 'Salvar taxa';
+      setStatus(deliveryFeeStatusEl, '', 'muted');
+    }
+
+    function populateDeliveryFeeForm(fee) {
+      deliveryFeeIdEl.value = String(fee.id || '');
+      deliveryFeeBairroEl.value = fee.bairro || '';
+      deliveryFeeCidadeEl.value = fee.cidade || '';
+      deliveryFeeValorEl.value = fee.valor_entrega != null ? String(fee.valor_entrega) : '';
+      deliveryFeeAtivoEl.value = fee.ativo === false ? 'false' : 'true';
+      deliveryFeeSubmitBtnEl.textContent = 'Atualizar taxa';
+      setStatus(deliveryFeeStatusEl, `Editando ${deliveryFeeScopeLabel(fee)}.`, 'muted');
+    }
+
+    function renderDeliveryFeeList() {
+      const search = String(deliveryFeeSearchInputEl?.value || '').trim().toLowerCase();
+
+      const filteredFees = [...deliveryFees]
+        .filter((fee) => {
+          const scope = deliveryFeeScopeLabel(fee).toLowerCase();
+          return !search || scope.includes(search);
+        })
+        .sort((a, b) => {
+          const scopeA = deliveryFeeScopeLabel(a);
+          const scopeB = deliveryFeeScopeLabel(b);
+          return scopeA.localeCompare(scopeB, 'pt-BR', { sensitivity: 'base' });
+        });
+
+      if (!accessToken) {
+        deliveryFeeListEl.innerHTML = '<p class="muted">Faça login para gerenciar taxas de entrega.</p>';
+        return;
+      }
+
+      if (filteredFees.length === 0) {
+        deliveryFeeListEl.innerHTML = search
+          ? '<p class="muted">Nenhuma taxa corresponde ao filtro.</p>'
+          : '<p class="muted">Nenhuma taxa cadastrada.</p>';
+        return;
+      }
+
+      deliveryFeeListEl.innerHTML = filteredFees
+        .map((fee) => `
+          <article class="menu-admin-item">
+            <div class="menu-admin-item-main">
+              <strong>${escapeHtml(deliveryFeeScopeLabel(fee))}</strong>
+              <span>Valor: ${brl(fee.valor_entrega)}</span>
+              <span>Status: ${fee.ativo === false ? 'Inativa' : 'Ativa'}</span>
+            </div>
+            <div class="menu-admin-item-actions">
+              <button type="button" class="ghost-btn" data-delivery-fee-edit="${fee.id}">Editar</button>
+              <button type="button" class="ghost-btn" data-delivery-fee-delete="${fee.id}">Excluir</button>
+            </div>
+          </article>
+        `)
+        .join('');
+    }
+
+    function renderCategoryMeta() {
+      if (!accessToken) {
+        categoryMetaEl.textContent = 'Faça login para carregar categorias.';
+        categoryPrevBtnEl.disabled = true;
+        categoryNextBtnEl.disabled = true;
+        return;
+      }
+
+      const total = Number(categoryPaginationMeta?.total || 0);
+      const totalPages = Number(categoryPaginationMeta?.totalPages || 1);
+      const page = Number(categoryPaginationMeta?.page || categoryState.page || 1);
+      const pageSize = Number(categoryPaginationMeta?.pageSize || categoryState.pageSize || 10);
+      const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
+      const end = total === 0 ? 0 : Math.min(total, page * pageSize);
+
+      categoryMetaEl.textContent = `${start}-${end} de ${total} categorias`;
+      categoryPrevBtnEl.disabled = page <= 1;
+      categoryNextBtnEl.disabled = page >= totalPages;
+    }
+
+    async function loadDeliveryFees() {
+      const response = await fetch('/admin/delivery-fees', { headers: authHeaders() });
+      deliveryFees = await parseResponse(response);
+      renderDeliveryFeeList();
+    }
+
+    async function removeDeliveryFee(id) {
+      const fee = deliveryFees.find((item) => item.id === id);
+      const label = fee ? deliveryFeeScopeLabel(fee) : `#${id}`;
+      if (!confirm(`Deseja excluir a taxa de entrega de ${label}?`)) return;
+
+      try {
+        const response = await fetch(`/admin/delivery-fees/${id}`, {
+          method: 'DELETE',
+          headers: authHeaders(),
+        });
+        await parseResponse(response);
+        await loadDeliveryFees();
+        if (String(deliveryFeeIdEl.value || '') === String(id)) {
+          resetDeliveryFeeForm();
+        }
+        setStatus(deliveryFeeStatusEl, 'Taxa removida.', 'ok');
+      } catch (error) {
+        setStatus(deliveryFeeStatusEl, error.message, 'err');
+      }
+    }
+
+    function renderCategoryList() {
+      if (!accessToken) {
+        categoryListEl.innerHTML = '<p class="muted">Faça login para gerenciar categorias.</p>';
+        renderCategoryMeta();
+        return;
+      }
+
+      if (menuCategorias.length === 0) {
+        const semBusca = String(categoryState.search || '').trim();
+        categoryListEl.innerHTML = semBusca
+          ? '<p class="muted">Nenhuma categoria corresponde ao filtro.</p>'
+          : '<p class="muted">Nenhuma categoria cadastrada.</p>';
+        renderCategoryMeta();
+        return;
+      }
+
+      categoryListEl.innerHTML = menuCategorias
+        .map((categoria) => `
+          <article class="menu-admin-item">
+            <div class="menu-admin-item-main">
+              <strong>${escapeHtml(categoria.nome)}</strong>
+              <span>ID: ${categoria.id}</span>
+              <span>Ordem: ${categoria.ordem_exibicao || 0}</span>
+              <span>Itens vinculados: ${Number(categoria._count?.produtos || 0)}</span>
+            </div>
+            <div class="menu-admin-item-actions">
+              <button type="button" class="ghost-btn" data-category-edit="${categoria.id}">Editar</button>
+              <button type="button" class="ghost-btn" data-category-delete="${categoria.id}">Excluir</button>
+            </div>
+          </article>
+        `)
+        .join('');
+
+      renderCategoryMeta();
+    }
+
+    function renderProdutoMeta() {
+      if (!accessToken) {
+        produtoMetaEl.textContent = 'Faça login para carregar itens.';
+        produtoPrevBtnEl.disabled = true;
+        produtoNextBtnEl.disabled = true;
+        return;
+      }
+
+      const total = Number(produtoPaginationMeta?.total || 0);
+      const totalPages = Number(produtoPaginationMeta?.totalPages || 1);
+      const page = Number(produtoPaginationMeta?.page || produtoState.page || 1);
+      const pageSize = Number(produtoPaginationMeta?.pageSize || produtoState.pageSize || 12);
+      const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
+      const end = total === 0 ? 0 : Math.min(total, page * pageSize);
+
+      produtoMetaEl.textContent = `${start}-${end} de ${total} itens`;
+      produtoPrevBtnEl.disabled = page <= 1;
+      produtoNextBtnEl.disabled = page >= totalPages;
+    }
+
+    function renderProdutoList() {
+      if (!accessToken) {
+        produtoListEl.innerHTML = '<p class="muted">Faça login para gerenciar itens.</p>';
+        renderProdutoMeta();
+        return;
+      }
+
+      if (menuProdutos.length === 0) {
+        const semBusca = String(produtoState.search || '').trim();
+        const semFiltro = semBusca || produtoState.disponibilidade !== 'all' || produtoState.categoria_id !== 'all';
+        produtoListEl.innerHTML = semFiltro
+          ? '<p class="muted">Nenhum item corresponde ao filtro.</p>'
+          : '<p class="muted">Nenhum item cadastrado.</p>';
+        renderProdutoMeta();
+        return;
+      }
+
+      produtoListEl.innerHTML = menuProdutos
+        .map((produto) => {
+          const estoque = normalizeEstoque(produto.estoque_disponivel);
+          const estoqueTexto = estoque === null ? 'Sem limite' : String(estoque);
+          return `
+            <article class="menu-admin-item">
+              <div class="menu-admin-item-main">
+                <strong>${escapeHtml(produto.nome_doce)}</strong>
+                <span>${escapeHtml(productCategoryName(produto.categoria_id || produto.categorias?.id))}</span>
+                <span>Preço: ${brl(produto.preco)} | Estoque: ${estoqueTexto} | Disponível: ${availabilityLabel(produto)}</span>
+              </div>
+              <div class="menu-admin-item-actions">
+                <button type="button" class="ghost-btn" data-produto-edit="${produto.id}">Editar</button>
+                <button type="button" class="ghost-btn" data-produto-delete="${produto.id}">Excluir</button>
+              </div>
+            </article>
+          `;
+        })
+        .join('');
+
+      renderProdutoMeta();
+    }
+
+    async function loadCategoryOptions() {
+      const collectedCategorias = [];
+      let page = 1;
+      let totalPages = 1;
+
+      while (page <= totalPages) {
+        const query = buildQueryString({
+          sort: 'ordem_exibicao',
+          order: 'asc',
+          page,
+          pageSize: 100,
+        });
+
+        const response = await fetch(`/categorias?${query}`, {
+          headers: authHeaders(),
+        });
+        const payload = await parseEnvelope(response);
+        const items = Array.isArray(payload.data) ? payload.data : [];
+
+        collectedCategorias.push(...items);
+        totalPages = Number(payload.meta?.totalPages || 1);
+        page += 1;
+      }
+
+      allCategorias = collectedCategorias;
+      const currentCategoryId = produtoCategoriaEl.value;
+      populateCategoriaOptions(currentCategoryId);
+      populateProdutoCategoriaFilterOptions();
+    }
+
+    function categoriasQueryString() {
+      return buildQueryString({
+        sort: categoryState.sort,
+        order: 'asc',
+        page: categoryState.page,
+        pageSize: categoryState.pageSize,
+        search: categoryState.search,
+      });
+    }
+
+    async function loadCategorias() {
+      const response = await fetch(`/categorias?${categoriasQueryString()}`, {
+        headers: authHeaders(),
+      });
+      const payload = await parseEnvelope(response);
+      menuCategorias = Array.isArray(payload.data) ? payload.data : [];
+      categoryPaginationMeta = payload.meta || null;
+
+      if (categoryPaginationMeta && categoryState.page > Number(categoryPaginationMeta.totalPages || 1)) {
+        categoryState.page = Number(categoryPaginationMeta.totalPages || 1);
+        return loadCategorias();
+      }
+
+      renderCategoryList();
+    }
+
+    function produtosQueryString() {
+      return buildQueryString({
+        sort: produtoState.sort,
+        order: produtoState.sort === 'preco' || produtoState.sort === 'estoque_disponivel' ? 'asc' : 'asc',
+        page: produtoState.page,
+        pageSize: produtoState.pageSize,
+        search: produtoState.search,
+        disponibilidade: produtoState.disponibilidade,
+        categoria_id: produtoState.categoria_id !== 'all' ? produtoState.categoria_id : undefined,
+      });
+    }
+
+    async function loadProdutos() {
+      const response = await fetch(`/produtos?${produtosQueryString()}`, {
+        headers: authHeaders(),
+      });
+      const payload = await parseEnvelope(response);
+      menuProdutos = Array.isArray(payload.data) ? payload.data : [];
+      produtoPaginationMeta = payload.meta || null;
+
+      if (produtoPaginationMeta && produtoState.page > Number(produtoPaginationMeta.totalPages || 1)) {
+        produtoState.page = Number(produtoPaginationMeta.totalPages || 1);
+        return loadProdutos();
+      }
+
+      renderProdutoList();
+    }
+
+    async function loadCardapioData() {
+      await loadCategoryOptions();
+      await Promise.all([loadCategorias(), loadProdutos()]);
+    }
+
+    function populateProdutoForm(produto) {
+      produtoIdEl.value = produto.id;
+      produtoSubmitBtn.textContent = 'Atualizar item';
+      produtoCategoriaEl.value = String(produto.categoria_id || produto.categorias?.id || '');
+      produtoNomeEl.value = produto.nome_doce || '';
+      produtoDescricaoEl.value = produto.descricao || '';
+      produtoPrecoEl.value = produto.preco != null ? String(produto.preco) : '';
+      produtoEstoqueEl.value = produto.estoque_disponivel == null ? '' : String(produto.estoque_disponivel);
+      produtoAtivoEl.checked = Boolean(produto.ativo);
+      produtoImagemEl.value = '';
+      produtoClearImagemEl.checked = false;
+      produtoImagemDataUrl = '';
+      buildImagePreview(produto.imagem_url);
+    }
+
+    function startCategoriaEdit(categoria) {
+      categoryIdEl.value = categoria.id;
+      categoryNomeEl.value = categoria.nome || '';
+      categoryOrdemEl.value = categoria.ordem_exibicao == null ? '' : String(categoria.ordem_exibicao);
+      categorySubmitBtn.textContent = 'Atualizar categoria';
+      categoryStatusEl.textContent = '';
+    }
+
+    async function removeCategoria(categoriaId) {
+      const categoria = menuCategorias.find((item) => item.id === categoriaId);
+      const vinculados = Number(categoria?._count?.produtos || 0);
+      const nome = categoria?.nome ? `"${categoria.nome}" ` : '';
+      if (vinculados > 0) {
+        setStatus(
+          categoryStatusEl,
+          `A categoria ${nome}não pode ser excluída: ela possui ${vinculados} item(s) vinculado(s).`,
+          'err',
+        );
+        return;
+      }
+
+      const message = `Deseja excluir essa categoria ${nome.trim()}?`;
+      if (!confirm(message)) return;
+
+      try {
+        await fetch(`/categorias/${categoriaId}`, {
+          method: 'DELETE',
+          headers: authHeaders(),
+        }).then(async (response) => parseResponse(response));
+
+        await Promise.all([loadCategoryOptions(), loadCategorias(), loadProdutos()]);
+        setStatus(categoryStatusEl, 'Categoria removida.', 'ok');
+      } catch (error) {
+        setStatus(categoryStatusEl, error.message, 'err');
+      }
+    }
+
+    async function removeProduto(produtoId) {
+      if (!confirm('Deseja excluir esse item do cardápio?')) return;
+      try {
+        const response = await fetch(`/produtos/${produtoId}`, {
+          method: 'DELETE',
+          headers: authHeaders(),
+        });
+        const result = await parseResponse(response);
+        await Promise.all([loadProdutos(), loadCategorias()]);
+        setStatus(
+          produtoStatusEl,
+          result?.deactivated
+            ? 'Item vinculado a pedidos antigos. Ele foi marcado como indisponível para preservar o histórico.'
+            : 'Item removido.',
+          'ok',
+        );
+      } catch (error) {
+        setStatus(produtoStatusEl, error.message, 'err');
+      }
+    }
+
+    async function loadAdminData() {
+      if (!accessToken) return;
+
+      try {
+        await loadCurrentUser();
+        await Promise.all([
+          loadDashboard(),
+          loadOrders(),
+          loadStoreSettings(),
+          loadCardapioData(),
+          loadDeliveryFees(),
+          loadWhatsAppSessionStatus().catch((error) => {
+            setStatus(whatsappSessionStatusEl, error.message, 'muted');
+          }),
+        ]);
+      } catch (error) {
+        if (error.status === 401 || error.status === 403) {
+          clearSession();
+          setStatus(loginStatusEl, 'Sessão expirada. Faça login novamente.', 'err');
+          return;
+        }
+        setStatus(loginStatusEl, error.message, 'err');
+      }
+    }
+
+    loginFormEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setStatus(loginStatusEl, 'Entrando...', 'muted');
+
+      const fd = new FormData(loginFormEl);
+      const payload = {
+        username: String(fd.get('username') || '').trim(),
+        password: String(fd.get('password') || ''),
+      };
+
+      try {
+        const response = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await parseResponse(response);
+        accessToken = data.accessToken;
+        currentUser = data.user;
+        localStorage.setItem('donilla_access_token', accessToken);
+
+        applySessionUi();
+        setStatus(loginStatusEl, 'Login realizado com sucesso.', 'ok');
+        await loadAdminData();
+      } catch (error) {
+        setStatus(loginStatusEl, error.message, 'err');
+      }
+    });
+
+    dashboardRangePresetEl.addEventListener('change', () => {
+      dashboardFilters.period = dashboardRangePresetEl.value;
+      syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
+      if (dashboardFilters.period !== 'custom' && accessToken) {
+        loadDashboard().catch((error) => setStatus(dashboardStatusEl, error.message, 'err'));
+        return;
+      }
+
+      validateRangeState(dashboardFilters, dashboardStatusEl, 'resumo');
+    });
+
+    dashboardApplyBtnEl.addEventListener('click', async () => {
+      dashboardFilters.period = dashboardRangePresetEl.value;
+      dashboardFilters.from = dashboardFromDateEl.value || '';
+      dashboardFilters.to = dashboardToDateEl.value || '';
+      if (!accessToken) return;
+      try {
+        await loadDashboard();
+      } catch (error) {
+        setStatus(dashboardStatusEl, error.message, 'err');
+      }
+    });
+
+    dashboardFromDateEl.addEventListener('change', () => {
+      dashboardFilters.from = dashboardFromDateEl.value || '';
+      validateRangeState(dashboardFilters, dashboardStatusEl, 'resumo');
+    });
+
+    dashboardToDateEl.addEventListener('change', () => {
+      dashboardFilters.to = dashboardToDateEl.value || '';
+      validateRangeState(dashboardFilters, dashboardStatusEl, 'resumo');
+    });
+
+    refreshOrdersBtnEl.addEventListener('click', async () => {
+      if (!accessToken) return;
+      try {
+        await loadOrders();
+      } catch (error) {
+        setStatus(ordersStatusEl, error.message, 'err');
+      }
+    });
+
+    applyOrdersFiltersBtnEl.addEventListener('click', async () => {
+      ordersState.search = String(ordersSearchInputEl.value || '').trim();
+      ordersState.period = ordersRangePresetEl.value;
+      ordersState.from = ordersFromDateEl.value || '';
+      ordersState.to = ordersToDateEl.value || '';
+      ordersState.page = 1;
+      if (!accessToken) return;
+      try {
+        await loadOrders();
+      } catch (error) {
+        setStatus(ordersStatusEl, error.message, 'err');
+      }
+    });
+
+    ordersSearchInputEl.addEventListener('keydown', async (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      applyOrdersFiltersBtnEl.click();
+    });
+
+    statusFilterEl.addEventListener('change', async () => {
+      ordersState.status = statusFilterEl.value;
+      ordersState.page = 1;
+      if (!accessToken) return;
+      try {
+        await loadOrders();
+      } catch (error) {
+        setStatus(ordersStatusEl, error.message, 'err');
+      }
+    });
+
+    ordersRangePresetEl.addEventListener('change', async () => {
+      ordersState.period = ordersRangePresetEl.value;
+      syncRangeInputs(ordersRangePresetEl, ordersFromDateEl, ordersToDateEl, ordersState);
+
+      if (!accessToken) {
+        validateRangeState(ordersState, ordersStatusEl, 'pedidos');
+        return;
+      }
+
+      if (ordersState.period === 'custom') {
+        validateRangeState(ordersState, ordersStatusEl, 'pedidos');
+        return;
+      }
+
+      ordersState.page = 1;
+      try {
+        await loadOrders();
+      } catch (error) {
+        setStatus(ordersStatusEl, error.message, 'err');
+      }
+    });
+
+    ordersPageSizeInputEl.addEventListener('change', async () => {
+      ordersState.pageSize = Number(ordersPageSizeInputEl.value || 10);
+      ordersState.page = 1;
+      if (!accessToken) return;
+      try {
+        await loadOrders();
+      } catch (error) {
+        setStatus(ordersStatusEl, error.message, 'err');
+      }
+    });
+
+    ordersFromDateEl.addEventListener('change', () => {
+      ordersState.from = ordersFromDateEl.value || '';
+      validateRangeState(ordersState, ordersStatusEl, 'pedidos');
+    });
+
+    ordersToDateEl.addEventListener('change', () => {
+      ordersState.to = ordersToDateEl.value || '';
+      validateRangeState(ordersState, ordersStatusEl, 'pedidos');
+    });
+
+    ordersPrevBtnEl.addEventListener('click', async () => {
+      if (ordersState.page <= 1 || !accessToken) return;
+      ordersState.page -= 1;
+      await loadOrders().catch((error) => setStatus(ordersStatusEl, error.message, 'err'));
+    });
+
+    ordersNextBtnEl.addEventListener('click', async () => {
+      if (!accessToken) return;
+      const totalPages = Number(ordersPaginationMeta?.totalPages || 1);
+      if (ordersState.page >= totalPages) return;
+      ordersState.page += 1;
+      await loadOrders().catch((error) => setStatus(ordersStatusEl, error.message, 'err'));
+    });
+
+    const debouncedLoadCategorias = createDebounce(250, () => {
+      if (!accessToken) return;
+      loadCategorias().catch((error) => setStatus(categoryStatusEl, error.message, 'err'));
+    });
+
+    if (categorySearchInputEl) {
+      categorySearchInputEl.addEventListener('input', () => {
+        categoryState.search = String(categorySearchInputEl.value || '').trim();
+        categoryState.page = 1;
+        debouncedLoadCategorias();
+      });
+    }
+
+    if (categorySortInputEl) {
+      categorySortInputEl.addEventListener('change', () => {
+        categoryState.sort = categorySortInputEl.value || 'ordem_exibicao';
+        categoryState.page = 1;
+        if (!accessToken) return;
+        loadCategorias().catch((error) => setStatus(categoryStatusEl, error.message, 'err'));
+      });
+    }
+
+    if (categoryPageSizeInputEl) {
+      categoryPageSizeInputEl.addEventListener('change', () => {
+        categoryState.pageSize = Number(categoryPageSizeInputEl.value || 10);
+        categoryState.page = 1;
+        if (!accessToken) return;
+        loadCategorias().catch((error) => setStatus(categoryStatusEl, error.message, 'err'));
+      });
+    }
+
+    categoryPrevBtnEl.addEventListener('click', async () => {
+      if (categoryState.page <= 1 || !accessToken) return;
+      categoryState.page -= 1;
+      await loadCategorias().catch((error) => setStatus(categoryStatusEl, error.message, 'err'));
+    });
+
+    categoryNextBtnEl.addEventListener('click', async () => {
+      if (!accessToken) return;
+      const totalPages = Number(categoryPaginationMeta?.totalPages || 1);
+      if (categoryState.page >= totalPages) return;
+      categoryState.page += 1;
+      await loadCategorias().catch((error) => setStatus(categoryStatusEl, error.message, 'err'));
+    });
+
+    const debouncedLoadProdutos = createDebounce(250, () => {
+      if (!accessToken) return;
+      loadProdutos().catch((error) => setStatus(produtoStatusEl, error.message, 'err'));
+    });
+
+    if (produtoSearchInputEl) {
+      produtoSearchInputEl.addEventListener('input', () => {
+        produtoState.search = String(produtoSearchInputEl.value || '').trim();
+        produtoState.page = 1;
+        debouncedLoadProdutos();
+      });
+    }
+
+    if (produtoSortInputEl) {
+      produtoSortInputEl.addEventListener('change', () => {
+        produtoState.sort = produtoSortInputEl.value || 'nome_doce';
+        produtoState.page = 1;
+        if (!accessToken) return;
+        loadProdutos().catch((error) => setStatus(produtoStatusEl, error.message, 'err'));
+      });
+    }
+
+    if (produtoDisponibilidadeFilterEl) {
+      produtoDisponibilidadeFilterEl.addEventListener('change', () => {
+        produtoState.disponibilidade = produtoDisponibilidadeFilterEl.value || 'all';
+        produtoState.page = 1;
+        if (!accessToken) return;
+        loadProdutos().catch((error) => setStatus(produtoStatusEl, error.message, 'err'));
+      });
+    }
+
+    if (produtoCategoriaFilterEl) {
+      produtoCategoriaFilterEl.addEventListener('change', () => {
+        produtoState.categoria_id = produtoCategoriaFilterEl.value || 'all';
+        produtoState.page = 1;
+        if (!accessToken) return;
+        loadProdutos().catch((error) => setStatus(produtoStatusEl, error.message, 'err'));
+      });
+    }
+
+    if (produtoPageSizeInputEl) {
+      produtoPageSizeInputEl.addEventListener('change', () => {
+        produtoState.pageSize = Number(produtoPageSizeInputEl.value || 12);
+        produtoState.page = 1;
+        if (!accessToken) return;
+        loadProdutos().catch((error) => setStatus(produtoStatusEl, error.message, 'err'));
+      });
+    }
+
+    produtoPrevBtnEl.addEventListener('click', async () => {
+      if (produtoState.page <= 1 || !accessToken) return;
+      produtoState.page -= 1;
+      await loadProdutos().catch((error) => setStatus(produtoStatusEl, error.message, 'err'));
+    });
+
+    produtoNextBtnEl.addEventListener('click', async () => {
+      if (!accessToken) return;
+      const totalPages = Number(produtoPaginationMeta?.totalPages || 1);
+      if (produtoState.page >= totalPages) return;
+      produtoState.page += 1;
+      await loadProdutos().catch((error) => setStatus(produtoStatusEl, error.message, 'err'));
+    });
+
+    if (deliveryFeeSearchInputEl) {
+      deliveryFeeSearchInputEl.addEventListener('input', () => {
+        renderDeliveryFeeList();
+      });
+    }
+
+    ordersListEl.addEventListener('click', async (event) => {
+      const saveButton = event.target.closest('button[data-status-save]');
+      if (!saveButton) return;
+
+      const orderId = Number(saveButton.dataset.statusSave);
+      const select = ordersListEl.querySelector(`select[data-status-select="${orderId}"]`);
+      if (!select) return;
+
+      saveButton.disabled = true;
+      const nextStatus = select.value;
+
+      try {
+        const response = await fetch(`/admin/orders/${orderId}/status`, {
+          method: 'PUT',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ status_entrega: nextStatus }),
+        });
+
+        await parseResponse(response);
+        await Promise.all([loadDashboard(), loadOrders()]);
+      } catch (error) {
+        setStatus(ordersStatusEl, error.message, 'err');
+      } finally {
+        saveButton.disabled = false;
+      }
+    });
+
+    settingsFormEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!accessToken) {
+        setStatus(settingsStatusEl, 'Faça login antes de salvar.', 'err');
+        return;
+      }
+
+      setStatus(settingsStatusEl, 'Salvando configuração...', 'muted');
+
+      const fd = new FormData(settingsFormEl);
+      const payload = {
+        loja_aberta: fd.get('loja_aberta') === 'on',
+        tempo_entrega_minutos: Number(fd.get('tempo_entrega_minutos')),
+        tempo_entrega_max_minutos: Number(fd.get('tempo_entrega_max_minutos')),
+        mensagem_aviso: String(fd.get('mensagem_aviso') || '').trim() || null,
+        whatsapp_ativo: fd.get('whatsapp_ativo') === 'on',
+        whatsapp_webhook_url: String(fd.get('whatsapp_webhook_url') || '').trim() || null,
+        whatsapp_webhook_secret: String(fd.get('whatsapp_webhook_secret') || '').trim() || null,
+        whatsapp_mensagem_novo_pedido: String(fd.get('whatsapp_mensagem_novo_pedido') || '').trim() || null,
+        whatsapp_mensagem_status: String(fd.get('whatsapp_mensagem_status') || '').trim() || null,
+      };
+
+      try {
+        const response = await fetch('/admin/store-settings', {
+          method: 'PUT',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        await parseResponse(response);
+        await loadStoreSettings();
+        await loadWhatsAppSessionStatus().catch(() => {});
+        setStatus(settingsStatusEl, 'Configuração salva com sucesso.', 'ok');
+      } catch (error) {
+        setStatus(settingsStatusEl, error.message, 'err');
+      }
+    });
+
+    whatsappSessionStatusBtnEl.addEventListener('click', async () => {
+      if (!accessToken) {
+        setStatus(whatsappSessionStatusEl, 'Faça login antes de consultar a sessão.', 'err');
+        return;
+      }
+
+      setStatus(whatsappSessionStatusEl, 'Consultando sessão do WhatsApp...', 'muted');
+
+      try {
+        await loadWhatsAppSessionStatus();
+        setStatus(whatsappSessionStatusEl, 'Consulta concluida. Se a sessao estiver conectada, o numero ja pode enviar mensagens.', 'ok');
+      } catch (error) {
+        setStatus(whatsappSessionStatusEl, error.message, 'err');
+      }
+    });
+
+    whatsappSessionStartBtnEl.addEventListener('click', async () => {
+      if (!accessToken) {
+        setStatus(whatsappSessionStatusEl, 'Faça login antes de iniciar a sessão.', 'err');
+        return;
+      }
+
+      whatsappSessionStartBtnEl.disabled = true;
+      setStatus(whatsappSessionStatusEl, 'Solicitando início da sessão no WPPConnect...', 'muted');
+
+      try {
+        const response = await fetch('/admin/whatsapp/session/start', {
+          method: 'POST',
+          headers: authHeaders(),
+        });
+
+        const data = await parseResponse(response);
+        renderWhatsAppSessionState(data);
+        setStatus(whatsappSessionStatusEl, 'Sessao preparada no WPPConnect. Agora clique em Buscar QR Code e escaneie no celular da loja.', 'ok');
+      } catch (error) {
+        setStatus(whatsappSessionStatusEl, error.message, 'err');
+      } finally {
+        whatsappSessionStartBtnEl.disabled = false;
+      }
+    });
+
+    whatsappSessionQrBtnEl.addEventListener('click', async () => {
+      if (!accessToken) {
+        setStatus(whatsappSessionStatusEl, 'Faça login antes de buscar o QR Code.', 'err');
+        return;
+      }
+
+      whatsappSessionQrBtnEl.disabled = true;
+      setStatus(whatsappSessionStatusEl, 'Buscando QR Code da sessão...', 'muted');
+
+      try {
+        const data = await loadWhatsAppQrCode();
+        if (data?.qrCodeDataUrl) {
+          setStatus(whatsappSessionStatusEl, 'QR Code pronto. Abra o WhatsApp do numero da loja e escaneie agora.', 'ok');
+        } else {
+          setStatus(whatsappSessionStatusEl, 'Nenhum QR Code disponivel agora. Consulte ou reinicie a sessao e tente novamente.', 'muted');
+        }
+      } catch (error) {
+        setStatus(whatsappSessionStatusEl, error.message, 'err');
+      } finally {
+        whatsappSessionQrBtnEl.disabled = false;
+      }
+    });
+
+    whatsappTestBtnEl.addEventListener('click', async () => {
+      if (!accessToken) {
+        setStatus(whatsappTestStatusEl, 'Faça login antes de testar.', 'err');
+        return;
+      }
+
+      const telefone = String(whatsappTestPhoneEl.value || '').replace(/\D/g, '').trim();
+      if (!telefone) {
+        setStatus(whatsappTestStatusEl, 'Informe um telefone para teste.', 'err');
+        return;
+      }
+
+      whatsappTestBtnEl.disabled = true;
+      setStatus(whatsappTestStatusEl, 'Enviando teste para o bot...', 'muted');
+
+      try {
+        const response = await fetch('/admin/whatsapp/test', {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            telefone_whatsapp: telefone,
+            nome: 'Cliente Teste',
+          }),
+        });
+
+        await parseResponse(response);
+        setStatus(whatsappTestStatusEl, `Teste enviado para ${telefone}. Se o numero estiver conectado, a mensagem chega em alguns segundos.`, 'ok');
+      } catch (error) {
+        setStatus(whatsappTestStatusEl, error.message, 'err');
+      } finally {
+        whatsappTestBtnEl.disabled = false;
+      }
+    });
+
+    deliveryFeeFormEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!accessToken) {
+        setStatus(deliveryFeeStatusEl, 'Faça login antes de salvar.', 'err');
+        return;
+      }
+
+      const isEditing = Boolean(deliveryFeeIdEl.value);
+      const payload = {
+        bairro: String(deliveryFeeBairroEl.value || '').trim() || null,
+        cidade: String(deliveryFeeCidadeEl.value || '').trim() || null,
+        valor_entrega: Number(deliveryFeeValorEl.value || 0),
+        ativo: deliveryFeeAtivoEl.value !== 'false',
+      };
+
+      if (!payload.bairro && !payload.cidade) {
+        setStatus(deliveryFeeStatusEl, 'Informe um bairro, uma cidade ou ambos.', 'err');
+        return;
+      }
+
+      const path = isEditing ? `/admin/delivery-fees/${deliveryFeeIdEl.value}` : '/admin/delivery-fees';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      deliveryFeeSubmitBtnEl.disabled = true;
+      setStatus(deliveryFeeStatusEl, `${isEditing ? 'Atualizando' : 'Salvando'} taxa...`, 'muted');
+
+      try {
+        const response = await fetch(path, {
+          method,
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        await parseResponse(response);
+        await loadDeliveryFees();
+        resetDeliveryFeeForm();
+        setStatus(deliveryFeeStatusEl, `Taxa ${isEditing ? 'atualizada' : 'cadastrada'} com sucesso.`, 'ok');
+      } catch (error) {
+        setStatus(deliveryFeeStatusEl, error.message, 'err');
+      } finally {
+        deliveryFeeSubmitBtnEl.disabled = false;
+      }
+    });
+
+    deliveryFeeCancelBtnEl.addEventListener('click', () => {
+      resetDeliveryFeeForm();
+    });
+
+    deliveryFeeListEl.addEventListener('click', async (event) => {
+      const editButton = event.target.closest('button[data-delivery-fee-edit]');
+      if (editButton) {
+        const id = Number(editButton.dataset.deliveryFeeEdit);
+        const fee = deliveryFees.find((item) => item.id === id);
+        if (fee) populateDeliveryFeeForm(fee);
+        return;
+      }
+
+      const deleteButton = event.target.closest('button[data-delivery-fee-delete]');
+      if (!deleteButton) return;
+      await removeDeliveryFee(Number(deleteButton.dataset.deliveryFeeDelete));
+    });
+
+    categoryFormEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!accessToken) {
+        setStatus(categoryStatusEl, 'Faça login antes de salvar.', 'err');
+        return;
+      }
+
+      const isEditing = Boolean(categoryIdEl.value);
+      const payload = {
+        nome: String(categoryNomeEl.value || '').trim(),
+        ordem_exibicao: Number(categoryOrdemEl.value || 0),
+      };
+
+      if (!payload.nome) {
+        setStatus(categoryStatusEl, 'Informe o nome da categoria.', 'err');
+        return;
+      }
+
+      const path = isEditing ? `/categorias/${categoryIdEl.value}` : '/categorias';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      setStatus(categoryStatusEl, `${isEditing ? 'Atualizando' : 'Salvando'} categoria...`, 'muted');
+      categorySubmitBtn.disabled = true;
+
+      try {
+        const response = await fetch(path, {
+          method,
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        await parseResponse(response);
+        await loadCategorias();
+        await loadCategoryOptions();
+        resetCategoriaForm();
+        setStatus(categoryStatusEl, isEditing ? 'Categoria atualizada.' : 'Categoria salva.', 'ok');
+      } catch (error) {
+        setStatus(categoryStatusEl, error.message, 'err');
+      } finally {
+        categorySubmitBtn.disabled = false;
+      }
+    });
+
+    categoriaCancelBtn.addEventListener('click', () => {
+      resetCategoriaForm();
+    });
+
+    produtoFormEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!accessToken) {
+        setStatus(produtoStatusEl, 'Faça login antes de salvar.', 'err');
+        return;
+      }
+
+      if (!produtoCategoriaEl.value) {
+        setStatus(produtoStatusEl, 'Selecione uma categoria.', 'err');
+        return;
+      }
+
+      const nomeDoce = String(produtoNomeEl.value || '').trim();
+      if (!nomeDoce) {
+        setStatus(produtoStatusEl, 'Informe o nome do doce.', 'err');
+        return;
+      }
+
+      const preco = Number(produtoPrecoEl.value);
+      if (!Number.isFinite(preco) || preco < 0) {
+        setStatus(produtoStatusEl, 'Informe um preço válido.', 'err');
+        return;
+      }
+
+      setStatus(produtoStatusEl, `${produtoIdEl.value ? 'Atualizando' : 'Salvando'} item...`, 'muted');
+      produtoSubmitBtn.disabled = true;
+
+      try {
+        const payload = {
+          categoria_id: Number(produtoCategoriaEl.value),
+          nome_doce: nomeDoce,
+          descricao: String(produtoDescricaoEl.value || '').trim() || null,
+          preco,
+          estoque_disponivel:
+            produtoEstoqueEl.value === '' ? null : Number(produtoEstoqueEl.value),
+          ativo: produtoAtivoEl.checked,
+          clear_imagem_url: produtoClearImagemEl.checked,
+        };
+
+        if (produtoImagemDataUrl) {
+          payload.imagem_data_url = produtoImagemDataUrl;
+          payload.clear_imagem_url = false;
+        }
+
+        const isEditing = Boolean(produtoIdEl.value);
+        const path = isEditing ? `/produtos/${produtoIdEl.value}` : '/produtos';
+        const method = isEditing ? 'PUT' : 'POST';
+
+        const response = await fetch(path, {
+          method,
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        await parseResponse(response);
+        await Promise.all([loadCategoryOptions(), loadCategorias(), loadProdutos()]);
+        resetProdutoForm();
+        setStatus(produtoStatusEl, isEditing ? 'Item atualizado.' : 'Item salvo.', 'ok');
+      } catch (error) {
+        setStatus(produtoStatusEl, error.message, 'err');
+      } finally {
+        produtoSubmitBtn.disabled = false;
+      }
+    });
+
+    produtoCancelBtn.addEventListener('click', () => {
+      resetProdutoForm();
+    });
+
+    produtoImagemEl.addEventListener('change', async () => {
+      if (!produtoImagemEl.files || !produtoImagemEl.files[0]) {
+        return;
+      }
+
+      try {
+        setStatus(produtoStatusEl, 'Otimizando imagem...', 'muted');
+        produtoImagemDataUrl = await compressImageDataUrl(produtoImagemEl.files[0]);
+        buildImagePreview(produtoImagemDataUrl);
+        produtoClearImagemEl.checked = false;
+        setStatus(produtoStatusEl, '', 'muted');
+      } catch (error) {
+        setStatus(produtoStatusEl, error.message, 'err');
+      }
+    });
+
+    produtoClearImagemEl.addEventListener('change', () => {
+      if (!produtoClearImagemEl.checked) return;
+      produtoImagemEl.value = '';
+      produtoImagemDataUrl = '';
+      if (produtoIdEl.value) {
+        buildImagePreview('');
+      }
+    });
+
+    categoryListEl.addEventListener('click', async (event) => {
+      const btnEdit = event.target.closest('button[data-category-edit]');
+      if (btnEdit) {
+        const id = Number(btnEdit.dataset.categoryEdit);
+        const categoria = menuCategorias.find((item) => item.id === id);
+        if (categoria) {
+          startCategoriaEdit(categoria);
+        }
+        return;
+      }
+
+      const btnDelete = event.target.closest('button[data-category-delete]');
+      if (btnDelete) {
+        const id = Number(btnDelete.dataset.categoryDelete);
+        if (id) {
+          await removeCategoria(id);
+        }
+      }
+    });
+
+    produtoListEl.addEventListener('click', async (event) => {
+      const btnEdit = event.target.closest('button[data-produto-edit]');
+      if (btnEdit) {
+        const id = Number(btnEdit.dataset.produtoEdit);
+        const produto = menuProdutos.find((item) => item.id === id);
+        if (produto) {
+          populateProdutoForm(produto);
+        }
+        return;
+      }
+
+      const btnDelete = event.target.closest('button[data-produto-delete]');
+      if (btnDelete) {
+        const id = Number(btnDelete.dataset.produtoDelete);
+        if (id) {
+          await removeProduto(id);
+        }
+      }
+    });
+
+    window.addEventListener('hashchange', () => {
+      syncAdminViewFromLocation();
+    });
+
+    logoutBtnEl.addEventListener('click', () => {
+      clearSession();
+      setStatus(loginStatusEl, 'Você saiu da sessão.', 'muted');
+    });
+
+    syncAdminViewFromLocation({ replace: true });
+    applySessionUi();
+    syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
+    updateOrdersControlsFromState();
+    renderDashboard();
+    renderOrders();
+    resetCategoriaForm();
+    resetProdutoForm();
+    resetDeliveryFeeForm();
+    renderDeliveryFeeList();
+    if (accessToken) {
+      loadAdminData();
+    } else {
+      clearSession();
+    }
+  </script>
+</body>
+</html>

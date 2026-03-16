@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model categorias {
+  id             Int        @id @default(autoincrement())
+  nome           String     @db.VarChar(50)
+  ordem_exibicao Int?       @default(0)
+  produtos       produtos[]
+}
+
+model clientes {
+  id                Int         @id @default(autoincrement())
+  nome              String      @db.VarChar(100)
+  telefone_whatsapp String      @unique @db.VarChar(20)
+  whatsapp_lid      String?     @unique @db.VarChar(40)
+  criado_em         DateTime?   @default(now()) @db.Timestamp(6)
+  enderecos         enderecos[]
+  pedidos           pedidos[]
+}
+
+model configuracoes_loja {
+  id                            Int      @id @default(autoincrement())
+  loja_aberta                   Boolean? @default(true)
+  tempo_entrega_minutos         Int?     @default(40)
+  tempo_entrega_max_minutos     Int?     @default(60)
+  taxa_entrega_padrao           Decimal? @default(0.00) @db.Decimal(10, 2)
+  mensagem_aviso                String?
+  whatsapp_ativo                Boolean? @default(false)
+  whatsapp_webhook_url          String?  @db.VarChar(500)
+  whatsapp_webhook_secret       String?  @db.VarChar(255)
+  whatsapp_mensagem_novo_pedido String?  @db.VarChar(1000)
+  whatsapp_mensagem_status      String?  @db.VarChar(1000)
+}
+
+model enderecos {
+  id          Int       @id @default(autoincrement())
+  cliente_id  Int
+  rua         String    @db.VarChar(150)
+  numero      String    @db.VarChar(20)
+  bairro      String    @db.VarChar(100)
+  cidade      String?   @db.VarChar(100)
+  complemento String?   @db.VarChar(100)
+  referencia  String?
+  clientes    clientes  @relation(fields: [cliente_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pedidos     pedidos[]
+}
+
+model taxas_entrega_locais {
+  id            Int      @id @default(autoincrement())
+  bairro        String?  @db.VarChar(100)
+  cidade        String?  @db.VarChar(100)
+  valor_entrega Decimal  @db.Decimal(10, 2)
+  ativo         Boolean  @default(true)
+  criado_em     DateTime @default(now()) @db.Timestamp(6)
+  atualizado_em DateTime @updatedAt @db.Timestamp(6)
+}
+
+model itens_pedido {
+  id             Int      @id @default(autoincrement())
+  pedido_id      Int
+  produto_id     Int
+  quantidade     Int
+  preco_unitario Decimal  @db.Decimal(10, 2)
+  subtotal       Decimal  @db.Decimal(10, 2)
+  pedidos        pedidos  @relation(fields: [pedido_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  produtos       produtos @relation(fields: [produto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model pedidos {
+  id                   Int            @id @default(autoincrement())
+  cliente_id           Int
+  endereco_id          Int?
+  valor_itens          Decimal        @db.Decimal(10, 2)
+  valor_entrega        Decimal        @default(0.00) @db.Decimal(10, 2)
+  valor_total          Decimal        @db.Decimal(10, 2)
+  observacoes          String?        @db.VarChar(500)
+  metodo_pagamento     String         @db.VarChar(50)
+  status_pagamento     String?        @default("pendente") @db.VarChar(50)
+  id_transacao_gateway String?        @db.VarChar(255)
+  status_entrega       String?        @default("pendente") @db.VarChar(50)
+  criado_em            DateTime?      @default(now()) @db.Timestamp(6)
+  itens_pedido         itens_pedido[]
+  clientes             clientes       @relation(fields: [cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  enderecos            enderecos?     @relation(fields: [endereco_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model produtos {
+  id           Int            @id @default(autoincrement())
+  categoria_id Int
+  nome_doce    String         @db.VarChar(100)
+  descricao    String?
+  preco        Decimal        @db.Decimal(10, 2)
+  imagem_url   String?
+  estoque_disponivel Int?
+  ativo        Boolean?       @default(true)
+  itens_pedido itens_pedido[]
+  categorias   categorias     @relation(fields: [categoria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model usuarios {
+  id             Int              @id @default(autoincrement())
+  username       String           @unique @db.VarChar(80)
+  password_hash  String           @db.VarChar(255)
+  role           String           @default("user") @db.VarChar(20)
+  ativo          Boolean          @default(true)
+  created_by     Int?
+  updated_by     Int?
+  criado_em      DateTime         @default(now()) @db.Timestamp(6)
+  atualizado_em  DateTime         @updatedAt @db.Timestamp(6)
+  refresh_tokens refresh_tokens[]
+}
+
+model refresh_tokens {
+  id          Int       @id @default(autoincrement())
+  usuario_id  Int
+  token_hash  String    @unique @db.VarChar(255)
+  expires_at  DateTime  @db.Timestamp(6)
+  revoked_at  DateTime? @db.Timestamp(6)
+  criado_em   DateTime  @default(now()) @db.Timestamp(6)
+  usuarios    usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}

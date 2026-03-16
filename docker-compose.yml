@@ -1,0 +1,16 @@
+services:
+  donilla_backend:
+    container_name: donilla-backend
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    networks:
+      - donilla_net
+
+networks:
+  donilla_net:
+    external: true

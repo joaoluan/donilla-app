@@ -1,0 +1,19 @@
+{
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "postinstall": "npx prisma generate",
+    "db:check": "node test-prisma.js",
+    "db:pull": "npx prisma db pull",
+    "prisma:validate": "npx prisma validate",
+    "prisma:generate": "npx prisma generate",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.4.1",
+    "@prisma/client": "^7.4.1",
+    "pg": "^8.19.0",
+    "prisma": "^7.4.1",
+    "zod": "^4.3.6"
+  }
+}

@@ -1,0 +1,452 @@
+{
+  "info": {
+    "_postman_id": "8b589f3d-2086-45f0-b555-f6f4a2589589",
+    "name": "Donilla Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Public",
+      "item": [
+        {
+          "name": "GET /public/store",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/public/store"
+          }
+        },
+        {
+          "name": "GET /public/menu",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/public/menu"
+          }
+        },
+        {
+          "name": "POST /public/orders",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente\": {\n    \"nome\": \"Cliente Site\",\n    \"telefone_whatsapp\": \"5511999990001\"\n  },\n  \"endereco\": {\n    \"rua\": \"Rua A\",\n    \"numero\": \"10\",\n    \"bairro\": \"Centro\"\n  },\n  \"observacoes\": \"Tirar granulado\",\n  \"metodo_pagamento\": \"pix\",\n  \"itens\": [\n    { \"produto_id\": 1, \"quantidade\": 1 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/public/orders"
+          }
+        },
+        {
+          "name": "GET /public/orders/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/public/orders/{{orderId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/login (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.success && json.data) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUser}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "POST /auth/login (user)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{appUser}}\",\n  \"password\": \"{{appPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "POST /auth/refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.success && json.data) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "POST /auth/logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "GET /admin/dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/dashboard"
+          }
+        },
+        {
+          "name": "GET /admin/orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/orders"
+          }
+        },
+        {
+          "name": "PUT /admin/orders/:id/status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status_entrega\": \"preparando\"\n}"
+            },
+            "url": "{{baseUrl}}/admin/orders/{{orderId}}/status"
+          }
+        },
+        {
+          "name": "GET /admin/store-settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/store-settings"
+          }
+        },
+        {
+          "name": "PUT /admin/store-settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loja_aberta\": true,\n  \"tempo_entrega_minutos\": 40,\n  \"tempo_entrega_max_minutos\": 60,\n  \"taxa_entrega_padrao\": 5,\n  \"mensagem_aviso\": \"Sem entregas apos 22h\"\n}"
+            },
+            "url": "{{baseUrl}}/admin/store-settings"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios (Admin)",
+      "item": [
+        {
+          "name": "GET /usuarios",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios?page=1&pageSize=10"
+          }
+        },
+        {
+          "name": "POST /usuarios",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"operador\",\n  \"password\": \"senha123\",\n  \"role\": \"user\",\n  \"ativo\": true\n}"
+            },
+            "url": "{{baseUrl}}/usuarios"
+          }
+        },
+        {
+          "name": "PUT /usuarios/:id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}"
+            },
+            "url": "{{baseUrl}}/usuarios/{{userId}}"
+          }
+        },
+        {
+          "name": "POST /usuarios/:id/reset-password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"novaSenha123\"\n}"
+            },
+            "url": "{{baseUrl}}/usuarios/{{userId}}/reset-password"
+          }
+        },
+        {
+          "name": "DELETE /usuarios/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/usuarios/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalogo",
+      "item": [
+        {
+          "name": "GET /categorias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/categorias?page=1&pageSize=10"
+          }
+        },
+        {
+          "name": "POST /categorias (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Tortas\",\n  \"ordem_exibicao\": 2\n}"
+            },
+            "url": "{{baseUrl}}/categorias"
+          }
+        },
+        {
+          "name": "GET /produtos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/produtos?page=1&pageSize=10"
+          }
+        },
+        {
+          "name": "POST /produtos (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoria_id\": 1,\n  \"nome_doce\": \"Bolo de Pote\",\n  \"preco\": 18.9,\n  \"descricao\": \"Descricao\"\n}"
+            },
+            "url": "{{baseUrl}}/produtos"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "adminUser",
+      "value": "admin"
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin123"
+    },
+    {
+      "key": "appUser",
+      "value": "cliente"
+    },
+    {
+      "key": "appPassword",
+      "value": "cliente123"
+    },
+    {
+      "key": "orderId",
+      "value": "1"
+    },
+    {
+      "key": "userId",
+      "value": "1"
+    }
+  ]
+}
