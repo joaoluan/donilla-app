@@ -2109,7 +2109,6 @@ button {
 
 .crm-customer-card {
   appearance: none;
-  -webkit-appearance: none;
   width: 100%;
   text-align: left;
   border: 1px solid var(--slate-200);
@@ -2120,8 +2119,13 @@ button {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-items: stretch;
+  font: inherit;
   box-shadow: var(--shadow-thin);
   transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 
 .crm-customer-card:hover {
@@ -2130,9 +2134,31 @@ button {
   box-shadow: 0 14px 28px rgba(17, 24, 39, 0.08);
 }
 
+.crm-customer-card:focus-visible {
+  outline: 0;
+  border-color: rgba(201, 164, 106, 0.82);
+  box-shadow: 0 0 0 3px rgba(201, 164, 106, 0.18), 0 14px 28px rgba(17, 24, 39, 0.08);
+}
+
 .crm-customer-card.active {
   border-color: rgba(201, 164, 106, 0.82);
   box-shadow: 0 0 0 2px rgba(47, 107, 85, 0.12), 0 14px 28px rgba(17, 24, 39, 0.1);
+}
+
+.crm-customer-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--brand-gold) 0%, var(--ifood-red) 100%);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.crm-customer-card:hover::before,
+.crm-customer-card.active::before,
+.crm-customer-card:focus-visible::before {
+  opacity: 1;
 }
 
 .crm-customer-heading,
@@ -2143,6 +2169,34 @@ button {
   gap: 10px;
 }
 
+.crm-customer-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.crm-customer-avatar {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #7c2d12;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 58%),
+    linear-gradient(135deg, rgba(249, 218, 174, 0.92) 0%, rgba(244, 234, 219, 0.96) 100%);
+  border: 1px solid rgba(201, 164, 106, 0.36);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.crm-customer-avatar svg {
+  width: 22px;
+  height: 22px;
+}
+
 .crm-customer-main {
   min-width: 0;
 }
@@ -2151,6 +2205,8 @@ button {
   display: block;
   font-size: 1.08rem;
   line-height: 1.2;
+  font-family: "Nunito Sans", "Trebuchet MS", "Segoe UI", sans-serif;
+  font-weight: 800;
 }
 
 .crm-customer-main small,
@@ -2166,6 +2222,10 @@ button {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.crm-customer-badges {
+  justify-content: flex-start;
 }
 
 .crm-chip {
@@ -2222,10 +2282,11 @@ button {
 }
 
 .crm-inline-pill {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   gap: 3px;
-  min-width: 112px;
+  flex: 1 1 120px;
+  min-width: 0;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid var(--slate-200);
@@ -2239,6 +2300,10 @@ button {
   color: var(--slate-500);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.crm-inline-pill:not(:last-child) {
+  margin-right: 0;
 }
 
 .crm-customer-footer {
@@ -2953,6 +3018,10 @@ button {
     flex-direction: row;
     justify-content: space-between;
     align-items: flex-start;
+  }
+
+  .crm-customer-badges {
+    justify-content: flex-end;
   }
 
   .crm-customer-list {
