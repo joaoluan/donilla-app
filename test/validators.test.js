@@ -14,7 +14,12 @@ const {
   parseCategoriasListQuery,
   parseProdutosListQuery,
 } = require('../src/validators/listQueryValidator')
-const { parseDashboardQuery, parseOrdersQuery } = require('../src/validators/adminQueryValidator')
+const {
+  parseDashboardQuery,
+  parseOrdersQuery,
+  parseCustomersQuery,
+  parseCustomerId,
+} = require('../src/validators/adminQueryValidator')
 const {
   parseOrderId,
   validateCustomerLookup,
@@ -120,10 +125,44 @@ test('parseOrdersQuery deve rejeitar periodo customizado sem datas', () => {
   )
 })
 
+test('parseCustomersQuery deve aplicar defaults da carteira CRM', () => {
+  const query = parseCustomersQuery(mockUrl('/admin/customers'))
+
+  assert.deepEqual(query, {
+    period: 'all',
+    page: 1,
+    pageSize: 12,
+    segment: 'all',
+    sort: 'recent_desc',
+  })
+})
+
+test('parseCustomersQuery deve parsear filtros da carteira CRM', () => {
+  const query = parseCustomersQuery(
+    mockUrl('/admin/customers?page=2&pageSize=20&segment=recorrente&sort=recent_desc&search=maria&period=30d'),
+  )
+
+  assert.deepEqual(query, {
+    page: 2,
+    pageSize: 20,
+    segment: 'recorrente',
+    sort: 'recent_desc',
+    search: 'maria',
+    period: '30d',
+  })
+})
+
 test('parseDashboardQuery deve rejeitar intervalo invertido', () => {
   assert.throws(
     () => parseDashboardQuery(mockUrl('/admin/dashboard?period=custom&from=2026-03-11&to=2026-03-01')),
     (error) => error instanceof AppError && error.message === 'A data inicial deve ser menor ou igual a data final.',
+  )
+})
+
+test('parseCustomerId deve rejeitar ids invalidos', () => {
+  assert.throws(
+    () => parseCustomerId('abc'),
+    (error) => error instanceof AppError && error.message === 'ID de cliente invalido.',
   )
 })
 

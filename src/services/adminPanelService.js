@@ -220,6 +220,398 @@ function buildOrderWhere(query = {}) {
   return { AND: conditions }
 }
 
+function cleanAddressForAdmin(endereco) {
+  if (!endereco) return null
+
+  return {
+    id: endereco.id,
+    rua: endereco.rua,
+    numero: endereco.numero,
+    bairro: endereco.bairro,
+    cidade: endereco.cidade || null,
+    complemento: endereco.complemento || null,
+    referencia: endereco.referencia || null,
+  }
+}
+
+function toMoneyNumber(value) {
+  const parsed = Number(value || 0)
+  if (Number.isNaN(parsed)) return 0
+  return Number(parsed.toFixed(2))
+}
+
+function toValidDate(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function diffDaysFromNow(value, now = new Date()) {
+  const parsed = toValidDate(value)
+  if (!parsed) return null
+  const diffMs = now.getTime() - parsed.getTime()
+  if (!Number.isFinite(diffMs)) return null
+  return Math.max(0, Math.floor(diffMs / 86400000))
+}
+
+function compareNullableDatesDesc(a, b) {
+  const left = toValidDate(a)?.getTime() || 0
+  const right = toValidDate(b)?.getTime() || 0
+  return right - left
+}
+
+function compareStringsAsc(a, b) {
+  return String(a || '').localeCompare(String(b || ''), 'pt-BR', { sensitivity: 'base' })
+}
+
+function buildCustomerSearchOr(search) {
+  const normalized = normalizeSearchValue(search)
+  if (!normalized) return []
+
+  const digits = toPhoneDigits(normalized)
+  const parsedOrderId = parseOrderSearchId(normalized)
+
+  if (normalized.startsWith('#')) {
+    return parsedOrderId ? [{ pedidos: { some: { id: parsedOrderId } } }] : []
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    if (looksLikePhoneSearch(normalized)) {
+      return digits ? [{ telefone_whatsapp: { contains: digits } }] : []
+    }
+
+    return parsedOrderId
+      ? [{ id: parsedOrderId }, { pedidos: { some: { id: parsedOrderId } } }]
+      : []
+  }
+
+  const or = [{ nome: { contains: normalized, mode: 'insensitive' } }]
+  if (digits) {
+    or.push({ telefone_whatsapp: { contains: digits } })
+  }
+
+  return or
+}
+
+function buildCustomerWhere(query = {}) {
+  const conditions = []
+  const search = normalizeSearchValue(query.search)
+  const { where: createdAtWhere, meta } = buildCreatedAtWhere(query)
+
+  if (search) {
+    const or = buildCustomerSearchOr(search)
+    if (or.length > 0) {
+      conditions.push({ OR: or })
+    }
+  }
+
+  if (createdAtWhere) {
+    conditions.push({
+      OR: [
+        { criado_em: createdAtWhere },
+        { pedidos: { some: { criado_em: createdAtWhere } } },
+      ],
+    })
+  }
+
+  if (conditions.length === 0) {
+    return { where: undefined, meta }
+  }
+
+  if (conditions.length === 1) {
+    return { where: conditions[0], meta }
+  }
+
+  return { where: { AND: conditions }, meta }
+}
+
+function getCustomerListInclude() {
+  return {
+    enderecos: {
+      orderBy: [{ id: 'desc' }],
+      take: 1,
+    },
+    pedidos: {
+      select: {
+        id: true,
+        valor_total: true,
+        metodo_pagamento: true,
+        status_entrega: true,
+        criado_em: true,
+      },
+      orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+    },
+  }
+}
+
+function getCustomerDetailInclude() {
+  return {
+    enderecos: {
+      orderBy: [{ id: 'desc' }],
+    },
+    pedidos: {
+      include: {
+        enderecos: true,
+        itens_pedido: {
+          include: {
+            produtos: { select: { id: true, nome_doce: true, preco: true } },
+          },
+        },
+      },
+      orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+    },
+  }
+}
+
+function getPreferredPaymentMethod(orders = []) {
+  const counts = new Map()
+
+  orders.forEach((order) => {
+    const key = normalizeSearchValue(order.metodo_pagamento)
+    if (!key) return
+    counts.set(key, (counts.get(key) || 0) + 1)
+  })
+
+  return [...counts.entries()]
+    .sort((left, right) => {
+      if (right[1] !== left[1]) return right[1] - left[1]
+      return compareStringsAsc(left[0], right[0])
+    })[0]?.[0] || null
+}
+
+function buildFavoriteProducts(orders = [], limit = 5) {
+  const products = new Map()
+
+  orders.forEach((order) => {
+    ;(order.itens_pedido || []).forEach((item) => {
+      const product = item.produtos
+      if (!product) return
+
+      const key = product.id
+      const current = products.get(key) || {
+        id: product.id,
+        nome_doce: product.nome_doce,
+        quantidade: 0,
+        receita_total: 0,
+      }
+
+      current.quantidade += Number(item.quantidade || 0)
+      current.receita_total = toMoneyNumber(current.receita_total + Number(item.subtotal || 0))
+      products.set(key, current)
+    })
+  })
+
+  return [...products.values()]
+    .sort((left, right) => {
+      if (right.quantidade !== left.quantidade) return right.quantidade - left.quantidade
+      if (right.receita_total !== left.receita_total) return right.receita_total - left.receita_total
+      return compareStringsAsc(left.nome_doce, right.nome_doce)
+    })
+    .slice(0, limit)
+}
+
+function classifyCustomerSegment(summary) {
+  if (!summary.total_orders) {
+    return {
+      segment: 'lead',
+      segment_label: 'Lead',
+      segment_reason: 'Cadastro sem pedido confirmado.',
+    }
+  }
+
+  if (summary.days_since_last_order !== null && summary.days_since_last_order > 45) {
+    return {
+      segment: 'inativo',
+      segment_label: 'Inativo',
+      segment_reason: `Sem pedidos ha ${summary.days_since_last_order} dias.`,
+    }
+  }
+
+  if (summary.total_orders >= 3) {
+    return {
+      segment: 'recorrente',
+      segment_label: 'Recorrente',
+      segment_reason: 'Cliente com recompra consistente.',
+    }
+  }
+
+  return {
+    segment: 'novo',
+    segment_label: 'Novo',
+    segment_reason: 'Primeiras compras ainda em consolidacao.',
+  }
+}
+
+function buildCustomerActions(summary) {
+  if (summary.segment === 'lead') {
+    return [
+      'Enviar mensagem de boas-vindas com catalogo e horario da loja.',
+      'Oferecer incentivo para a primeira compra.',
+      'Confirmar endereco principal e preferencia de entrega.',
+    ]
+  }
+
+  if (summary.segment === 'novo') {
+    return [
+      'Estimular a segunda compra com combo ou cupom de retorno.',
+      'Pedir feedback curto sobre a experiencia do primeiro pedido.',
+      'Apresentar os produtos mais vendidos da casa.',
+    ]
+  }
+
+  if (summary.segment === 'recorrente') {
+    return [
+      'Convidar para programa de fidelidade ou beneficios por recorrencia.',
+      'Anunciar novidades do cardapio em primeira mao.',
+      'Monitorar intervalo medio entre pedidos para nao perder o timing.',
+    ]
+  }
+
+  return [
+    'Enviar campanha de reativacao com oferta objetiva.',
+    'Revisar a ultima experiencia para detectar possivel atrito.',
+    'Retomar contato em uma janela curta para recuperar a frequencia.',
+  ]
+}
+
+function mapCustomerOrderDetail(order) {
+  return {
+    id: order.id,
+    criado_em: order.criado_em,
+    valor_total: toMoneyNumber(order.valor_total),
+    valor_entrega: toMoneyNumber(order.valor_entrega),
+    status_entrega: order.status_entrega,
+    status_pagamento: order.status_pagamento,
+    metodo_pagamento: order.metodo_pagamento,
+    observacoes: order.observacoes || null,
+    endereco: cleanAddressForAdmin(order.enderecos),
+    itens: (order.itens_pedido || []).map((item) => ({
+      id: item.id,
+      produto_id: item.produto_id,
+      quantidade: Number(item.quantidade || 0),
+      preco_unitario: toMoneyNumber(item.preco_unitario),
+      subtotal: toMoneyNumber(item.subtotal),
+      produto: item.produtos
+        ? {
+            id: item.produtos.id,
+            nome_doce: item.produtos.nome_doce,
+            preco: toMoneyNumber(item.produtos.preco),
+          }
+        : null,
+    })),
+  }
+}
+
+function summarizeCustomer(cliente, { includeOrders = false, now = new Date() } = {}) {
+  const orders = [...(cliente.pedidos || [])].sort((left, right) => {
+    const dateDiff = compareNullableDatesDesc(left.criado_em, right.criado_em)
+    if (dateDiff !== 0) return dateDiff
+    return Number(right.id || 0) - Number(left.id || 0)
+  })
+
+  const totalOrders = orders.length
+  const deliveredOrders = orders.filter((order) => order.status_entrega === 'entregue').length
+  const cancelledOrders = orders.filter((order) => order.status_entrega === 'cancelado').length
+  const totalSpent = toMoneyNumber(
+    orders.reduce((acc, order) => acc + Number(order.valor_total || 0), 0),
+  )
+  const averageTicket = totalOrders > 0 ? toMoneyNumber(totalSpent / totalOrders) : 0
+  const lastOrder = orders[0] || null
+  const firstOrder = orders[orders.length - 1] || null
+  const daysSinceLastOrder = diffDaysFromNow(lastOrder?.criado_em, now)
+
+  const baseSummary = {
+    id: cliente.id,
+    nome: cliente.nome,
+    telefone_whatsapp: cliente.telefone_whatsapp,
+    whatsapp_lid: cliente.whatsapp_lid || null,
+    criado_em: cliente.criado_em || null,
+    latest_endereco: cleanAddressForAdmin(cliente.enderecos?.[0] || null),
+    total_orders: totalOrders,
+    delivered_orders: deliveredOrders,
+    cancelled_orders: cancelledOrders,
+    total_spent: totalSpent,
+    average_ticket: averageTicket,
+    first_order_at: firstOrder?.criado_em || null,
+    last_order_at: lastOrder?.criado_em || null,
+    last_order_status: lastOrder?.status_entrega || null,
+    preferred_payment_method: getPreferredPaymentMethod(orders),
+    days_since_last_order: daysSinceLastOrder,
+  }
+
+  const segmentData = classifyCustomerSegment(baseSummary)
+  const recommendedActions = buildCustomerActions({ ...baseSummary, ...segmentData })
+
+  return {
+    ...baseSummary,
+    ...segmentData,
+    recommended_action: recommendedActions[0] || null,
+    recommended_actions: recommendedActions,
+    orders: includeOrders ? orders.map(mapCustomerOrderDetail) : undefined,
+  }
+}
+
+function matchesCustomerSegment(customer, segment) {
+  if (!segment || segment === 'all') return true
+  return customer.segment === segment
+}
+
+function sortCustomers(items, sort) {
+  const customers = [...items]
+
+  customers.sort((left, right) => {
+    if (sort === 'name_asc') {
+      return compareStringsAsc(left.nome, right.nome)
+    }
+
+    if (sort === 'orders_desc') {
+      if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
+      if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
+      return compareStringsAsc(left.nome, right.nome)
+    }
+
+    if (sort === 'total_spent_desc') {
+      if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
+      if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
+      return compareStringsAsc(left.nome, right.nome)
+    }
+
+    if (sort === 'recent_desc') {
+      const dateDiff = compareNullableDatesDesc(left.last_order_at, right.last_order_at)
+      if (dateDiff !== 0) return dateDiff
+      if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
+      return compareStringsAsc(left.nome, right.nome)
+    }
+
+    if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
+    if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
+    const dateDiff = compareNullableDatesDesc(left.last_order_at, right.last_order_at)
+    if (dateDiff !== 0) return dateDiff
+    return compareStringsAsc(left.nome, right.nome)
+  })
+
+  return customers
+}
+
+function buildCustomersSummary(customers) {
+  const totalRevenue = toMoneyNumber(
+    customers.reduce((acc, customer) => acc + Number(customer.total_spent || 0), 0),
+  )
+  const totalOrders = customers.reduce((acc, customer) => acc + Number(customer.total_orders || 0), 0)
+
+  return {
+    total_customers: customers.length,
+    active_customers: customers.filter((customer) => customer.days_since_last_order !== null && customer.days_since_last_order <= 30).length,
+    recurring_customers: customers.filter((customer) => customer.segment === 'recorrente').length,
+    new_customers: customers.filter((customer) => customer.segment === 'novo').length,
+    inactive_customers: customers.filter((customer) => customer.segment === 'inativo').length,
+    lead_customers: customers.filter((customer) => customer.segment === 'lead').length,
+    revenue_total: totalRevenue,
+    total_orders: totalOrders,
+    average_ticket: totalOrders > 0 ? toMoneyNumber(totalRevenue / totalOrders) : 0,
+  }
+}
+
 function getOrderNotificationInclude() {
   return {
     clientes: { select: { id: true, nome: true, telefone_whatsapp: true } },
@@ -390,6 +782,88 @@ function adminPanelService(prisma, deps = {}) {
             search: normalizeSearchValue(query.search),
           },
         },
+      }
+    },
+
+    async listCustomers(query = {}) {
+      const page = Number(query.page || 1)
+      const pageSize = Number(query.pageSize || 12)
+      const sort = query.sort || 'recent_desc'
+      const segment = query.segment || 'all'
+      const { where, meta } = buildCustomerWhere(query)
+
+      const rawCustomers = await prisma.clientes.findMany({
+        where,
+        orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+        include: getCustomerListInclude(),
+      })
+
+      const summarizedCustomers = rawCustomers.map((customer) => summarizeCustomer(customer))
+      const filteredCustomers = sortCustomers(
+        summarizedCustomers.filter((customer) => matchesCustomerSegment(customer, segment)),
+        sort,
+      )
+      const total = filteredCustomers.length
+      const totalPages = Math.max(1, Math.ceil(total / pageSize))
+      const safePage = Math.min(Math.max(page, 1), totalPages)
+      const skip = (safePage - 1) * pageSize
+      const items = filteredCustomers.slice(skip, skip + pageSize)
+
+      return {
+        items,
+        meta: {
+          page: safePage,
+          pageSize,
+          total,
+          totalPages,
+          summary: buildCustomersSummary(filteredCustomers),
+          filters: {
+            ...meta,
+            search: normalizeSearchValue(query.search),
+            segment,
+            sort,
+          },
+        },
+      }
+    },
+
+    async getCustomer(id) {
+      const customer = await prisma.clientes.findUnique({
+        where: { id },
+        include: getCustomerDetailInclude(),
+      })
+
+      if (!customer) {
+        throw new AppError(404, 'Cliente nao encontrado.')
+      }
+
+      const summary = summarizeCustomer(customer, { includeOrders: true })
+
+      return {
+        id: customer.id,
+        nome: customer.nome,
+        telefone_whatsapp: customer.telefone_whatsapp,
+        whatsapp_lid: customer.whatsapp_lid || null,
+        criado_em: customer.criado_em || null,
+        latest_endereco: summary.latest_endereco,
+        enderecos: (customer.enderecos || []).map(cleanAddressForAdmin),
+        total_orders: summary.total_orders,
+        delivered_orders: summary.delivered_orders,
+        cancelled_orders: summary.cancelled_orders,
+        total_spent: summary.total_spent,
+        average_ticket: summary.average_ticket,
+        first_order_at: summary.first_order_at,
+        last_order_at: summary.last_order_at,
+        last_order_status: summary.last_order_status,
+        preferred_payment_method: summary.preferred_payment_method,
+        days_since_last_order: summary.days_since_last_order,
+        segment: summary.segment,
+        segment_label: summary.segment_label,
+        segment_reason: summary.segment_reason,
+        recommended_action: summary.recommended_action,
+        recommended_actions: summary.recommended_actions,
+        favorite_products: buildFavoriteProducts(customer.pedidos),
+        orders: summary.orders || [],
       }
     },
 

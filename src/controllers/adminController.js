@@ -10,7 +10,12 @@ const {
   validateCreateDeliveryFee,
   validateUpdateDeliveryFee,
 } = require('../validators/deliveryFeeValidator')
-const { parseDashboardQuery, parseOrdersQuery } = require('../validators/adminQueryValidator')
+const {
+  parseDashboardQuery,
+  parseOrdersQuery,
+  parseCustomersQuery,
+  parseCustomerId,
+} = require('../validators/adminQueryValidator')
 
 function adminController(service) {
   return {
@@ -24,6 +29,18 @@ function adminController(service) {
       const query = parseOrdersQuery(url)
       const result = await service.listOrders(query)
       return { statusCode: 200, data: result.items, meta: result.meta }
+    },
+
+    async customers(url) {
+      const query = parseCustomersQuery(url)
+      const result = await service.listCustomers(query)
+      return { statusCode: 200, data: result.items, meta: result.meta }
+    },
+
+    async customer(idParam) {
+      const id = parseCustomerId(idParam)
+      const data = await service.getCustomer(id)
+      return { statusCode: 200, data }
     },
 
     async updateOrderStatus(req, idParam) {

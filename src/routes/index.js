@@ -179,6 +179,19 @@ function createRouter(prisma) {
       return admin.dashboard(url)
     }
 
+    if (method === 'GET' && path === '/admin/customers') {
+      requireRole(req, 'admin')
+      return admin.customers(url)
+    }
+
+    if (path.startsWith('/admin/customers/')) {
+      const id = path.replace('/admin/customers/', '')
+      if (method === 'GET') {
+        requireRole(req, 'admin')
+        return admin.customer(id)
+      }
+    }
+
     if (method === 'GET' && path === '/admin/orders') {
       requireRole(req, 'admin')
       return admin.orders(url)

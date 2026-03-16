@@ -19,6 +19,7 @@
 
       <nav class="sidebar-nav admin-sidebar-nav">
         <a href="#dashboard" data-admin-view-link="dashboard" class="active">Resumo</a>
+        <a href="#clientes" data-admin-view-link="clientes">Clientes</a>
         <a href="#cardapio" data-admin-view-link="cardapio">Cardápio</a>
         <a href="#pedidos" data-admin-view-link="pedidos">Pedidos</a>
         <a href="#config" data-admin-view-link="config">Configurações</a>
@@ -93,6 +94,100 @@
               <small>Faturamento</small>
               <strong id="kpiFaturamento">--</strong>
             </article>
+          </div>
+        </article>
+
+        <article id="clientes" class="card admin-card admin-panel-view hidden" data-admin-view="clientes">
+          <header class="section-head section-head-with-actions">
+            <div class="section-copy">
+              <h2>Clientes</h2>
+              <p id="customersMeta" class="muted">Faça login para carregar a carteira de clientes.</p>
+            </div>
+            <div class="section-actions section-actions-wrap">
+              <input id="customersSearchInput" placeholder="Nome, WhatsApp ou #pedido" />
+              <select id="customersSegmentFilter">
+                <option value="all">Todos os segmentos</option>
+                <option value="lead">Leads</option>
+                <option value="novo">Novos</option>
+                <option value="recorrente">Recorrentes</option>
+                <option value="inativo">Inativos</option>
+              </select>
+              <select id="customersSortInput">
+                <option value="recent_desc">Ordenar por último pedido</option>
+                <option value="total_spent_desc">Ordenar por valor acumulado</option>
+                <option value="orders_desc">Ordenar por quantidade de pedidos</option>
+                <option value="name_asc">Ordenar por nome</option>
+              </select>
+              <select id="customersRangePreset">
+                <option value="all" selected>Toda a carteira</option>
+                <option value="7d">Atividade últimos 7 dias</option>
+                <option value="30d">Atividade últimos 30 dias</option>
+                <option value="month">Atividade neste mês</option>
+                <option value="custom">Atividade personalizada</option>
+              </select>
+              <input id="customersFromDate" type="date" aria-label="Data inicial dos clientes" />
+              <input id="customersToDate" type="date" aria-label="Data final dos clientes" />
+              <select id="customersPageSizeInput">
+                <option value="8">8 por página</option>
+                <option value="12" selected>12 por página</option>
+                <option value="20">20 por página</option>
+              </select>
+              <button id="applyCustomersFiltersBtn" class="ghost-btn" type="button">Aplicar</button>
+              <button id="refreshCustomersBtn" class="ghost-btn" type="button">Atualizar</button>
+            </div>
+          </header>
+          <p id="customersStatus" class="status-text muted"></p>
+
+          <div class="kpi-grid crm-kpi-grid">
+            <article class="kpi-card">
+              <small>Clientes na carteira</small>
+              <strong id="crmTotalCustomers">--</strong>
+            </article>
+            <article class="kpi-card">
+              <small>Ativos até 30 dias</small>
+              <strong id="crmActiveCustomers">--</strong>
+            </article>
+            <article class="kpi-card">
+              <small>Recorrentes</small>
+              <strong id="crmRecurringCustomers">--</strong>
+            </article>
+            <article class="kpi-card">
+              <small>Leads</small>
+              <strong id="crmLeadCustomers">--</strong>
+            </article>
+            <article class="kpi-card highlight">
+              <small>Receita da carteira</small>
+              <strong id="crmRevenueTotal">--</strong>
+            </article>
+          </div>
+
+          <div class="crm-layout">
+            <section class="crm-list-panel">
+              <header class="section-head crm-subhead">
+                <div>
+                  <h3>Carteira de clientes</h3>
+                  <p id="customersListMeta" class="muted">Faça login para carregar clientes.</p>
+                </div>
+              </header>
+
+              <div id="customersList" class="crm-customer-list">
+                <p class="muted">Nenhum dado carregado.</p>
+              </div>
+
+              <div class="list-footer">
+                <span></span>
+                <div class="pager">
+                  <button id="customersPrevBtn" class="ghost-btn" type="button">Anterior</button>
+                  <button id="customersNextBtn" class="ghost-btn" type="button">Próxima</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="crm-detail-panel">
+              <div id="customerDetail" class="crm-detail-empty">
+                <p class="muted">Selecione um cliente para ver perfil, endereços e histórico.</p>
+              </div>
+            </section>
           </div>
         </article>
 
@@ -498,6 +593,28 @@
     const ordersPrevBtnEl = document.getElementById('ordersPrevBtn');
     const ordersNextBtnEl = document.getElementById('ordersNextBtn');
 
+    const customersMetaEl = document.getElementById('customersMeta');
+    const customersListMetaEl = document.getElementById('customersListMeta');
+    const customersSearchInputEl = document.getElementById('customersSearchInput');
+    const customersSegmentFilterEl = document.getElementById('customersSegmentFilter');
+    const customersSortInputEl = document.getElementById('customersSortInput');
+    const customersRangePresetEl = document.getElementById('customersRangePreset');
+    const customersFromDateEl = document.getElementById('customersFromDate');
+    const customersToDateEl = document.getElementById('customersToDate');
+    const customersPageSizeInputEl = document.getElementById('customersPageSizeInput');
+    const applyCustomersFiltersBtnEl = document.getElementById('applyCustomersFiltersBtn');
+    const refreshCustomersBtnEl = document.getElementById('refreshCustomersBtn');
+    const customersStatusEl = document.getElementById('customersStatus');
+    const customersListEl = document.getElementById('customersList');
+    const customersPrevBtnEl = document.getElementById('customersPrevBtn');
+    const customersNextBtnEl = document.getElementById('customersNextBtn');
+    const customerDetailEl = document.getElementById('customerDetail');
+    const crmTotalCustomersEl = document.getElementById('crmTotalCustomers');
+    const crmActiveCustomersEl = document.getElementById('crmActiveCustomers');
+    const crmRecurringCustomersEl = document.getElementById('crmRecurringCustomers');
+    const crmLeadCustomersEl = document.getElementById('crmLeadCustomers');
+    const crmRevenueTotalEl = document.getElementById('crmRevenueTotal');
+
     const settingsFormEl = document.getElementById('settingsForm');
     const settingsStatusEl = document.getElementById('settingsStatus');
     const whatsappSessionStatusBtnEl = document.getElementById('whatsappSessionStatusBtn');
@@ -563,12 +680,16 @@
     let accessToken = localStorage.getItem('donilla_access_token') || '';
     let currentUser = null;
     let allOrders = [];
+    let crmCustomers = [];
+    let customerDetail = null;
     let menuCategorias = [];
     let allCategorias = [];
     let menuProdutos = [];
     let deliveryFees = [];
     let produtoImagemDataUrl = '';
     let productImageWebpSupported = null;
+    let selectedCustomerId = null;
+    let customerPaginationMeta = null;
     let ordersPaginationMeta = null;
     let categoryPaginationMeta = null;
     let produtoPaginationMeta = null;
@@ -585,6 +706,17 @@
       status: statusFilterEl?.value || 'all',
       search: '',
       period: ordersRangePresetEl?.value || '7d',
+      from: '',
+      to: '',
+    };
+
+    const customersState = {
+      page: 1,
+      pageSize: Number(customersPageSizeInputEl?.value || 12),
+      search: '',
+      segment: customersSegmentFilterEl?.value || 'all',
+      sort: customersSortInputEl?.value || 'recent_desc',
+      period: customersRangePresetEl?.value || 'all',
       from: '',
       to: '',
     };
@@ -608,9 +740,18 @@
     const DEFAULT_ADMIN_VIEW = 'dashboard';
     const ADMIN_VIEW_DESCRIPTIONS = {
       dashboard: 'Indicadores e fotografia rápida da operação da loja.',
+      clientes: 'Base de clientes com histórico, preferências e pedidos.',
       cardapio: 'Categorias, itens, estoque e disponibilidade do cardápio.',
       pedidos: 'Acompanhe, filtre e atualize pedidos em tempo real.',
       config: 'Horários, avisos e taxas por local da operação.',
+    };
+
+    const CRM_SEGMENT_LABELS = {
+      all: 'Todos os segmentos',
+      lead: 'Leads',
+      novo: 'Novos',
+      recorrente: 'Recorrentes',
+      inativo: 'Inativos',
     };
 
     function brl(value) {
@@ -623,6 +764,44 @@
     function dateTime(value) {
       if (!value) return '--';
       return new Date(value).toLocaleString('pt-BR');
+    }
+
+    function dateOnly(value) {
+      if (!value) return '--';
+      return new Date(value).toLocaleDateString('pt-BR');
+    }
+
+    function formatPhone(value) {
+      const digits = String(value || '').replace(/\D/g, '');
+      if (!digits) return '--';
+
+      if (digits.length === 13 && digits.startsWith('55')) {
+        return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
+      }
+
+      if (digits.length === 11) {
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+      }
+
+      return digits;
+    }
+
+    function pluralize(count, singular, plural = `${singular}s`) {
+      return `${count} ${count === 1 ? singular : plural}`;
+    }
+
+    function formatDaysSinceLastOrder(days) {
+      if (days === null || days === undefined) return 'Sem pedidos ainda';
+      if (days === 0) return 'Comprou hoje';
+      if (days === 1) return 'Última compra ontem';
+      return `Sem comprar há ${days} dias`;
+    }
+
+    function formatDaysSinceLastOrderCompact(days) {
+      if (days === null || days === undefined) return 'Sem pedidos';
+      if (days === 0) return 'Hoje';
+      if (days === 1) return 'Ontem';
+      return `${days} dias`;
     }
 
     function formatAddress(endereco) {
@@ -653,6 +832,46 @@
     function clearStatus(target) {
       if (!target) return;
       setStatus(target, '', 'muted');
+    }
+
+    function buildAddressKey(endereco) {
+      if (!endereco) return '';
+      return [
+        endereco.rua,
+        endereco.numero,
+        endereco.bairro,
+        endereco.cidade,
+        endereco.complemento,
+        endereco.referencia,
+      ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .join('|');
+    }
+
+    function uniqueAddresses(addresses = []) {
+      const seen = new Set();
+      return (addresses || []).filter((endereco) => {
+        const key = buildAddressKey(endereco);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    function formatCompactAddress(endereco) {
+      if (!endereco) return 'Sem endereço principal';
+
+      const parts = [];
+      const street = [endereco.rua, endereco.numero].filter(Boolean).join(', ');
+      if (street) parts.push(street);
+      if (endereco.bairro) parts.push(endereco.bairro);
+      if (endereco.cidade) parts.push(endereco.cidade);
+      return parts.join(' · ') || 'Sem endereço principal';
+    }
+
+    function getSelectOptionLabel(selectEl, value) {
+      const option = Array.from(selectEl?.options || []).find((item) => item.value === value);
+      return option?.textContent || value || '--';
     }
 
     function adminViewExists(view) {
@@ -895,6 +1114,8 @@
       const isCustom = presetEl.value === 'custom';
       fromEl.disabled = !isCustom;
       toEl.disabled = !isCustom;
+      fromEl.classList.toggle('hidden', !isCustom);
+      toEl.classList.toggle('hidden', !isCustom);
     }
 
     function validateRangeState(state, statusTarget, label) {
@@ -930,6 +1151,14 @@
       if (ordersSearchInputEl) ordersSearchInputEl.value = ordersState.search;
       if (ordersPageSizeInputEl) ordersPageSizeInputEl.value = String(ordersState.pageSize);
       syncRangeInputs(ordersRangePresetEl, ordersFromDateEl, ordersToDateEl, ordersState);
+    }
+
+    function updateCustomersControlsFromState() {
+      if (customersSearchInputEl) customersSearchInputEl.value = customersState.search;
+      if (customersSegmentFilterEl) customersSegmentFilterEl.value = customersState.segment;
+      if (customersSortInputEl) customersSortInputEl.value = customersState.sort;
+      if (customersPageSizeInputEl) customersPageSizeInputEl.value = String(customersState.pageSize);
+      syncRangeInputs(customersRangePresetEl, customersFromDateEl, customersToDateEl, customersState);
     }
 
     function populateCategoriaOptions(selectedId = '') {
@@ -1001,19 +1230,52 @@
       currentUser = null;
       localStorage.removeItem('donilla_access_token');
       allOrders = [];
+      crmCustomers = [];
+      customerDetail = null;
       menuCategorias = [];
       menuProdutos = [];
       deliveryFees = [];
       allCategorias = [];
+      selectedCustomerId = null;
+      customerPaginationMeta = null;
       ordersPaginationMeta = null;
       categoryPaginationMeta = null;
       produtoPaginationMeta = null;
+      customersState.page = 1;
+      customersState.pageSize = 12;
+      customersState.search = '';
+      customersState.segment = 'all';
+      customersState.sort = 'recent_desc';
+      customersState.period = 'all';
+      customersState.from = '';
+      customersState.to = '';
+      ordersState.page = 1;
+      ordersState.search = '';
+      ordersState.status = 'all';
+      ordersState.period = '7d';
+      ordersState.from = '';
+      ordersState.to = '';
       applySessionUi();
+      renderCustomersSummary();
+      renderCustomerDetail();
+      renderCustomers();
       renderOrders();
       renderDashboard();
       resetCategoriaForm();
       resetProdutoForm();
       resetDeliveryFeeForm();
+      if (customersSearchInputEl) {
+        customersSearchInputEl.value = '';
+      }
+      if (customersSegmentFilterEl) {
+        customersSegmentFilterEl.value = 'all';
+      }
+      if (customersSortInputEl) {
+        customersSortInputEl.value = 'recent_desc';
+      }
+      if (customersPageSizeInputEl) {
+        customersPageSizeInputEl.value = '12';
+      }
       if (categoryListEl) {
         categoryListEl.innerHTML = '<p class="muted">Faça login para carregar categorias.</p>';
       }
@@ -1059,6 +1321,14 @@
       if (produtoMetaEl) {
         produtoMetaEl.textContent = 'Faça login para carregar itens.';
       }
+      if (customersMetaEl) {
+        customersMetaEl.textContent = 'Faça login para carregar a carteira de clientes.';
+      }
+      if (customersListMetaEl) {
+        customersListMetaEl.textContent = 'Faça login para carregar clientes.';
+      }
+      if (customersPrevBtnEl) customersPrevBtnEl.disabled = true;
+      if (customersNextBtnEl) customersNextBtnEl.disabled = true;
       if (ordersPrevBtnEl) ordersPrevBtnEl.disabled = true;
       if (ordersNextBtnEl) ordersNextBtnEl.disabled = true;
       if (categoryPrevBtnEl) categoryPrevBtnEl.disabled = true;
@@ -1066,9 +1336,11 @@
       if (produtoPrevBtnEl) produtoPrevBtnEl.disabled = true;
       if (produtoNextBtnEl) produtoNextBtnEl.disabled = true;
       dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
+      updateCustomersControlsFromState();
       updateOrdersControlsFromState();
       syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
       clearStatus(dashboardStatusEl);
+      clearStatus(customersStatusEl);
       clearStatus(ordersStatusEl);
       setStatus(settingsStatusEl, 'Faça login para editar configurações.', 'muted');
       setStatus(deliveryFeeStatusEl, 'Faça login para editar taxas de entrega.', 'muted');
@@ -1094,6 +1366,333 @@
       const filters = meta?.filters || null;
       dashboardRangeMetaEl.textContent = filters ? formatRangeMeta(filters) : 'Todo o período';
       updateDashboardControlsFromMeta(filters || dashboardFilters);
+    }
+
+    function renderCustomersSummary(summary = null) {
+      crmTotalCustomersEl.textContent = summary ? String(summary.total_customers ?? 0) : '--';
+      crmActiveCustomersEl.textContent = summary ? String(summary.active_customers ?? 0) : '--';
+      crmRecurringCustomersEl.textContent = summary ? String(summary.recurring_customers ?? 0) : '--';
+      crmLeadCustomersEl.textContent = summary ? String(summary.lead_customers ?? 0) : '--';
+      crmRevenueTotalEl.textContent = summary ? brl(summary.revenue_total || 0) : '--';
+    }
+
+    function customerSegmentChip(customer) {
+      const segment = escapeHtml(customer.segment || 'all');
+      const label = escapeHtml(customer.segment_label || CRM_SEGMENT_LABELS[customer.segment] || 'Cliente');
+      return `<span class="crm-chip crm-chip-${segment}">${label}</span>`;
+    }
+
+    function customerCard(customer) {
+      const isActive = Number(selectedCustomerId || 0) === Number(customer.id || 0);
+      const addressLabel = customer.latest_endereco
+        ? formatCompactAddress(customer.latest_endereco)
+        : 'Sem endereço principal';
+
+      return `
+        <button type="button" class="crm-customer-card${isActive ? ' active' : ''}" data-customer-select="${customer.id}">
+          <div class="crm-customer-heading">
+            <div class="crm-customer-main">
+              <strong>${escapeHtml(customer.nome || '--')}</strong>
+              <small>${escapeHtml(formatPhone(customer.telefone_whatsapp || ''))}</small>
+            </div>
+            <div class="crm-customer-badges">
+              ${customerSegmentChip(customer)}
+            </div>
+          </div>
+
+          <div class="crm-customer-inline-stats">
+            <span class="crm-inline-pill"><b>Pedidos</b>${Number(customer.total_orders || 0)}</span>
+            <span class="crm-inline-pill"><b>Faturamento</b>${brl(customer.total_spent || 0)}</span>
+            <span class="crm-inline-pill"><b>Recência</b>${escapeHtml(formatDaysSinceLastOrderCompact(customer.days_since_last_order))}</span>
+          </div>
+
+          <div class="crm-customer-footer">
+            <span class="crm-customer-caption">${escapeHtml(customer.segment_reason || 'Sem observações no momento.')}</span>
+            <span class="crm-customer-location">${escapeHtml(addressLabel)}</span>
+          </div>
+        </button>
+      `;
+    }
+
+    function customerDetailOrderCard(order) {
+      const status = order.status_entrega || 'pendente';
+      const itemsPreview = (order.itens || []).map((item) => {
+        const productName = item.produto?.nome_doce || `Produto ${item.produto_id}`;
+        return `
+          <span class="crm-order-item-chip">
+            ${escapeHtml(`${item.quantidade}x ${productName}`)}
+          </span>
+        `;
+      }).join('');
+      const itemsCount = (order.itens || []).reduce((acc, item) => acc + Number(item.quantidade || 0), 0);
+
+      return `
+        <article class="crm-order-card">
+          <header class="crm-order-card-head">
+            <div>
+              <strong>Pedido #${order.id}</strong>
+              <small>${dateTime(order.criado_em)}</small>
+            </div>
+            <div class="crm-order-card-actions">
+              <span class="status-chip status-${status}">${STATUS_LABELS[status] || status}</span>
+              <button type="button" class="ghost-btn crm-order-link" data-open-order="${order.id}">Abrir pedido</button>
+            </div>
+          </header>
+
+          <div class="crm-order-summary">
+            <span class="crm-order-summary-pill"><b>Total</b>${brl(order.valor_total || 0)}</span>
+            <span class="crm-order-summary-pill"><b>Pagamento</b>${escapeHtml(order.metodo_pagamento || '--')}</span>
+            <span class="crm-order-summary-pill"><b>Itens</b>${pluralize(itemsCount, 'item')}</span>
+          </div>
+
+          ${itemsPreview ? `<div class="crm-order-products">${itemsPreview}</div>` : ''}
+          <p class="crm-order-address">${escapeHtml(formatCompactAddress(order.endereco))}</p>
+          ${order.observacoes ? `<p class="crm-order-card-note"><b>Observações:</b> ${escapeHtml(order.observacoes)}</p>` : ''}
+        </article>
+      `;
+    }
+
+    function renderCustomerDetail(detail = customerDetail) {
+      if (!accessToken) {
+        customerDetailEl.className = 'crm-detail-empty';
+        customerDetailEl.innerHTML = '<div class="crm-detail-empty"><p class="muted">Faça login para visualizar o perfil do cliente.</p></div>';
+        return;
+      }
+
+      if (!detail) {
+        customerDetailEl.className = 'crm-detail-empty';
+        customerDetailEl.innerHTML = '<div class="crm-detail-empty"><p class="muted">Selecione um cliente para ver perfil, endereços e histórico.</p></div>';
+        return;
+      }
+
+      customerDetailEl.className = '';
+      const dedupedAddresses = uniqueAddresses(detail.enderecos || []);
+
+      const favoriteProductsHtml = (detail.favorite_products || []).length
+        ? detail.favorite_products
+            .map(
+              (product) => `
+                <li>
+                  <span>${escapeHtml(product.nome_doce || '--')}</span>
+                  <strong>${pluralize(Number(product.quantidade || 0), 'unidade')}</strong>
+                  <small>${brl(product.receita_total || 0)}</small>
+                </li>
+              `,
+            )
+            .join('')
+        : '<li><span>Nenhum favorito calculado ainda.</span></li>';
+
+      const addressesHtml = dedupedAddresses.length
+        ? dedupedAddresses
+            .map(
+              (endereco, index) => `
+                <article class="crm-address-card">
+                  <small>${index === 0 ? 'Principal' : `Endereço ${index + 1}`}</small>
+                  <strong>${escapeHtml(formatCompactAddress(endereco))}</strong>
+                </article>
+              `,
+            )
+            .join('')
+        : '<p class="muted">Nenhum endereço cadastrado.</p>';
+
+      const ordersHtml = (detail.orders || []).length
+        ? detail.orders.map(customerDetailOrderCard).join('')
+        : '<p class="muted">Nenhum pedido encontrado para este cliente.</p>';
+
+      customerDetailEl.innerHTML = `
+        <div class="crm-detail-shell">
+          <section class="crm-profile-card">
+            <div class="crm-profile-main">
+              <div class="crm-profile-copy">
+                <h3>${escapeHtml(detail.nome || '--')}</h3>
+                <p>${escapeHtml(detail.segment_reason || 'Sem observações estratégicas por enquanto.')}</p>
+              </div>
+              <div class="crm-profile-badges">
+                ${customerSegmentChip(detail)}
+              </div>
+            </div>
+
+            <div class="crm-profile-facts">
+              <article class="crm-profile-fact">
+                <small>WhatsApp</small>
+                <strong>${escapeHtml(formatPhone(detail.telefone_whatsapp || ''))}</strong>
+              </article>
+              <article class="crm-profile-fact">
+                <small>Cliente desde</small>
+                <strong>${dateOnly(detail.criado_em)}</strong>
+              </article>
+              <article class="crm-profile-fact">
+                <small>Pagamento mais usado</small>
+                <strong>${escapeHtml(detail.preferred_payment_method || '--')}</strong>
+              </article>
+              <article class="crm-profile-fact">
+                <small>Último pedido</small>
+                <strong>${detail.last_order_at ? dateTime(detail.last_order_at) : '--'}</strong>
+              </article>
+            </div>
+          </section>
+
+          <div class="crm-detail-grid">
+            <article class="crm-detail-card crm-summary-card">
+              <header class="crm-card-head">
+                <div>
+                  <h3>Resumo do cliente</h3>
+                  <p class="muted">Visão rápida do relacionamento com a loja.</p>
+                </div>
+              </header>
+              <div class="crm-mini-grid">
+                <div class="crm-mini-stat">
+                  <small>Pedidos</small>
+                  <strong>${Number(detail.total_orders || 0)}</strong>
+                </div>
+                <div class="crm-mini-stat">
+                  <small>Faturamento</small>
+                  <strong>${brl(detail.total_spent || 0)}</strong>
+                </div>
+                <div class="crm-mini-stat">
+                  <small>Ticket médio</small>
+                  <strong>${brl(detail.average_ticket || 0)}</strong>
+                </div>
+                <div class="crm-mini-stat">
+                  <small>Recência</small>
+                  <strong>${escapeHtml(formatDaysSinceLastOrder(detail.days_since_last_order))}</strong>
+                </div>
+              </div>
+            </article>
+
+            <article class="crm-detail-card">
+              <h3>Endereços</h3>
+              <div class="crm-address-stack">${addressesHtml}</div>
+            </article>
+
+            <article class="crm-detail-card">
+              <h3>Preferências e favoritos</h3>
+              <ul class="crm-product-list">${favoriteProductsHtml}</ul>
+            </article>
+          </div>
+
+          <section class="crm-detail-card">
+            <header class="section-head crm-subhead">
+              <div>
+                <h3>Histórico de pedidos</h3>
+                <p class="muted">Abra um pedido na aba operacional quando precisar atualizar status.</p>
+              </div>
+            </header>
+            <div class="crm-order-history">${ordersHtml}</div>
+          </section>
+        </div>
+      `;
+    }
+
+    function renderCustomers() {
+      if (!accessToken) {
+        customersListEl.innerHTML = '<p class="muted">Faça login para visualizar clientes.</p>';
+        customersMetaEl.textContent = 'Faça login para carregar a carteira de clientes.';
+        customersListMetaEl.textContent = 'Faça login para carregar clientes.';
+        customersPrevBtnEl.disabled = true;
+        customersNextBtnEl.disabled = true;
+        renderCustomersSummary();
+        return;
+      }
+
+      const summary = customerPaginationMeta?.summary || null;
+      const total = Number(customerPaginationMeta?.total || 0);
+      const totalPages = Number(customerPaginationMeta?.totalPages || 1);
+      const page = Number(customerPaginationMeta?.page || customersState.page || 1);
+      const pageSize = Number(customerPaginationMeta?.pageSize || customersState.pageSize || 12);
+      const filters = customerPaginationMeta?.filters || null;
+      const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
+      const end = total === 0 ? 0 : Math.min(total, page * pageSize);
+      const segmentLabel = getSelectOptionLabel(customersSegmentFilterEl, filters?.segment || customersState.segment);
+      const sortLabel = getSelectOptionLabel(customersSortInputEl, filters?.sort || customersState.sort);
+
+      renderCustomersSummary(summary);
+      customersMetaEl.textContent = `${total} clientes na carteira · Atividade: ${formatRangeMeta(filters)}`;
+      customersListMetaEl.textContent = `${start}-${end} de ${total} · ${segmentLabel} · ${sortLabel}`;
+      customersPrevBtnEl.disabled = page <= 1;
+      customersNextBtnEl.disabled = page >= totalPages;
+
+      if (crmCustomers.length === 0) {
+        customersListEl.innerHTML = '<p class="muted">Nenhum cliente encontrado para este filtro.</p>';
+        return;
+      }
+
+      customersListEl.innerHTML = crmCustomers.map(customerCard).join('');
+    }
+
+    function customersQueryString() {
+      return buildQueryString({
+        page: customersState.page,
+        pageSize: customersState.pageSize,
+        search: customersState.search,
+        segment: customersState.segment,
+        sort: customersState.sort,
+        period: customersState.period,
+        from: customersState.period === 'custom' ? customersState.from : undefined,
+        to: customersState.period === 'custom' ? customersState.to : undefined,
+      });
+    }
+
+    async function loadCustomerDetail(customerId, { silent = false } = {}) {
+      if (!accessToken || !customerId) {
+        customerDetail = null;
+        renderCustomerDetail();
+        return null;
+      }
+
+      selectedCustomerId = Number(customerId);
+      if (!silent) {
+        customerDetailEl.className = 'crm-detail-empty';
+        customerDetailEl.innerHTML = '<div class="crm-detail-empty"><p class="muted">Carregando perfil do cliente...</p></div>';
+      }
+
+      const response = await fetch(`/admin/customers/${customerId}`, { headers: authHeaders() });
+      customerDetail = await parseResponse(response);
+      renderCustomers();
+      renderCustomerDetail();
+      return customerDetail;
+    }
+
+    async function loadCustomers() {
+      if (!validateRangeState(customersState, customersStatusEl, 'clientes')) return;
+
+      const query = customersQueryString();
+      const response = await fetch(`/admin/customers?${query}`, { headers: authHeaders() });
+      const payload = await parseEnvelope(response);
+      crmCustomers = Array.isArray(payload.data) ? payload.data : [];
+      customerPaginationMeta = payload.meta || null;
+
+      if (customerPaginationMeta && customersState.page > Number(customerPaginationMeta.totalPages || 1)) {
+        customersState.page = Number(customerPaginationMeta.totalPages || 1);
+        return loadCustomers();
+      }
+
+      const customerIds = new Set(crmCustomers.map((customer) => Number(customer.id || 0)));
+      if (!selectedCustomerId || !customerIds.has(Number(selectedCustomerId || 0))) {
+        selectedCustomerId = crmCustomers[0]?.id || null;
+        customerDetail = null;
+      }
+
+      clearStatus(customersStatusEl);
+      renderCustomers();
+
+      if (!selectedCustomerId) {
+        renderCustomerDetail();
+        return;
+      }
+
+      await loadCustomerDetail(selectedCustomerId, { silent: true });
+    }
+
+    async function openOrderFromCrm(orderId) {
+      if (!orderId) return;
+
+      ordersState.search = `#${orderId}`;
+      ordersState.status = 'all';
+      ordersState.page = 1;
+      updateOrdersControlsFromState();
+      window.location.hash = 'pedidos';
+      await loadOrders();
     }
 
     function orderCard(order) {
@@ -1688,6 +2287,7 @@
         await loadCurrentUser();
         await Promise.all([
           loadDashboard(),
+          loadCustomers(),
           loadOrders(),
           loadStoreSettings(),
           loadCardapioData(),
@@ -1767,6 +2367,116 @@
     dashboardToDateEl.addEventListener('change', () => {
       dashboardFilters.to = dashboardToDateEl.value || '';
       validateRangeState(dashboardFilters, dashboardStatusEl, 'resumo');
+    });
+
+    refreshCustomersBtnEl.addEventListener('click', async () => {
+      if (!accessToken) return;
+      try {
+        await loadCustomers();
+      } catch (error) {
+        setStatus(customersStatusEl, error.message, 'err');
+      }
+    });
+
+    applyCustomersFiltersBtnEl.addEventListener('click', async () => {
+      customersState.search = String(customersSearchInputEl.value || '').trim();
+      customersState.segment = customersSegmentFilterEl.value || 'all';
+      customersState.sort = customersSortInputEl.value || 'recent_desc';
+      customersState.period = customersRangePresetEl.value;
+      customersState.from = customersFromDateEl.value || '';
+      customersState.to = customersToDateEl.value || '';
+      customersState.page = 1;
+      if (!accessToken) return;
+      try {
+        await loadCustomers();
+      } catch (error) {
+        setStatus(customersStatusEl, error.message, 'err');
+      }
+    });
+
+    customersSearchInputEl.addEventListener('keydown', async (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      applyCustomersFiltersBtnEl.click();
+    });
+
+    customersSegmentFilterEl.addEventListener('change', async () => {
+      customersState.segment = customersSegmentFilterEl.value || 'all';
+      customersState.page = 1;
+      if (!accessToken) return;
+      try {
+        await loadCustomers();
+      } catch (error) {
+        setStatus(customersStatusEl, error.message, 'err');
+      }
+    });
+
+    customersSortInputEl.addEventListener('change', async () => {
+      customersState.sort = customersSortInputEl.value || 'recent_desc';
+      customersState.page = 1;
+      if (!accessToken) return;
+      try {
+        await loadCustomers();
+      } catch (error) {
+        setStatus(customersStatusEl, error.message, 'err');
+      }
+    });
+
+    customersRangePresetEl.addEventListener('change', async () => {
+      customersState.period = customersRangePresetEl.value;
+      syncRangeInputs(customersRangePresetEl, customersFromDateEl, customersToDateEl, customersState);
+
+      if (!accessToken) {
+        validateRangeState(customersState, customersStatusEl, 'clientes');
+        return;
+      }
+
+      if (customersState.period === 'custom') {
+        validateRangeState(customersState, customersStatusEl, 'clientes');
+        return;
+      }
+
+      customersState.page = 1;
+      try {
+        await loadCustomers();
+      } catch (error) {
+        setStatus(customersStatusEl, error.message, 'err');
+      }
+    });
+
+    customersPageSizeInputEl.addEventListener('change', async () => {
+      customersState.pageSize = Number(customersPageSizeInputEl.value || 12);
+      customersState.page = 1;
+      if (!accessToken) return;
+      try {
+        await loadCustomers();
+      } catch (error) {
+        setStatus(customersStatusEl, error.message, 'err');
+      }
+    });
+
+    customersFromDateEl.addEventListener('change', () => {
+      customersState.from = customersFromDateEl.value || '';
+      validateRangeState(customersState, customersStatusEl, 'clientes');
+    });
+
+    customersToDateEl.addEventListener('change', () => {
+      customersState.to = customersToDateEl.value || '';
+      validateRangeState(customersState, customersStatusEl, 'clientes');
+    });
+
+    customersPrevBtnEl.addEventListener('click', async () => {
+      if (customersState.page <= 1 || !accessToken) return;
+      customersState.page -= 1;
+      await loadCustomers().catch((error) => setStatus(customersStatusEl, error.message, 'err'));
+    });
+
+    customersNextBtnEl.addEventListener('click', async () => {
+      if (!accessToken) return;
+      const totalPages = Number(customerPaginationMeta?.totalPages || 1);
+      if (customersState.page >= totalPages) return;
+      customersState.page += 1;
+      await loadCustomers().catch((error) => setStatus(customersStatusEl, error.message, 'err'));
     });
 
     refreshOrdersBtnEl.addEventListener('click', async () => {
@@ -1979,6 +2689,34 @@
         renderDeliveryFeeList();
       });
     }
+
+    customersListEl.addEventListener('click', async (event) => {
+      const customerButton = event.target.closest('[data-customer-select]');
+      if (!customerButton) return;
+
+      const customerId = Number(customerButton.dataset.customerSelect);
+      if (!customerId || Number(selectedCustomerId || 0) === customerId) return;
+
+      try {
+        await loadCustomerDetail(customerId);
+      } catch (error) {
+        setStatus(customersStatusEl, error.message, 'err');
+      }
+    });
+
+    customerDetailEl.addEventListener('click', async (event) => {
+      const orderButton = event.target.closest('button[data-open-order]');
+      if (!orderButton) return;
+
+      const orderId = Number(orderButton.dataset.openOrder);
+      if (!orderId) return;
+
+      try {
+        await openOrderFromCrm(orderId);
+      } catch (error) {
+        setStatus(ordersStatusEl, error.message, 'err');
+      }
+    });
 
     ordersListEl.addEventListener('click', async (event) => {
       const saveButton = event.target.closest('button[data-status-save]');
@@ -2398,8 +3136,13 @@
     syncAdminViewFromLocation({ replace: true });
     applySessionUi();
     syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
+    syncRangeInputs(customersRangePresetEl, customersFromDateEl, customersToDateEl, customersState);
+    updateCustomersControlsFromState();
     updateOrdersControlsFromState();
     renderDashboard();
+    renderCustomersSummary();
+    renderCustomerDetail();
+    renderCustomers();
     renderOrders();
     resetCategoriaForm();
     resetProdutoForm();

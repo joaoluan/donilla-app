@@ -1693,6 +1693,10 @@ button {
   box-shadow: 0 -8px 24px rgba(31, 66, 54, 0.35);
 }
 
+.admin-sidebar-nav {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .sidebar-nav a {
   color: #cbd5e1;
   display: inline-flex;
@@ -2065,6 +2069,424 @@ button {
   gap: 10px;
 }
 
+.crm-kpi-grid {
+  margin-top: 12px;
+}
+
+.crm-layout {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.crm-list-panel,
+.crm-detail-panel {
+  border: 1px solid var(--slate-200);
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+  box-shadow: var(--shadow-thin);
+}
+
+.crm-subhead {
+  margin-bottom: 10px;
+}
+
+.crm-subhead h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.crm-subhead p {
+  margin: 4px 0 0;
+}
+
+.crm-customer-list,
+.crm-order-history {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-customer-card {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(201, 164, 106, 0.35);
+  border-radius: 16px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at top right, rgba(201, 164, 106, 0.12), transparent 35%),
+    linear-gradient(165deg, #fffdf9 0%, #f6fbf8 100%);
+  color: var(--slate-900);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.crm-customer-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(201, 164, 106, 0.62);
+  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.08);
+}
+
+.crm-customer-card.active {
+  border-color: rgba(47, 107, 85, 0.65);
+  box-shadow: 0 0 0 2px rgba(47, 107, 85, 0.12), 0 14px 28px rgba(17, 24, 39, 0.1);
+}
+
+.crm-customer-top,
+.crm-order-card-head,
+.crm-profile-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crm-customer-main {
+  min-width: 0;
+}
+
+.crm-customer-ident {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.crm-customer-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(47, 107, 85, 0.18) 0%, rgba(201, 164, 106, 0.26) 100%);
+  color: var(--ifood-red-strong);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.crm-customer-main strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.crm-customer-main small,
+.crm-order-card-head small {
+  color: var(--slate-500);
+}
+
+.crm-customer-badges,
+.crm-profile-badges,
+.crm-order-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.crm-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.crm-chip {
+  border: 1px solid transparent;
+}
+
+.crm-chip-lead {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.crm-chip-novo {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.crm-chip-recorrente {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.crm-chip-inativo {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.crm-customer-stats,
+.crm-profile-meta,
+.crm-order-card-meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px 10px;
+  color: var(--slate-700);
+  font-size: 0.92rem;
+}
+
+.crm-order-card-items,
+.crm-order-card-note,
+.crm-profile-head p {
+  margin: 0;
+  color: var(--slate-600);
+  white-space: pre-wrap;
+}
+
+.crm-customer-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.crm-customer-kpi {
+  border: 1px solid rgba(209, 213, 219, 0.72);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.crm-customer-kpi small {
+  display: block;
+  color: var(--slate-500);
+  font-size: 0.76rem;
+}
+
+.crm-customer-kpi strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.94rem;
+  line-height: 1.25;
+}
+
+.crm-customer-footer {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  color: var(--slate-500);
+  font-size: 0.84rem;
+}
+
+.crm-customer-caption {
+  color: var(--slate-700);
+  font-weight: 700;
+}
+
+.crm-customer-location {
+  color: var(--slate-500);
+}
+
+.crm-detail-empty {
+  min-height: 320px;
+  border: 1px dashed rgba(201, 164, 106, 0.55);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(244, 234, 219, 0.42) 0%, rgba(233, 242, 237, 0.78) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  text-align: center;
+}
+
+.crm-detail-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.crm-profile-card {
+  border: 1px solid rgba(201, 164, 106, 0.5);
+  border-radius: 18px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at top right, rgba(201, 164, 106, 0.18), transparent 30%),
+    linear-gradient(145deg, #f9f4eb 0%, #edf5f0 100%);
+}
+
+.crm-profile-head h3 {
+  margin: 0;
+  font-size: 1.18rem;
+}
+
+.crm-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.crm-detail-card {
+  border: 1px solid var(--slate-200);
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: var(--shadow-thin);
+}
+
+.crm-detail-card h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.crm-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.crm-mini-stat {
+  border: 1px solid var(--slate-200);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--slate-50);
+}
+
+.crm-mini-stat small {
+  color: var(--slate-500);
+}
+
+.crm-mini-stat strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1rem;
+}
+
+.crm-product-list {
+  margin: 0;
+  padding-left: 0;
+  color: var(--slate-700);
+  list-style: none;
+}
+
+.crm-product-list li + li {
+  margin-top: 8px;
+}
+
+.crm-product-list li {
+  border: 1px solid var(--slate-200);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--slate-50);
+}
+
+.crm-product-list span,
+.crm-product-list strong,
+.crm-product-list small {
+  display: block;
+}
+
+.crm-product-list small {
+  color: var(--slate-500);
+}
+
+.crm-address-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.crm-address-card {
+  border: 1px solid var(--slate-200);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--slate-50);
+}
+
+.crm-address-card small {
+  display: block;
+  color: var(--slate-500);
+  font-size: 0.76rem;
+}
+
+.crm-address-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.crm-order-history {
+  grid-template-columns: 1fr;
+}
+
+.crm-order-card {
+  border: 1px solid rgba(209, 213, 219, 0.92);
+  border-radius: 18px;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%);
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.05);
+}
+
+.crm-order-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.crm-order-summary-pill {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 112px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  color: var(--slate-700);
+  font-size: 0.86rem;
+}
+
+.crm-order-summary-pill b {
+  font-size: 0.72rem;
+  color: var(--slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.crm-order-products {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.crm-order-item-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(47, 107, 85, 0.08);
+  color: var(--ifood-red-strong);
+  border: 1px solid rgba(47, 107, 85, 0.14);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.crm-order-address {
+  margin: 12px 0 0;
+  color: var(--slate-500);
+  font-size: 0.88rem;
+}
+
+.crm-order-link {
+  width: auto;
+  min-height: 36px;
+  padding: 8px 14px;
+}
+
 .order-card {
   border: 1px solid var(--slate-200);
   border-radius: 12px;
@@ -2321,6 +2743,11 @@ button {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .crm-customer-list,
+  .crm-order-history {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+
   #panelPedidos.ifood-menu-panel .catalog-toolbar {
     top: 0;
     padding-left: 18px;
@@ -2501,6 +2928,33 @@ button {
     justify-content: end;
   }
 
+  .crm-layout {
+    grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.45fr);
+    align-items: start;
+  }
+
+  .crm-customer-top,
+  .crm-profile-head,
+  .crm-order-card-head {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .crm-customer-stats,
+  .crm-profile-meta,
+  .crm-order-card-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crm-customer-list {
+    grid-template-columns: 1fr;
+  }
+
+  .crm-order-history {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .session-box {
     width: auto;
     justify-content: flex-start;
@@ -2562,6 +3016,10 @@ button {
 
   .kpi-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .crm-detail-grid {
+    grid-template-columns: 1.1fr 1fr;
   }
 
   .menu-admin-toolbar {

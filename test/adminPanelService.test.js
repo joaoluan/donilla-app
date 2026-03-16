@@ -29,6 +29,24 @@ function createPrismaMock() {
   }
 }
 
+function createCustomerListPrismaMock(customers = []) {
+  const calls = {
+    findMany: [],
+  }
+
+  return {
+    calls,
+    prisma: {
+      clientes: {
+        findMany(args) {
+          calls.findMany.push(args)
+          return Promise.resolve(customers)
+        },
+      },
+    },
+  }
+}
+
 test('listOrders usa id exato quando a busca e um numero curto de pedido', async () => {
   const { prisma, calls } = createPrismaMock()
   const service = adminPanelService(prisma)
@@ -85,6 +103,154 @@ test('listOrders permite forcar busca por pedido com prefixo #', async () => {
   assert.deepEqual(calls.count[0].where, {
     OR: [{ id: 42 }],
   })
+})
+
+test('listCustomers permite localizar clientes pelo numero de pedido', async () => {
+  const { prisma, calls } = createCustomerListPrismaMock([])
+  const service = adminPanelService(prisma)
+
+  await service.listCustomers({ period: 'all', search: '#42' })
+
+  assert.deepEqual(calls.findMany[0].where, {
+    OR: [
+      {
+        pedidos: {
+          some: { id: 42 },
+        },
+      },
+    ],
+  })
+})
+
+test('listCustomers filtra por segmento recorrente e resume a carteira CRM', async () => {
+  const { prisma } = createCustomerListPrismaMock([
+    {
+      id: 1,
+      nome: 'Maria Recorrente',
+      telefone_whatsapp: '5511999990000',
+      whatsapp_lid: null,
+      criado_em: '2026-01-10T10:00:00.000Z',
+      enderecos: [{ id: 11, rua: 'Rua A', numero: '10', bairro: 'Centro', cidade: 'Sao Paulo' }],
+      pedidos: [
+        { id: 101, valor_total: '80.00', metodo_pagamento: 'pix', status_entrega: 'entregue', criado_em: '2026-03-15T12:00:00.000Z' },
+        { id: 102, valor_total: '70.00', metodo_pagamento: 'pix', status_entrega: 'entregue', criado_em: '2026-03-10T12:00:00.000Z' },
+        { id: 103, valor_total: '60.00', metodo_pagamento: 'cartao', status_entrega: 'entregue', criado_em: '2026-03-01T12:00:00.000Z' },
+        { id: 104, valor_total: '50.00', metodo_pagamento: 'pix', status_entrega: 'entregue', criado_em: '2026-02-20T12:00:00.000Z' },
+        { id: 105, valor_total: '50.00', metodo_pagamento: 'pix', status_entrega: 'entregue', criado_em: '2026-02-10T12:00:00.000Z' },
+      ],
+    },
+    {
+      id: 2,
+      nome: 'Lead sem pedido',
+      telefone_whatsapp: '5511988880000',
+      whatsapp_lid: null,
+      criado_em: '2026-03-01T10:00:00.000Z',
+      enderecos: [],
+      pedidos: [],
+    },
+    {
+      id: 3,
+      nome: 'Cliente Inativo',
+      telefone_whatsapp: '5511977770000',
+      whatsapp_lid: null,
+      criado_em: '2025-11-01T10:00:00.000Z',
+      enderecos: [],
+      pedidos: [
+        { id: 201, valor_total: '40.00', metodo_pagamento: 'dinheiro', status_entrega: 'entregue', criado_em: '2025-12-20T12:00:00.000Z' },
+      ],
+    },
+  ])
+  const service = adminPanelService(prisma)
+
+  const result = await service.listCustomers({ period: 'all', segment: 'recorrente', sort: 'total_spent_desc' })
+
+  assert.equal(result.items.length, 1)
+  assert.equal(result.items[0].nome, 'Maria Recorrente')
+  assert.equal(result.items[0].segment, 'recorrente')
+  assert.equal(result.items[0].total_spent, 310)
+  assert.equal(result.meta.summary.total_customers, 1)
+  assert.equal(result.meta.summary.recurring_customers, 1)
+  assert.equal(result.meta.summary.revenue_total, 310)
+})
+
+test('getCustomer devolve detalhe CRM com favoritos e historico de pedidos', async () => {
+  let capturedArgs = null
+  const prisma = {
+    clientes: {
+      findUnique(args) {
+        capturedArgs = args
+        return Promise.resolve({
+          id: 9,
+          nome: 'Marina Recorrente',
+          telefone_whatsapp: '5511966660000',
+          whatsapp_lid: 'lid-9',
+          criado_em: '2025-12-01T09:00:00.000Z',
+          enderecos: [
+            { id: 31, rua: 'Rua B', numero: '44', bairro: 'Centro', cidade: 'Porto Alegre', complemento: 'Ap 12', referencia: 'Esquina' },
+          ],
+          pedidos: [
+            {
+              id: 301,
+              valor_total: '60.00',
+              valor_entrega: '8.00',
+              metodo_pagamento: 'pix',
+              status_entrega: 'entregue',
+              status_pagamento: 'pago',
+              observacoes: 'Sem lactose',
+              criado_em: '2026-03-14T16:00:00.000Z',
+              enderecos: { id: 31, rua: 'Rua B', numero: '44', bairro: 'Centro', cidade: 'Porto Alegre', complemento: 'Ap 12', referencia: 'Esquina' },
+              itens_pedido: [
+                { id: 1, produto_id: 1, quantidade: 2, preco_unitario: '12.00', subtotal: '24.00', produtos: { id: 1, nome_doce: 'Brigadeiro', preco: '12.00' } },
+                { id: 2, produto_id: 2, quantidade: 1, preco_unitario: '36.00', subtotal: '36.00', produtos: { id: 2, nome_doce: 'Torta de Limao', preco: '36.00' } },
+              ],
+            },
+            {
+              id: 302,
+              valor_total: '55.00',
+              valor_entrega: '7.00',
+              metodo_pagamento: 'pix',
+              status_entrega: 'entregue',
+              status_pagamento: 'pago',
+              observacoes: null,
+              criado_em: '2026-03-05T16:00:00.000Z',
+              enderecos: { id: 31, rua: 'Rua B', numero: '44', bairro: 'Centro', cidade: 'Porto Alegre', complemento: 'Ap 12', referencia: 'Esquina' },
+              itens_pedido: [
+                { id: 3, produto_id: 1, quantidade: 1, preco_unitario: '12.00', subtotal: '12.00', produtos: { id: 1, nome_doce: 'Brigadeiro', preco: '12.00' } },
+                { id: 4, produto_id: 3, quantidade: 1, preco_unitario: '43.00', subtotal: '43.00', produtos: { id: 3, nome_doce: 'Cheesecake', preco: '43.00' } },
+              ],
+            },
+            {
+              id: 303,
+              valor_total: '48.00',
+              valor_entrega: '6.00',
+              metodo_pagamento: 'cartao',
+              status_entrega: 'entregue',
+              status_pagamento: 'pago',
+              observacoes: null,
+              criado_em: '2026-02-20T16:00:00.000Z',
+              enderecos: { id: 31, rua: 'Rua B', numero: '44', bairro: 'Centro', cidade: 'Porto Alegre', complemento: 'Ap 12', referencia: 'Esquina' },
+              itens_pedido: [
+                { id: 5, produto_id: 1, quantidade: 1, preco_unitario: '12.00', subtotal: '12.00', produtos: { id: 1, nome_doce: 'Brigadeiro', preco: '12.00' } },
+                { id: 6, produto_id: 4, quantidade: 1, preco_unitario: '36.00', subtotal: '36.00', produtos: { id: 4, nome_doce: 'Banoffee', preco: '36.00' } },
+              ],
+            },
+          ],
+        })
+      },
+    },
+  }
+  const service = adminPanelService(prisma)
+
+  const result = await service.getCustomer(9)
+
+  assert.equal(capturedArgs.where.id, 9)
+  assert.equal(result.segment, 'recorrente')
+  assert.equal('crm_score' in result, false)
+  assert.equal(result.preferred_payment_method, 'pix')
+  assert.equal(result.favorite_products[0].nome_doce, 'Brigadeiro')
+  assert.equal(result.favorite_products[0].quantidade, 4)
+  assert.equal(result.orders.length, 3)
+  assert.match(result.recommended_actions[0], /fidelidade|novidades|timing/i)
 })
 
 test('updateOrderStatus dispara notificacao quando o status muda', async () => {

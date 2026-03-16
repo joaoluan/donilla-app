@@ -17,6 +17,17 @@ const ordersQuerySchema = basePeriodSchema.extend({
   search: z.string().trim().max(80).optional(),
 })
 
+const customersQuerySchema = z.object({
+  period: z.enum(['7d', '30d', 'month', 'all', 'custom']).default('all'),
+  from: isoDateSchema.optional(),
+  to: isoDateSchema.optional(),
+  page: positiveInt.default(1),
+  pageSize: positiveInt.max(50).default(12),
+  segment: z.enum(['all', 'lead', 'novo', 'recorrente', 'inativo']).default('all'),
+  sort: z.enum(['recent_desc', 'total_spent_desc', 'orders_desc', 'name_asc']).default('recent_desc'),
+  search: z.string().trim().max(80).optional(),
+})
+
 function fromSearchParams(url) {
   return Object.fromEntries(url.searchParams.entries())
 }
@@ -47,7 +58,24 @@ function parseOrdersQuery(url) {
   return validatePeriodRange(parsed.data)
 }
 
+function parseCustomersQuery(url) {
+  const parsed = customersQuerySchema.safeParse(fromSearchParams(url))
+  if (!parsed.success) throw new AppError(400, 'Parametros da carteira de clientes invalidos.')
+  return validatePeriodRange(parsed.data)
+}
+
+function parseCustomerId(value) {
+  const parsed = positiveInt.safeParse(value)
+  if (!parsed.success) {
+    throw new AppError(400, 'ID de cliente invalido.')
+  }
+
+  return parsed.data
+}
+
 module.exports = {
   parseDashboardQuery,
   parseOrdersQuery,
+  parseCustomersQuery,
+  parseCustomerId,
 }
