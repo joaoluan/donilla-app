@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css?v=20260316d" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -324,7 +324,8 @@
               <p id="customersMeta" class="muted">Faça login para carregar a carteira de clientes.</p>
             </div>
             <div class="section-actions section-actions-wrap">
-              <input id="customersSearchInput" placeholder="Nome, WhatsApp ou #pedido" />
+              <input id="customersSearchInput" list="customersSearchSuggestions" autocomplete="off" placeholder="Nome, WhatsApp ou #pedido" />
+              <datalist id="customersSearchSuggestions"></datalist>
               <select id="customersSegmentFilter">
                 <option value="all">Todos os segmentos</option>
                 <option value="lead">Leads</option>
@@ -424,7 +425,7 @@
               <h3>Categoria</h3>
               <form id="categoryForm" class="menu-admin-form">
                 <input type="hidden" id="categoriaId" name="id" />
-                <input id="categoriaNome" name="nome" placeholder="Nome da categoria" required />
+                <input id="categoriaNome" name="nome" lang="pt-BR" spellcheck="true" autocapitalize="words" placeholder="Nome da categoria" required />
                 <input id="categoriaOrdem" name="ordem_exibicao" type="number" min="0" placeholder="Ordem de exibição (opcional)" />
 
                 <div class="lookup-row">
@@ -435,7 +436,8 @@
               </form>
 
               <div class="menu-admin-toolbar">
-                <input id="categorySearchInput" placeholder="Buscar categoria" />
+                <input id="categorySearchInput" list="categorySearchSuggestions" autocomplete="off" placeholder="Buscar categoria" />
+                <datalist id="categorySearchSuggestions"></datalist>
                 <select id="categorySortInput">
                   <option value="ordem_exibicao">Ordenar por ordem</option>
                   <option value="nome">Ordenar por nome</option>
@@ -465,8 +467,8 @@
                 <select id="produtoCategoria" name="categoria_id" required>
                   <option value="">Selecione a categoria</option>
                 </select>
-                <input id="produtoNome" name="nome_doce" placeholder="Nome do doce" required />
-                <input id="produtoDescricao" name="descricao" placeholder="Descrição" />
+                <input id="produtoNome" name="nome_doce" lang="pt-BR" spellcheck="true" autocapitalize="words" placeholder="Nome do doce" required />
+                <input id="produtoDescricao" name="descricao" lang="pt-BR" spellcheck="true" autocapitalize="sentences" placeholder="Descrição" />
                 <div class="split-2">
                   <input id="produtoPreco" name="preco" type="number" min="0" step="0.01" placeholder="Preço" required />
                   <input id="produtoEstoque" name="estoque_disponivel" type="number" min="0" placeholder="Estoque (deixe vazio para ilimitado)" />
@@ -499,7 +501,8 @@
               </form>
 
               <div class="menu-admin-toolbar">
-                <input id="produtoSearchInput" placeholder="Buscar item" />
+                <input id="produtoSearchInput" list="produtoSearchSuggestions" autocomplete="off" placeholder="Buscar item" />
+                <datalist id="produtoSearchSuggestions"></datalist>
                 <select id="produtoSortInput">
                   <option value="nome_doce">Ordenar por nome</option>
                   <option value="preco">Ordenar por preço</option>
@@ -541,7 +544,8 @@
               <p id="ordersMeta" class="muted">Faça login para carregar pedidos.</p>
             </div>
             <div class="section-actions section-actions-wrap">
-              <input id="ordersSearchInput" placeholder="Pedido, cliente ou WhatsApp" />
+              <input id="ordersSearchInput" list="ordersSearchSuggestions" autocomplete="off" placeholder="Pedido, cliente ou WhatsApp" />
+              <datalist id="ordersSearchSuggestions"></datalist>
               <select id="statusFilter">
                 <option value="all">Todos os status</option>
                 <option value="pendente">Pendente</option>
@@ -601,7 +605,7 @@
               <input name="tempo_entrega_max_minutos" type="number" min="1" max="240" placeholder="Tempo máximo (min)" />
             </div>
 
-            <textarea name="mensagem_aviso" rows="4" placeholder="Mensagem para clientes (opcional)"></textarea>
+            <textarea name="mensagem_aviso" rows="4" lang="pt-BR" spellcheck="true" autocapitalize="sentences" placeholder="Mensagem para clientes (opcional)"></textarea>
 
             <section class="delivery-fee-admin-section">
               <header class="section-head stacked-section-head">
@@ -801,6 +805,7 @@
 
     const ordersMetaEl = document.getElementById('ordersMeta');
     const ordersSearchInputEl = document.getElementById('ordersSearchInput');
+    const ordersSearchSuggestionsEl = document.getElementById('ordersSearchSuggestions');
     const statusFilterEl = document.getElementById('statusFilter');
     const ordersRangePresetEl = document.getElementById('ordersRangePreset');
     const ordersFromDateEl = document.getElementById('ordersFromDate');
@@ -816,6 +821,7 @@
     const customersMetaEl = document.getElementById('customersMeta');
     const customersListMetaEl = document.getElementById('customersListMeta');
     const customersSearchInputEl = document.getElementById('customersSearchInput');
+    const customersSearchSuggestionsEl = document.getElementById('customersSearchSuggestions');
     const customersSegmentFilterEl = document.getElementById('customersSegmentFilter');
     const customersSortInputEl = document.getElementById('customersSortInput');
     const customersRangePresetEl = document.getElementById('customersRangePreset');
@@ -867,6 +873,7 @@
     const categoryStatusEl = document.getElementById('categoryStatus');
     const categoryListEl = document.getElementById('categoryList');
     const categorySearchInputEl = document.getElementById('categorySearchInput');
+    const categorySearchSuggestionsEl = document.getElementById('categorySearchSuggestions');
     const categorySortInputEl = document.getElementById('categorySortInput');
     const categoryPageSizeInputEl = document.getElementById('categoryPageSizeInput');
     const categoryMetaEl = document.getElementById('categoryMeta');
@@ -889,6 +896,7 @@
     const produtoStatusEl = document.getElementById('produtoStatus');
     const produtoListEl = document.getElementById('produtoList');
     const produtoSearchInputEl = document.getElementById('produtoSearchInput');
+    const produtoSearchSuggestionsEl = document.getElementById('produtoSearchSuggestions');
     const produtoSortInputEl = document.getElementById('produtoSortInput');
     const produtoDisponibilidadeFilterEl = document.getElementById('produtoDisponibilidadeFilter');
     const produtoCategoriaFilterEl = document.getElementById('produtoCategoriaFilter');
@@ -1142,6 +1150,51 @@
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => callback(...args), delay);
       };
+    }
+
+    function updateDatalistOptions(datalistEl, options = []) {
+      if (!datalistEl) return;
+
+      const seen = new Set();
+      const safeOptions = options
+        .filter((option) => option && option.value)
+        .filter((option) => {
+          const key = String(option.value || '').trim().toLowerCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, 8);
+
+      datalistEl.innerHTML = safeOptions
+        .map((option) => {
+          const label = option.label ? ` label="${escapeHtml(option.label)}"` : '';
+          return `<option value="${escapeHtml(option.value)}"${label}></option>`;
+        })
+        .join('');
+    }
+
+    function syncCustomersStateFromControls() {
+      customersState.search = String(customersSearchInputEl?.value || '').trim();
+      customersState.segment = customersSegmentFilterEl?.value || 'all';
+      customersState.sort = customersSortInputEl?.value || 'recent_desc';
+      customersState.period = customersRangePresetEl?.value || 'all';
+      customersState.from = customersFromDateEl?.value || '';
+      customersState.to = customersToDateEl?.value || '';
+    }
+
+    function syncOrdersStateFromControls() {
+      ordersState.search = String(ordersSearchInputEl?.value || '').trim();
+      ordersState.status = statusFilterEl?.value || 'all';
+      ordersState.period = ordersRangePresetEl?.value || '7d';
+      ordersState.from = ordersFromDateEl?.value || '';
+      ordersState.to = ordersToDateEl?.value || '';
+    }
+
+    function scrollCustomerDetailIntoView() {
+      const detailPanel = customerDetailEl?.closest('.crm-detail-panel');
+      if (!detailPanel || window.innerWidth >= 881) return;
+      detailPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function authHeaders(extra = {}) {
@@ -1685,7 +1738,7 @@
       `;
     }
 
-    function renderCustomerDetail(detail = customerDetail) {
+    function renderCustomerDetail(detail = customerDetail, { scroll = false } = {}) {
       if (!accessToken) {
         customerDetailEl.className = 'crm-detail-empty';
         customerDetailEl.innerHTML = '<div class="crm-detail-empty"><p class="muted">Faça login para visualizar o perfil do cliente.</p></div>';
@@ -1694,7 +1747,7 @@
 
       if (!detail) {
         customerDetailEl.className = 'crm-detail-empty';
-        customerDetailEl.innerHTML = '<div class="crm-detail-empty"><p class="muted">Selecione um cliente para ver perfil, endereços e histórico.</p></div>';
+        customerDetailEl.innerHTML = '<div class="crm-detail-empty"><p class="muted">Clique em um cliente da carteira para abrir perfil, endereços e histórico.</p></div>';
         return;
       }
 
@@ -1815,6 +1868,9 @@
           </section>
         </div>
       `;
+      if (scroll) {
+        scrollCustomerDetailIntoView();
+      }
     }
 
     function renderCustomers() {
@@ -1824,6 +1880,7 @@
         customersListMetaEl.textContent = 'Faça login para carregar clientes.';
         customersPrevBtnEl.disabled = true;
         customersNextBtnEl.disabled = true;
+        updateDatalistOptions(customersSearchSuggestionsEl, []);
         renderCustomersSummary();
         return;
       }
@@ -1841,9 +1898,16 @@
 
       renderCustomersSummary(summary);
       customersMetaEl.textContent = `${total} clientes na carteira · Atividade: ${formatRangeMeta(filters)}`;
-      customersListMetaEl.textContent = `${start}-${end} de ${total} · ${segmentLabel} · ${sortLabel}`;
+      customersListMetaEl.textContent = `${start}-${end} de ${total} · ${pageSize} por visualização · ${segmentLabel} · ${sortLabel}`;
       customersPrevBtnEl.disabled = page <= 1;
       customersNextBtnEl.disabled = page >= totalPages;
+      updateDatalistOptions(
+        customersSearchSuggestionsEl,
+        crmCustomers.map((customer) => ({
+          value: customer.nome || formatPhone(customer.telefone_whatsapp || ''),
+          label: `${formatPhone(customer.telefone_whatsapp || '')} · ${customer.segment_label || 'Cliente'}`,
+        })),
+      );
 
       if (crmCustomers.length === 0) {
         customersListEl.innerHTML = '<p class="muted">Nenhum cliente encontrado para este filtro.</p>';
@@ -1882,7 +1946,7 @@
       const response = await fetch(`/admin/customers/${customerId}`, { headers: authHeaders() });
       customerDetail = await parseResponse(response);
       renderCustomers();
-      renderCustomerDetail();
+      renderCustomerDetail(customerDetail, { scroll: !silent });
       return customerDetail;
     }
 
@@ -1902,7 +1966,7 @@
 
       const customerIds = new Set(crmCustomers.map((customer) => Number(customer.id || 0)));
       if (!selectedCustomerId || !customerIds.has(Number(selectedCustomerId || 0))) {
-        selectedCustomerId = crmCustomers[0]?.id || null;
+        selectedCustomerId = null;
         customerDetail = null;
       }
 
@@ -1911,6 +1975,11 @@
 
       if (!selectedCustomerId) {
         renderCustomerDetail();
+        return;
+      }
+
+      if (Number(customerDetail?.id || 0) === Number(selectedCustomerId || 0)) {
+        renderCustomerDetail(customerDetail);
         return;
       }
 
@@ -1976,6 +2045,7 @@
       if (!accessToken) {
         ordersListEl.innerHTML = '<p class="muted">Faça login para visualizar pedidos.</p>';
         ordersMetaEl.textContent = 'Faça login para carregar pedidos.';
+        updateDatalistOptions(ordersSearchSuggestionsEl, []);
         return;
       }
 
@@ -1990,6 +2060,13 @@
       ordersMetaEl.textContent = `${start}-${end} de ${total} pedidos · ${formatRangeMeta(filters)}`;
       ordersPrevBtnEl.disabled = page <= 1;
       ordersNextBtnEl.disabled = page >= totalPages;
+      updateDatalistOptions(
+        ordersSearchSuggestionsEl,
+        allOrders.map((order) => ({
+          value: `#${order.id}`,
+          label: `${order.clientes?.nome || '--'} · ${dateTime(order.criado_em)}`,
+        })),
+      );
 
       if (allOrders.length === 0) {
         ordersListEl.innerHTML = '<p class="muted">Nenhum pedido encontrado para este filtro.</p>';
@@ -2258,9 +2335,18 @@
     function renderCategoryList() {
       if (!accessToken) {
         categoryListEl.innerHTML = '<p class="muted">Faça login para gerenciar categorias.</p>';
+        updateDatalistOptions(categorySearchSuggestionsEl, []);
         renderCategoryMeta();
         return;
       }
+
+      updateDatalistOptions(
+        categorySearchSuggestionsEl,
+        menuCategorias.map((categoria) => ({
+          value: categoria.nome,
+          label: `${Number(categoria._count?.produtos || 0)} item(ns)`,
+        })),
+      );
 
       if (menuCategorias.length === 0) {
         const semBusca = String(categoryState.search || '').trim();
@@ -2314,9 +2400,18 @@
     function renderProdutoList() {
       if (!accessToken) {
         produtoListEl.innerHTML = '<p class="muted">Faça login para gerenciar itens.</p>';
+        updateDatalistOptions(produtoSearchSuggestionsEl, []);
         renderProdutoMeta();
         return;
       }
+
+      updateDatalistOptions(
+        produtoSearchSuggestionsEl,
+        menuProdutos.map((produto) => ({
+          value: produto.nome_doce,
+          label: `${productCategoryName(produto.categoria_id || produto.categorias?.id)} · ${brl(produto.preco)}`,
+        })),
+      );
 
       if (menuProdutos.length === 0) {
         const semBusca = String(produtoState.search || '').trim();
@@ -2602,6 +2697,16 @@
       validateRangeState(dashboardFilters, dashboardStatusEl, 'resumo');
     });
 
+    const debouncedLoadCustomersSearch = createDebounce(220, () => {
+      if (!accessToken) return;
+      loadCustomers().catch((error) => setStatus(customersStatusEl, error.message, 'err'));
+    });
+
+    const debouncedLoadOrdersSearch = createDebounce(220, () => {
+      if (!accessToken) return;
+      loadOrders().catch((error) => setStatus(ordersStatusEl, error.message, 'err'));
+    });
+
     refreshCustomersBtnEl.addEventListener('click', async () => {
       if (!accessToken) return;
       try {
@@ -2612,12 +2717,7 @@
     });
 
     applyCustomersFiltersBtnEl.addEventListener('click', async () => {
-      customersState.search = String(customersSearchInputEl.value || '').trim();
-      customersState.segment = customersSegmentFilterEl.value || 'all';
-      customersState.sort = customersSortInputEl.value || 'recent_desc';
-      customersState.period = customersRangePresetEl.value;
-      customersState.from = customersFromDateEl.value || '';
-      customersState.to = customersToDateEl.value || '';
+      syncCustomersStateFromControls();
       customersState.page = 1;
       if (!accessToken) return;
       try {
@@ -2625,6 +2725,12 @@
       } catch (error) {
         setStatus(customersStatusEl, error.message, 'err');
       }
+    });
+
+    customersSearchInputEl.addEventListener('input', () => {
+      syncCustomersStateFromControls();
+      customersState.page = 1;
+      debouncedLoadCustomersSearch();
     });
 
     customersSearchInputEl.addEventListener('keydown', async (event) => {
@@ -2722,10 +2828,7 @@
     });
 
     applyOrdersFiltersBtnEl.addEventListener('click', async () => {
-      ordersState.search = String(ordersSearchInputEl.value || '').trim();
-      ordersState.period = ordersRangePresetEl.value;
-      ordersState.from = ordersFromDateEl.value || '';
-      ordersState.to = ordersToDateEl.value || '';
+      syncOrdersStateFromControls();
       ordersState.page = 1;
       if (!accessToken) return;
       try {
@@ -2733,6 +2836,12 @@
       } catch (error) {
         setStatus(ordersStatusEl, error.message, 'err');
       }
+    });
+
+    ordersSearchInputEl.addEventListener('input', () => {
+      syncOrdersStateFromControls();
+      ordersState.page = 1;
+      debouncedLoadOrdersSearch();
     });
 
     ordersSearchInputEl.addEventListener('keydown', async (event) => {
@@ -2928,7 +3037,12 @@
       if (!customerButton) return;
 
       const customerId = Number(customerButton.dataset.customerSelect);
-      if (!customerId || Number(selectedCustomerId || 0) === customerId) return;
+      if (!customerId) return;
+
+      if (Number(selectedCustomerId || 0) === customerId && Number(customerDetail?.id || 0) === customerId) {
+        renderCustomerDetail(customerDetail, { scroll: true });
+        return;
+      }
 
       try {
         await loadCustomerDetail(customerId);

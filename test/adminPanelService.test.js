@@ -122,6 +122,39 @@ test('listCustomers permite localizar clientes pelo numero de pedido', async () 
   })
 })
 
+test('listCustomers encontra nome sem acento usando fallback tolerante', async () => {
+  const calls = []
+  const prisma = {
+    clientes: {
+      findMany(args) {
+        calls.push(args)
+        if (calls.length === 1) return Promise.resolve([])
+        return Promise.resolve([
+          {
+            id: 7,
+            nome: 'João Moura',
+            telefone_whatsapp: '5511985711759',
+            whatsapp_lid: null,
+            criado_em: '2026-03-01T10:00:00.000Z',
+            enderecos: [{ id: 1, rua: 'Rua A', numero: '10', bairro: 'Centro', cidade: 'Porto Alegre' }],
+            pedidos: [
+              { id: 77, valor_total: '40.00', metodo_pagamento: 'pix', status_entrega: 'entregue', criado_em: '2026-03-15T12:00:00.000Z' },
+            ],
+          },
+        ])
+      },
+    },
+  }
+  const service = adminPanelService(prisma)
+
+  const result = await service.listCustomers({ period: 'all', search: 'Joao' })
+
+  assert.equal(result.items.length, 1)
+  assert.equal(result.items[0].nome, 'João Moura')
+  assert.equal(calls.length, 2)
+  assert.equal(calls[1].where, undefined)
+})
+
 test('listCustomers filtra por segmento recorrente e resume a carteira CRM', async () => {
   const { prisma } = createCustomerListPrismaMock([
     {
@@ -171,6 +204,58 @@ test('listCustomers filtra por segmento recorrente e resume a carteira CRM', asy
   assert.equal(result.meta.summary.total_customers, 1)
   assert.equal(result.meta.summary.recurring_customers, 1)
   assert.equal(result.meta.summary.revenue_total, 310)
+})
+
+test('listOrders encontra cliente com busca tolerante quando a busca literal falha', async () => {
+  const calls = {
+    findMany: [],
+    count: [],
+  }
+  const prisma = {
+    pedidos: {
+      findMany(args) {
+        calls.findMany.push(args)
+        if (calls.findMany.length === 1) return Promise.resolve([])
+        return Promise.resolve([
+          {
+            id: 26,
+            criado_em: '2026-03-16T15:26:29.000Z',
+            valor_total: '26.90',
+            metodo_pagamento: 'pix',
+            status_entrega: 'pendente',
+            observacoes: null,
+            clientes: { id: 9, nome: 'João Moura', telefone_whatsapp: '5511985711759' },
+            enderecos: { id: 10, rua: 'Rua Prudente de Moraes', numero: '413', bairro: 'Guarani', cidade: 'Novo Hamburgo' },
+            itens_pedido: [
+              {
+                id: 1,
+                produto_id: 2,
+                quantidade: 1,
+                subtotal: '26.90',
+                produtos: { id: 2, nome_doce: 'Bolo de Pote Ninho com Nutella' },
+              },
+            ],
+          },
+        ])
+      },
+      count(args) {
+        calls.count.push(args)
+        return Promise.resolve(0)
+      },
+    },
+    $transaction(actions) {
+      return Promise.all(actions)
+    },
+  }
+  const service = adminPanelService(prisma)
+
+  const result = await service.listOrders({ period: 'all', search: 'Joao' })
+
+  assert.equal(result.items.length, 1)
+  assert.equal(result.items[0].id, 26)
+  assert.equal(calls.findMany.length, 2)
+  assert.equal(calls.count.length, 1)
+  assert.equal(calls.findMany[1].where, undefined)
 })
 
 test('getCustomer devolve detalhe CRM com favoritos e historico de pedidos', async () => {

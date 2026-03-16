@@ -3,6 +3,52 @@ const assert = require('node:assert/strict')
 
 const { produtosService } = require('../src/services/produtosService')
 
+test('list encontra item sem acento usando fallback tolerante', async () => {
+  const calls = {
+    findMany: [],
+    count: [],
+  }
+  const service = produtosService({
+    produtos: {
+      findMany(args) {
+        calls.findMany.push(args)
+        if (calls.findMany.length === 1) return Promise.resolve([])
+        return Promise.resolve([
+          {
+            id: 21,
+            nome_doce: 'Pão de Mel',
+            descricao: 'Doce artesanal',
+            preco: '12.00',
+            estoque_disponivel: 8,
+            ativo: true,
+            categorias: { id: 3, nome: 'Clássicos' },
+          },
+        ])
+      },
+      count(args) {
+        calls.count.push(args)
+        return Promise.resolve(0)
+      },
+    },
+    $transaction(actions) {
+      return Promise.all(actions)
+    },
+  })
+
+  const result = await service.list({
+    page: 1,
+    pageSize: 10,
+    search: 'Pao',
+    sort: 'nome_doce',
+    order: 'asc',
+    disponibilidade: 'all',
+  })
+
+  assert.equal(result.items.length, 1)
+  assert.equal(result.items[0].nome_doce, 'Pão de Mel')
+  assert.equal(calls.findMany.length, 2)
+})
+
 test('remove exclui o produto quando nao ha vinculos', async () => {
   const calls = []
   const service = produtosService({

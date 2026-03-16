@@ -2,6 +2,7 @@ const { AppError } = require('../utils/errors')
 const { cleanLocationField } = require('../utils/deliveryFees')
 const { getDefaultStoreSettings, normalizeStoreSettings } = require('../utils/storeSettings')
 const { assertSafeExternalUrl } = require('../utils/security')
+const { scoreSearchMatch } = require('../utils/search')
 
 function normalizeDeliveryFeeData(data) {
   return {
@@ -143,6 +144,10 @@ function normalizeSearchValue(value) {
   return String(value || '').trim()
 }
 
+function hasTextSearch(value) {
+  return /[A-Za-zÀ-ÿ]/.test(normalizeSearchValue(value))
+}
+
 const MAX_ORDER_ID = 2147483647
 
 function toPhoneDigits(value) {
@@ -195,7 +200,7 @@ function buildOrderSearchOr(search) {
   return or
 }
 
-function buildOrderWhere(query = {}) {
+function buildOrderWhere(query = {}, { includeSearch = true } = {}) {
   const conditions = []
   const { where: createdAtWhere } = buildCreatedAtWhere(query)
   const search = normalizeSearchValue(query.search)
@@ -208,7 +213,7 @@ function buildOrderWhere(query = {}) {
     conditions.push({ status_entrega: query.status })
   }
 
-  if (search) {
+  if (includeSearch && search) {
     const or = buildOrderSearchOr(search)
     if (or.length > 0) {
       conditions.push({ OR: or })
@@ -293,12 +298,12 @@ function buildCustomerSearchOr(search) {
   return or
 }
 
-function buildCustomerWhere(query = {}) {
+function buildCustomerWhere(query = {}, { includeSearch = true } = {}) {
   const conditions = []
   const search = normalizeSearchValue(query.search)
   const { where: createdAtWhere, meta } = buildCreatedAtWhere(query)
 
-  if (search) {
+  if (includeSearch && search) {
     const or = buildCustomerSearchOr(search)
     if (or.length > 0) {
       conditions.push({ OR: or })
@@ -559,38 +564,88 @@ function matchesCustomerSegment(customer, segment) {
 function sortCustomers(items, sort) {
   const customers = [...items]
 
-  customers.sort((left, right) => {
-    if (sort === 'name_asc') {
-      return compareStringsAsc(left.nome, right.nome)
-    }
-
-    if (sort === 'orders_desc') {
-      if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
-      if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
-      return compareStringsAsc(left.nome, right.nome)
-    }
-
-    if (sort === 'total_spent_desc') {
-      if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
-      if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
-      return compareStringsAsc(left.nome, right.nome)
-    }
-
-    if (sort === 'recent_desc') {
-      const dateDiff = compareNullableDatesDesc(left.last_order_at, right.last_order_at)
-      if (dateDiff !== 0) return dateDiff
-      if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
-      return compareStringsAsc(left.nome, right.nome)
-    }
-
-    if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
-    if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
-    const dateDiff = compareNullableDatesDesc(left.last_order_at, right.last_order_at)
-    if (dateDiff !== 0) return dateDiff
-    return compareStringsAsc(left.nome, right.nome)
-  })
+  customers.sort((left, right) => compareCustomers(left, right, sort))
 
   return customers
+}
+
+function compareCustomers(left, right, sort) {
+  if (sort === 'name_asc') {
+    return compareStringsAsc(left.nome, right.nome)
+  }
+
+  if (sort === 'orders_desc') {
+    if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
+    if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
+    return compareStringsAsc(left.nome, right.nome)
+  }
+
+  if (sort === 'total_spent_desc') {
+    if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
+    if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
+    return compareStringsAsc(left.nome, right.nome)
+  }
+
+  if (sort === 'recent_desc') {
+    const dateDiff = compareNullableDatesDesc(left.last_order_at, right.last_order_at)
+    if (dateDiff !== 0) return dateDiff
+    if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
+    return compareStringsAsc(left.nome, right.nome)
+  }
+
+  if (right.total_spent !== left.total_spent) return right.total_spent - left.total_spent
+  if (right.total_orders !== left.total_orders) return right.total_orders - left.total_orders
+  const dateDiff = compareNullableDatesDesc(left.last_order_at, right.last_order_at)
+  if (dateDiff !== 0) return dateDiff
+  return compareStringsAsc(left.nome, right.nome)
+}
+
+function compareOrders(left, right) {
+  const dateDiff = compareNullableDatesDesc(left.criado_em, right.criado_em)
+  if (dateDiff !== 0) return dateDiff
+  return Number(right.id || 0) - Number(left.id || 0)
+}
+
+function rankSearchMatches(items, search, getFields, compareFallback) {
+  return [...items]
+    .map((item) => ({
+      item,
+      score: scoreSearchMatch(search, getFields(item)),
+    }))
+    .filter((entry) => entry.score >= 0)
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score
+      return compareFallback ? compareFallback(left.item, right.item) : 0
+    })
+    .map((entry) => entry.item)
+}
+
+function buildCustomerSearchFields(customer) {
+  return [
+    customer.nome,
+    customer.telefone_whatsapp,
+    customer.segment_label,
+    customer.segment_reason,
+    customer.latest_endereco?.rua,
+    customer.latest_endereco?.numero,
+    customer.latest_endereco?.bairro,
+    customer.latest_endereco?.cidade,
+  ]
+}
+
+function buildOrderSearchFields(order) {
+  return [
+    String(order.id || ''),
+    order.clientes?.nome,
+    order.clientes?.telefone_whatsapp,
+    order.enderecos?.rua,
+    order.enderecos?.numero,
+    order.enderecos?.bairro,
+    order.enderecos?.cidade,
+    order.metodo_pagamento,
+    order.observacoes,
+    ...(order.itens_pedido || []).map((item) => item.produtos?.nome_doce || `Produto ${item.produto_id}`),
+  ]
 }
 
 function buildCustomersSummary(customers) {
@@ -755,8 +810,73 @@ function adminPanelService(prisma, deps = {}) {
       const page = Number(query.page || 1)
       const pageSize = Number(query.pageSize || 10)
       const skip = (page - 1) * pageSize
+      const search = normalizeSearchValue(query.search)
       const where = buildOrderWhere(query)
       const { meta } = buildCreatedAtWhere(query)
+      const textSearch = hasTextSearch(search)
+
+      if (textSearch) {
+        const [exactItems, exactTotal] = await prisma.$transaction([
+          prisma.pedidos.findMany({
+            where,
+            orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+            skip,
+            take: pageSize,
+            include: getOrderNotificationInclude(),
+          }),
+          prisma.pedidos.count({ where }),
+        ])
+
+        if (exactTotal > 0) {
+          return {
+            items: exactItems,
+            meta: {
+              page,
+              pageSize,
+              total: exactTotal,
+              totalPages: Math.max(1, Math.ceil(exactTotal / pageSize)),
+              filters: {
+                ...meta,
+                status: query.status || 'all',
+                search,
+              },
+            },
+          }
+        }
+
+        const fallbackWhere = buildOrderWhere(query, { includeSearch: false })
+        const fallbackItems = await prisma.pedidos.findMany({
+          where: fallbackWhere,
+          orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+          include: getOrderNotificationInclude(),
+        })
+
+        const rankedItems = rankSearchMatches(
+          fallbackItems,
+          search,
+          buildOrderSearchFields,
+          compareOrders,
+        )
+        const total = rankedItems.length
+        const totalPages = Math.max(1, Math.ceil(total / pageSize))
+        const safePage = Math.min(Math.max(page, 1), totalPages)
+        const fallbackSkip = (safePage - 1) * pageSize
+
+        return {
+          items: rankedItems.slice(fallbackSkip, fallbackSkip + pageSize),
+          meta: {
+            page: safePage,
+            pageSize,
+            total,
+            totalPages,
+            filters: {
+              ...meta,
+              status: query.status || 'all',
+              search,
+            },
+          },
+        }
+      }
 
       const [items, total] = await prisma.$transaction([
         prisma.pedidos.findMany({
@@ -779,7 +899,7 @@ function adminPanelService(prisma, deps = {}) {
           filters: {
             ...meta,
             status: query.status || 'all',
-            search: normalizeSearchValue(query.search),
+            search,
           },
         },
       }
@@ -790,19 +910,35 @@ function adminPanelService(prisma, deps = {}) {
       const pageSize = Number(query.pageSize || 12)
       const sort = query.sort || 'recent_desc'
       const segment = query.segment || 'all'
+      const search = normalizeSearchValue(query.search)
       const { where, meta } = buildCustomerWhere(query)
+      const textSearch = hasTextSearch(search)
 
-      const rawCustomers = await prisma.clientes.findMany({
+      let rawCustomers = await prisma.clientes.findMany({
         where,
         orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
         include: getCustomerListInclude(),
       })
 
+      if (textSearch && rawCustomers.length === 0) {
+        const { where: fallbackWhere } = buildCustomerWhere(query, { includeSearch: false })
+        rawCustomers = await prisma.clientes.findMany({
+          where: fallbackWhere,
+          orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+          include: getCustomerListInclude(),
+        })
+      }
+
       const summarizedCustomers = rawCustomers.map((customer) => summarizeCustomer(customer))
-      const filteredCustomers = sortCustomers(
-        summarizedCustomers.filter((customer) => matchesCustomerSegment(customer, segment)),
-        sort,
-      )
+      const filteredBySegment = summarizedCustomers.filter((customer) => matchesCustomerSegment(customer, segment))
+      const filteredCustomers = search
+        ? rankSearchMatches(
+            filteredBySegment,
+            search,
+            buildCustomerSearchFields,
+            (left, right) => compareCustomers(left, right, sort),
+          )
+        : sortCustomers(filteredBySegment, sort)
       const total = filteredCustomers.length
       const totalPages = Math.max(1, Math.ceil(total / pageSize))
       const safePage = Math.min(Math.max(page, 1), totalPages)
@@ -819,7 +955,7 @@ function adminPanelService(prisma, deps = {}) {
           summary: buildCustomersSummary(filteredCustomers),
           filters: {
             ...meta,
-            search: normalizeSearchValue(query.search),
+            search,
             segment,
             sort,
           },

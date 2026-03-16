@@ -1,7 +1,38 @@
 const { AppError } = require('../utils/errors')
+const { scoreSearchMatch } = require('../utils/search')
 
 const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const ALLOWED_IMAGE_MIME = ['jpeg', 'jpg', 'png', 'webp']
+
+function compareProdutos(left, right, sort, order) {
+  const direction = order === 'desc' ? -1 : 1
+
+  if (sort === 'categoria') {
+    const categoryCompare = String(left.categorias?.nome || '').localeCompare(
+      String(right.categorias?.nome || ''),
+      'pt-BR',
+      { sensitivity: 'base' },
+    )
+    if (categoryCompare !== 0) return categoryCompare * direction
+    return String(left.nome_doce || '').localeCompare(String(right.nome_doce || ''), 'pt-BR', {
+      sensitivity: 'base',
+    })
+  }
+
+  if (sort === 'nome_doce') {
+    return String(left.nome_doce || '').localeCompare(String(right.nome_doce || ''), 'pt-BR', {
+      sensitivity: 'base',
+    }) * direction
+  }
+
+  const leftValue = Number(left[sort] ?? 0)
+  const rightValue = Number(right[sort] ?? 0)
+  if (leftValue !== rightValue) return (leftValue - rightValue) * direction
+
+  return String(left.nome_doce || '').localeCompare(String(right.nome_doce || ''), 'pt-BR', {
+    sensitivity: 'base',
+  })
+}
 
 function parseDataUrl(dataUrl) {
   const normalized = String(dataUrl).trim()
@@ -94,6 +125,61 @@ function produtosService(prisma) {
         }),
         prisma.produtos.count({ where }),
       ])
+
+      if (search && total === 0) {
+        const fallbackWhere = {
+          ...(categoria_id ? { categoria_id } : {}),
+          ...(ativo === undefined ? {} : { ativo }),
+        }
+
+        if (disponibilidade === 'disponiveis') {
+          fallbackWhere.ativo = true
+          fallbackWhere.OR = [{ estoque_disponivel: null }, { estoque_disponivel: { gt: 0 } }]
+        } else if (disponibilidade === 'inativos') {
+          fallbackWhere.ativo = false
+        } else if (disponibilidade === 'sem_estoque') {
+          fallbackWhere.estoque_disponivel = 0
+        }
+
+        const fallbackItems = await prisma.produtos.findMany({
+          where: fallbackWhere,
+          orderBy,
+          include: {
+            categorias: { select: { id: true, nome: true } },
+          },
+        })
+
+        const rankedItems = fallbackItems
+          .map((item) => ({
+            item,
+            score: scoreSearchMatch(search, [
+              item.nome_doce,
+              item.descricao,
+              item.categorias?.nome,
+            ]),
+          }))
+          .filter((entry) => entry.score >= 0)
+          .sort((left, right) => {
+            if (right.score !== left.score) return right.score - left.score
+            return compareProdutos(left.item, right.item, sort, order)
+          })
+          .map((entry) => entry.item)
+
+        const fallbackTotal = rankedItems.length
+        const totalPages = Math.max(1, Math.ceil(fallbackTotal / pageSize))
+        const safePage = Math.min(Math.max(page, 1), totalPages)
+        const fallbackSkip = (safePage - 1) * pageSize
+
+        return {
+          items: rankedItems.slice(fallbackSkip, fallbackSkip + pageSize),
+          meta: {
+            page: safePage,
+            pageSize,
+            total: fallbackTotal,
+            totalPages,
+          },
+        }
+      }
 
       return {
         items,
