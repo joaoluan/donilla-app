@@ -25,6 +25,7 @@ const {
   validateCustomerLookup,
   validateCreateOrder,
   validateCreateCustomer,
+  validateUpdateOrderStatus,
 } = require('../src/validators/publicOrderValidator')
 const { validateUpdateStoreSettings } = require('../src/validators/storeSettingsValidator')
 const {
@@ -206,6 +207,19 @@ test('validateCreateOrder deve rejeitar pagamentos diferentes de pix', () => {
         itens: [{ produto_id: 1, quantidade: 1 }],
       }),
     (error) => error instanceof AppError && error.message === 'No momento aceitamos apenas Pix.',
+  )
+})
+
+test('validateUpdateOrderStatus deve aceitar atualizacao isolada do pagamento', () => {
+  const data = validateUpdateOrderStatus({ status_pagamento: 'pago' })
+
+  assert.deepEqual(data, { status_pagamento: 'pago' })
+})
+
+test('validateUpdateOrderStatus deve rejeitar payload vazio', () => {
+  assert.throws(
+    () => validateUpdateOrderStatus({}),
+    (error) => error instanceof AppError && error.message === 'Status de pedido invalido.',
   )
 })
 

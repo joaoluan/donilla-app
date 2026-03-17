@@ -109,7 +109,7 @@
     };
 
     const PAYMENT_STATUS_LABELS = {
-      pendente: 'Pendente',
+      pendente: 'Aguardando pagamento',
       pago: 'Pago',
       falhou: 'Falhou',
       cancelado: 'Cancelado',
@@ -219,7 +219,7 @@
     }
 
     function paymentStatusLabel(value) {
-      return PAYMENT_STATUS_LABELS[String(value || 'pendente').trim()] || 'Pendente';
+      return PAYMENT_STATUS_LABELS[String(value || 'pendente').trim()] || 'Aguardando pagamento';
     }
 
     async function parseResponse(response) {

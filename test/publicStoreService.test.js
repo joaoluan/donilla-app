@@ -163,7 +163,7 @@ test('getStore nao deve expor configuracoes privadas do bot de WhatsApp', async 
   assert.equal(Object.prototype.hasOwnProperty.call(result, 'whatsapp_webhook_secret'), false)
 })
 
-test('createOrder deve marcar pedido pix como pago de forma persistente', async () => {
+test('createOrder deve criar pedido pix aguardando pagamento de forma persistente', async () => {
   const originalSecret = process.env.JWT_SECRET
   process.env.JWT_SECRET = 'test-secret'
 
@@ -202,12 +202,12 @@ test('createOrder deve marcar pedido pix como pago de forma persistente', async 
     })
 
     assert.equal(calls.pedidoCreate.metodo_pagamento, 'pix')
-    assert.equal(calls.pedidoCreate.status_pagamento, 'pago')
+    assert.equal(calls.pedidoCreate.status_pagamento, 'pendente')
     assert.equal(result.metodo_pagamento, 'pix')
-    assert.equal(result.status_pagamento, 'pago')
+    assert.equal(result.status_pagamento, 'pendente')
     assert.equal(calls.createMany.length, 1)
     assert.equal(notifications.length, 1)
-    assert.equal(notifications[0].order.status_pagamento, 'pago')
+    assert.equal(notifications[0].order.status_pagamento, 'pendente')
   } finally {
     process.env.JWT_SECRET = originalSecret
   }

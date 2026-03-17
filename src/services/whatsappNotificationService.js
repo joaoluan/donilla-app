@@ -14,7 +14,7 @@ const STATUS_LABELS = {
 }
 
 const PAYMENT_STATUS_LABELS = {
-  pendente: 'Pendente',
+  pendente: 'Aguardando pagamento',
   pago: 'Pago',
   falhou: 'Falhou',
   cancelado: 'Cancelado',

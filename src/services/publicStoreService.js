@@ -37,8 +37,8 @@ function normalizePaymentMethod(value) {
   throw new AppError(400, 'No momento aceitamos apenas Pix.')
 }
 
-function resolvePaymentStatus(metodoPagamento) {
-  return metodoPagamento === 'pix' ? 'pago' : 'pendente'
+function resolvePaymentStatus() {
+  return 'pendente'
 }
 
 function toAddress(input) {
@@ -581,7 +581,7 @@ function publicStoreService(prisma, deps = {}) {
       const session = parseCustomerSessionToken(sessionToken)
       const observacoes = toObservations(input?.observacoes)
       const metodoPagamento = normalizePaymentMethod(input?.metodo_pagamento)
-      const statusPagamento = resolvePaymentStatus(metodoPagamento)
+      const statusPagamento = resolvePaymentStatus()
 
       const sessionNome = String(session.nome || '').trim()
       const sessionTelefone = toPhone(session.telefone_whatsapp)

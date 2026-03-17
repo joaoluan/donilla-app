@@ -781,12 +781,13 @@
     };
 
     const PAYMENT_STATUS_LABELS = {
-      pendente: 'Pendente',
+      pendente: 'Aguardando pagamento',
       pago: 'Pago',
       falhou: 'Falhou',
       cancelado: 'Cancelado',
       estornado: 'Estornado',
     };
+    const PAYMENT_STATUS_OPTIONS = ['pendente', 'pago'];
 
     const adminLayoutEl = document.getElementById('adminLayout');
     const loginCardEl = document.getElementById('loginCard');
@@ -1114,7 +1115,7 @@
     }
 
     function paymentStatusLabel(value) {
-      return PAYMENT_STATUS_LABELS[paymentStatusClass(value)] || 'Pendente';
+      return PAYMENT_STATUS_LABELS[paymentStatusClass(value)] || 'Aguardando pagamento';
     }
 
     function paymentChipClasses(status) {
@@ -1134,6 +1135,11 @@
       const normalized = String(value || '').trim().toLowerCase();
       if (normalized === 'pix') return 'Pix';
       return value ? String(value) : '--';
+    }
+
+    function paymentStatusSelectValues(status) {
+      const normalized = paymentStatusClass(status);
+      return [normalized, ...PAYMENT_STATUS_OPTIONS].filter((value, index, items) => items.indexOf(value) === index);
     }
 
     function getSelectOptionLabel(selectEl, value) {
@@ -2039,6 +2045,7 @@
 
     function orderCard(order) {
       const status = order.status_entrega || 'pendente';
+      const paymentStatus = paymentStatusClass(order.status_pagamento);
       const itensHtml = (order.itens_pedido || [])
         .map((item) => {
           const nome = item.produtos?.nome_doce || `Produto ${item.produto_id}`;
@@ -2050,6 +2057,12 @@
         const selected = value === status ? 'selected' : '';
         return `<option value="${value}" ${selected}>${STATUS_LABELS[value]}</option>`;
       }).join('');
+      const paymentStatusOptions = paymentStatusSelectValues(order.status_pagamento)
+        .map((value) => {
+          const selected = value === paymentStatus ? 'selected' : '';
+          return `<option value="${value}" ${selected}>${PAYMENT_STATUS_LABELS[value] || value}</option>`;
+        })
+        .join('');
 
       return `
         <article class="order-card">
@@ -2076,9 +2089,16 @@
 
           <ul class="order-items">${itensHtml || '<li>Sem itens.</li>'}</ul>
 
-          <footer class="order-actions">
-            <select data-status-select="${order.id}">${statusOptions}</select>
-            <button type="button" class="primary-btn" data-status-save="${order.id}">Atualizar status</button>
+          <footer class="order-actions order-management-actions">
+            <label class="order-action-field">
+              <span class="order-action-field-label">Status do pedido</span>
+              <select data-status-select="${order.id}">${statusOptions}</select>
+            </label>
+            <label class="order-action-field">
+              <span class="order-action-field-label">Pagamento</span>
+              <select data-payment-status-select="${order.id}">${paymentStatusOptions}</select>
+            </label>
+            <button type="button" class="primary-btn" data-status-save="${order.id}">Salvar alterações</button>
           </footer>
         </article>
       `;
@@ -3114,16 +3134,21 @@
 
       const orderId = Number(saveButton.dataset.statusSave);
       const select = ordersListEl.querySelector(`select[data-status-select="${orderId}"]`);
-      if (!select) return;
+      const paymentSelect = ordersListEl.querySelector(`select[data-payment-status-select="${orderId}"]`);
+      if (!select || !paymentSelect) return;
 
       saveButton.disabled = true;
       const nextStatus = select.value;
+      const nextPaymentStatus = paymentSelect.value;
 
       try {
         const response = await fetch(`/admin/orders/${orderId}/status`, {
           method: 'PUT',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ status_entrega: nextStatus }),
+          body: JSON.stringify({
+            status_entrega: nextStatus,
+            status_pagamento: nextPaymentStatus,
+          }),
         });
 
         await parseResponse(response);

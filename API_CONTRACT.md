@@ -237,11 +237,16 @@ Lista pedidos com cliente, endereço, itens e `observacoes`.
 ### PUT `/admin/orders/:id/status`
 Request:
 ```json
-{ "status_entrega": "preparando" }
+{
+  "status_entrega": "preparando",
+  "status_pagamento": "pago"
+}
 ```
-Status aceitos: `pendente`, `preparando`, `saiu_para_entrega`, `entregue`, `cancelado`.
+Campos opcionais:
+- `status_entrega`: `pendente`, `preparando`, `saiu_para_entrega`, `entregue`, `cancelado`
+- `status_pagamento`: `pendente`, `pago`, `falhou`, `cancelado`, `estornado`
 
-Quando a integração WhatsApp estiver ativa, essa rota também dispara um evento `order.status_updated` para o bot.
+Quando a integração WhatsApp estiver ativa, a rota dispara um evento `order.status_updated` para o bot apenas se o `status_entrega` mudar.
 
 ### GET `/admin/store-settings`
 Retorna configurações operacionais e a configuração atual do bot WhatsApp.

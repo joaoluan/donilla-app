@@ -384,7 +384,7 @@
     };
 
     const PAYMENT_STATUS_LABELS = {
-      pendente: 'Pendente',
+      pendente: 'Aguardando pagamento',
       pago: 'Pago',
       falhou: 'Falhou',
       cancelado: 'Cancelado',
@@ -954,7 +954,7 @@
     }
 
     function paymentStatusLabel(value) {
-      return PAYMENT_STATUS_LABELS[paymentStatusClass(value)] || 'Pendente';
+      return PAYMENT_STATUS_LABELS[paymentStatusClass(value)] || 'Aguardando pagamento';
     }
 
     function paymentChipClasses(status) {
@@ -1467,18 +1467,21 @@
         .map((order) => {
           const status = orderStatusClass(order.status_entrega);
           return `
-            <article class="order-card">
+            <article class="order-card customer-order-card">
               <header>
-                <strong>Pedido #${order.id}</strong>
-                <div class="order-card-statuses">
-                  <span class="${statusChipClasses(status)}">${escapeHtml(statusLabel(status))}</span>
-                  ${paymentChipMarkup(order.status_pagamento)}
+                <div>
+                  <strong>Pedido #${order.id}</strong>
+                  <small>${escapeHtml(formatDate(order.criado_em))}</small>
                 </div>
+                <span class="${statusChipClasses(status)}">${escapeHtml(statusLabel(status))}</span>
               </header>
-              <div class="order-meta">
+              <div class="order-meta customer-order-meta">
                 <span><b>Forma de pagamento:</b> ${escapeHtml(paymentMethodLabel(order.metodo_pagamento))}</span>
                 <span><b>Total:</b> ${brl(order.valor_total)}</span>
-                <span><b>Feito em:</b> ${escapeHtml(formatDate(order.criado_em))}</span>
+              </div>
+              <div class="customer-order-payment-row">
+                <span class="customer-order-payment-label">Status do pagamento</span>
+                ${paymentChipMarkup(order.status_pagamento)}
               </div>
               ${order.observacoes ? `<p class="order-note"><b>Observações:</b> ${escapeHtml(order.observacoes)}</p>` : ''}
               <div class="order-actions">

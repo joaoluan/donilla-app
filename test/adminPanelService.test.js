@@ -385,7 +385,7 @@ test('updateOrderStatus dispara notificacao quando o status muda', async () => {
     },
   })
 
-  const result = await service.updateOrderStatus(9, 'preparando')
+  const result = await service.updateOrderStatus(9, { status_entrega: 'preparando' })
 
   assert.equal(result.status_entrega, 'preparando')
   assert.equal(notifications.length, 1)
@@ -424,10 +424,52 @@ test('updateOrderStatus nao dispara notificacao quando o status nao muda', async
     },
   })
 
-  const result = await service.updateOrderStatus(9, 'preparando')
+  const result = await service.updateOrderStatus(9, { status_entrega: 'preparando' })
 
   assert.equal(result.status_entrega, 'preparando')
   assert.equal(updateCalled, false)
+  assert.equal(notificationCalled, false)
+})
+
+test('updateOrderStatus permite confirmar pagamento sem disparar notificacao de entrega', async () => {
+  let notificationCalled = false
+  let persistedData = null
+  const currentOrder = {
+    id: 9,
+    status_entrega: 'pendente',
+    status_pagamento: 'pendente',
+    clientes: { id: 1, nome: 'Maria', telefone_whatsapp: '5511999990000' },
+    enderecos: null,
+    itens_pedido: [],
+  }
+
+  const prisma = {
+    pedidos: {
+      findUnique() {
+        return Promise.resolve(currentOrder)
+      },
+      update({ data }) {
+        persistedData = data
+        return Promise.resolve({
+          ...currentOrder,
+          ...data,
+        })
+      },
+    },
+  }
+
+  const service = adminPanelService(prisma, {
+    whatsappNotifier: {
+      notifyOrderStatusUpdatedSafe() {
+        notificationCalled = true
+      },
+    },
+  })
+
+  const result = await service.updateOrderStatus(9, { status_pagamento: 'pago' })
+
+  assert.equal(result.status_pagamento, 'pago')
+  assert.deepEqual(persistedData, { status_pagamento: 'pago' })
   assert.equal(notificationCalled, false)
 })
 

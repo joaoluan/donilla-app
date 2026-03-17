@@ -67,7 +67,10 @@ const createOrderSchema = z.object({
 })
 
 const updateOrderStatusSchema = z.object({
-  status_entrega: z.enum(['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado']),
+  status_entrega: z.enum(['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado']).optional(),
+  status_pagamento: z.enum(['pendente', 'pago', 'falhou', 'cancelado', 'estornado']).optional(),
+}).refine((payload) => payload.status_entrega || payload.status_pagamento, {
+  message: 'Status de pedido invalido.',
 })
 
 function parseOrderId(value) {

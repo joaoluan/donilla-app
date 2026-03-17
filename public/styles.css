@@ -2685,10 +2685,59 @@ button {
   gap: 8px;
 }
 
+.order-management-actions {
+  align-items: stretch;
+}
+
+.order-action-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.order-management-actions .order-action-field {
+  flex: 1 1 180px;
+}
+
+.order-action-field-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--slate-500);
+}
+
 .order-note {
   margin: 10px 0 0;
   color: var(--slate-700);
   white-space: pre-wrap;
+}
+
+.customer-order-card header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.customer-order-payment-row {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--slate-200);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(241, 245, 249, 0.94) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.customer-order-payment-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--slate-500);
 }
 
 .list-footer {
@@ -2926,6 +2975,17 @@ button {
 
   .order-actions {
     flex-direction: row;
+  }
+
+  .order-management-actions .primary-btn {
+    width: auto;
+    align-self: end;
+  }
+
+  .customer-order-card header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
   }
 
   .kpi-grid {

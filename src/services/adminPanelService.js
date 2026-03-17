@@ -1003,7 +1003,7 @@ function adminPanelService(prisma, deps = {}) {
       }
     },
 
-    async updateOrderStatus(id, status_entrega) {
+    async updateOrderStatus(id, updates = {}) {
       const currentOrder = await prisma.pedidos.findUnique({
         where: { id },
         include: getOrderNotificationInclude(),
@@ -1013,20 +1013,42 @@ function adminPanelService(prisma, deps = {}) {
         throw new AppError(404, 'Pedido nao encontrado.')
       }
 
-      if (currentOrder.status_entrega === status_entrega) {
+      const nextStatusEntrega = updates.status_entrega ?? currentOrder.status_entrega
+      const nextStatusPagamento = updates.status_pagamento ?? currentOrder.status_pagamento
+      const deliveryChanged = currentOrder.status_entrega !== nextStatusEntrega
+      const paymentChanged = currentOrder.status_pagamento !== nextStatusPagamento
+
+      if (!deliveryChanged && !paymentChanged) {
         return currentOrder
       }
 
-      const [config, updatedOrder] = await Promise.all([
-        getStoreSettingsConfig(),
-        prisma.pedidos.update({
-          where: { id },
-          data: { status_entrega },
-          include: getOrderNotificationInclude(),
-        }),
-      ])
+      const updateData = {}
+      if (deliveryChanged) updateData.status_entrega = nextStatusEntrega
+      if (paymentChanged) updateData.status_pagamento = nextStatusPagamento
 
-      if (whatsappNotifier?.notifyOrderStatusUpdatedSafe) {
+      let config = null
+      let updatedOrder = null
+
+      if (deliveryChanged && whatsappNotifier?.notifyOrderStatusUpdatedSafe) {
+        const results = await Promise.all([
+          getStoreSettingsConfig(),
+          prisma.pedidos.update({
+            where: { id },
+            data: updateData,
+            include: getOrderNotificationInclude(),
+          }),
+        ])
+        config = results[0]
+        updatedOrder = results[1]
+      } else {
+        updatedOrder = await prisma.pedidos.update({
+          where: { id },
+          data: updateData,
+          include: getOrderNotificationInclude(),
+        })
+      }
+
+      if (deliveryChanged && whatsappNotifier?.notifyOrderStatusUpdatedSafe) {
         whatsappNotifier.notifyOrderStatusUpdatedSafe({
           config,
           previousStatus: currentOrder.status_entrega || null,

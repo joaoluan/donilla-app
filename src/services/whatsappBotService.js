@@ -1,4 +1,4 @@
-const { STATUS_LABELS } = require('./whatsappNotificationService')
+const { STATUS_LABELS, PAYMENT_STATUS_LABELS } = require('./whatsappNotificationService')
 const { getPhoneSearchVariants, normalizeLidKey, normalizeWhatsAppId } = require('../utils/phone')
 const { normalizePhone } = require('./wppConnectService')
 
@@ -695,7 +695,7 @@ function buildOrderMessage(order, { storeUrl = null } = {}) {
   return [
     `Aqui vai o resumo do pedido #${order.id}:`,
     `Status: ${statusLabel(order.status_entrega)}`,
-    `Pagamento: ${order.status_pagamento || 'pendente'}`,
+    `Pagamento: ${PAYMENT_STATUS_LABELS[order.status_pagamento] || order.status_pagamento || 'Aguardando pagamento'}`,
     `Total: ${formatMoney(order.valor_total)}`,
     `Criado em: ${formatDateTime(order.criado_em)}`,
   ].join('\n')

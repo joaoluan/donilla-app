@@ -47,7 +47,7 @@ function adminController(service) {
       const id = parseOrderId(idParam)
       const body = await parseJsonBody(req)
       const payload = validateUpdateOrderStatus(body)
-      const data = await service.updateOrderStatus(id, payload.status_entrega)
+      const data = await service.updateOrderStatus(id, payload)
       return { statusCode: 200, data }
     },
 
