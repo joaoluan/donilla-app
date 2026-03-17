@@ -709,7 +709,7 @@
                 </label>
               </div>
 
-              <p class="muted"><b>Variáveis disponíveis nas mensagens:</b> <code>{cliente_nome}</code>, <code>{cliente_telefone}</code>, <code>{pedido_id}</code>, <code>{status_entrega_label}</code>, <code>{status_anterior_label}</code>, <code>{status_mensagem}</code>, <code>{valor_total}</code>, <code>{valor_entrega}</code>, <code>{metodo_pagamento}</code>, <code>{observacoes}</code>, <code>{endereco_resumo}</code>, <code>{itens_resumo}</code>, <code>{tempo_entrega_min}</code>, <code>{tempo_entrega_max}</code> e <code>{previsao_entrega}</code>. Você pode usar quebras de linha normalmente.</p>
+              <p class="muted"><b>Variáveis disponíveis nas mensagens:</b> <code>{cliente_nome}</code>, <code>{cliente_telefone}</code>, <code>{pedido_id}</code>, <code>{status_entrega_label}</code>, <code>{status_pagamento_label}</code>, <code>{status_anterior_label}</code>, <code>{status_mensagem}</code>, <code>{valor_total}</code>, <code>{valor_entrega}</code>, <code>{metodo_pagamento}</code>, <code>{observacoes}</code>, <code>{endereco_resumo}</code>, <code>{itens_resumo}</code>, <code>{tempo_entrega_min}</code>, <code>{tempo_entrega_max}</code> e <code>{previsao_entrega}</code>. Você pode usar quebras de linha normalmente.</p>
 
               <div class="whatsapp-admin-card-block whatsapp-admin-test-block">
                 <div class="whatsapp-admin-card-head">
@@ -778,6 +778,14 @@
       saiu_para_entrega: 'Saiu para entrega',
       entregue: 'Entregue',
       cancelado: 'Cancelado',
+    };
+
+    const PAYMENT_STATUS_LABELS = {
+      pendente: 'Pendente',
+      pago: 'Pago',
+      falhou: 'Falhou',
+      cancelado: 'Cancelado',
+      estornado: 'Estornado',
     };
 
     const adminLayoutEl = document.getElementById('adminLayout');
@@ -1095,6 +1103,37 @@
       if (endereco.bairro) parts.push(endereco.bairro);
       if (endereco.cidade) parts.push(endereco.cidade);
       return parts.join(' · ') || 'Sem endereço principal';
+    }
+
+    function paymentStatusClass(status) {
+      const normalized = String(status || 'pendente').trim().toLowerCase();
+      if (['pendente', 'pago', 'falhou', 'cancelado', 'estornado'].includes(normalized)) {
+        return normalized;
+      }
+      return 'pendente';
+    }
+
+    function paymentStatusLabel(value) {
+      return PAYMENT_STATUS_LABELS[paymentStatusClass(value)] || 'Pendente';
+    }
+
+    function paymentChipClasses(status) {
+      return `status-chip payment-chip payment-${paymentStatusClass(status)}`;
+    }
+
+    function paymentChipMarkup(status) {
+      return `
+        <span class="${paymentChipClasses(status)}">
+          <span class="payment-chip-dot" aria-hidden="true"></span>
+          ${escapeHtml(paymentStatusLabel(status))}
+        </span>
+      `;
+    }
+
+    function paymentMethodLabel(value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (normalized === 'pix') return 'Pix';
+      return value ? String(value) : '--';
     }
 
     function getSelectOptionLabel(selectEl, value) {
@@ -1721,13 +1760,14 @@
             </div>
             <div class="crm-order-card-actions">
               <span class="status-chip status-${status}">${STATUS_LABELS[status] || status}</span>
+              ${paymentChipMarkup(order.status_pagamento)}
               <button type="button" class="ghost-btn crm-order-link" data-open-order="${order.id}">Abrir pedido</button>
             </div>
           </header>
 
           <div class="crm-order-summary">
             <span class="crm-order-summary-pill"><b>Total</b>${brl(order.valor_total || 0)}</span>
-            <span class="crm-order-summary-pill"><b>Pagamento</b>${escapeHtml(order.metodo_pagamento || '--')}</span>
+            <span class="crm-order-summary-pill"><b>Forma de pagamento</b>${escapeHtml(paymentMethodLabel(order.metodo_pagamento))}</span>
             <span class="crm-order-summary-pill"><b>Itens</b>${pluralize(itemsCount, 'item')}</span>
           </div>
 
@@ -2018,14 +2058,17 @@
               <strong>Pedido #${order.id}</strong>
               <small>${dateTime(order.criado_em)}</small>
             </div>
-            <span class="status-chip status-${status}">${STATUS_LABELS[status] || status}</span>
+            <div class="order-card-statuses">
+              <span class="status-chip status-${status}">${STATUS_LABELS[status] || status}</span>
+              ${paymentChipMarkup(order.status_pagamento)}
+            </div>
           </header>
 
         <div class="order-meta">
             <span><b>Cliente:</b> ${escapeHtml(order.clientes?.nome || '--')}</span>
             <span><b>WhatsApp:</b> ${escapeHtml(order.clientes?.telefone_whatsapp || '--')}</span>
             <span><b>Endereço:</b> ${formatAddress(order.enderecos)}</span>
-            <span><b>Pagamento:</b> ${escapeHtml(order.metodo_pagamento || '--')}</span>
+            <span><b>Forma de pagamento:</b> ${escapeHtml(paymentMethodLabel(order.metodo_pagamento))}</span>
             <span><b>Total:</b> ${brl(order.valor_total)}</span>
           </div>
 

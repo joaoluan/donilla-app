@@ -13,6 +13,14 @@ const STATUS_LABELS = {
   cancelado: 'Cancelado',
 }
 
+const PAYMENT_STATUS_LABELS = {
+  pendente: 'Pendente',
+  pago: 'Pago',
+  falhou: 'Falhou',
+  cancelado: 'Cancelado',
+  estornado: 'Estornado',
+}
+
 function formatMoney(value) {
   return Number(value || 0).toLocaleString('pt-BR', {
     style: 'currency',
@@ -61,6 +69,10 @@ function statusLabel(value) {
   return STATUS_LABELS[value] || value || 'Nao informado'
 }
 
+function paymentStatusLabel(value) {
+  return PAYMENT_STATUS_LABELS[value] || value || 'Nao informado'
+}
+
 function buildStatusMessage(status, { previsaoEntrega }) {
   switch (status) {
     case 'pendente':
@@ -97,6 +109,8 @@ function buildVariables(config, order, previousStatus = null) {
     pedido_id: order?.id || '',
     status_entrega: currentStatus || '',
     status_entrega_label: statusLabel(currentStatus),
+    status_pagamento: order?.status_pagamento || '',
+    status_pagamento_label: paymentStatusLabel(order?.status_pagamento),
     status_anterior: previousStatus || '',
     status_anterior_label: statusLabel(previousStatus),
     valor_total: formatMoney(order?.valor_total),
@@ -342,6 +356,7 @@ function createWhatsAppNotificationService({
 
 module.exports = {
   STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
   buildPayload,
   createWhatsAppNotificationService,
 }

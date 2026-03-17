@@ -188,12 +188,25 @@ test('validateCustomerLookup deve rejeitar telefone curto', () => {
 test('validateCreateOrder deve aceitar observacoes e normalizar vazio para null', () => {
   const data = validateCreateOrder({
     cliente_session_token: 'x'.repeat(20),
-    metodo_pagamento: 'pix',
+    metodo_pagamento: ' PIX ',
     observacoes: '  tirar granulado  ',
     itens: [{ produto_id: 1, quantidade: 2 }],
   })
 
   assert.equal(data.observacoes, 'tirar granulado')
+  assert.equal(data.metodo_pagamento, 'pix')
+})
+
+test('validateCreateOrder deve rejeitar pagamentos diferentes de pix', () => {
+  assert.throws(
+    () =>
+      validateCreateOrder({
+        cliente_session_token: 'x'.repeat(20),
+        metodo_pagamento: 'cartao',
+        itens: [{ produto_id: 1, quantidade: 1 }],
+      }),
+    (error) => error instanceof AppError && error.message === 'No momento aceitamos apenas Pix.',
+  )
 })
 
 test('validateCreateCustomer deve aceitar senha forte no cadastro do cliente', () => {

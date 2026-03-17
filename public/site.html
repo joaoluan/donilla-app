@@ -69,8 +69,6 @@
             <h3>Finalizar pedido</h3>
             <select name="metodo" required>
               <option value="pix">Pix</option>
-              <option value="cartao">Cartão</option>
-              <option value="dinheiro">Dinheiro</option>
             </select>
             <textarea name="observacoes" rows="3" placeholder="Observações do pedido (ex.: tirar granulado, sem cobertura, etc.)"></textarea>
 
@@ -101,6 +99,22 @@
     const checkoutFormEl = document.getElementById('checkoutForm');
     const checkoutBtnEl = document.getElementById('checkoutBtn');
     const orderStatusEl = document.getElementById('orderStatus');
+
+    const STATUS_LABELS = {
+      pendente: 'Pendente',
+      preparando: 'Preparando',
+      saiu_para_entrega: 'Saiu para entrega',
+      entregue: 'Entregue',
+      cancelado: 'Cancelado',
+    };
+
+    const PAYMENT_STATUS_LABELS = {
+      pendente: 'Pendente',
+      pago: 'Pago',
+      falhou: 'Falhou',
+      cancelado: 'Cancelado',
+      estornado: 'Estornado',
+    };
 
     const carrinho = new Map();
     const CUSTOMER_SESSION_KEY = 'donilla_customer_session';
@@ -198,6 +212,14 @@
     function setStatus(target, message, type = 'muted') {
       target.textContent = message;
       target.className = `status-text ${type}`;
+    }
+
+    function orderStatusLabel(value) {
+      return STATUS_LABELS[String(value || 'pendente').trim()] || 'Pendente';
+    }
+
+    function paymentStatusLabel(value) {
+      return PAYMENT_STATUS_LABELS[String(value || 'pendente').trim()] || 'Pendente';
     }
 
     async function parseResponse(response) {
@@ -546,7 +568,11 @@
 
         const order = await parseResponse(response);
 
-        setStatus(orderStatusEl, `Pedido #${order.id} criado com sucesso. Status: ${order.status_entrega}.`, 'ok');
+        setStatus(
+          orderStatusEl,
+          `Pedido #${order.id} criado com sucesso. Entrega: ${orderStatusLabel(order.status_entrega)}. Pagamento: ${paymentStatusLabel(order.status_pagamento)}.`,
+          'ok',
+        );
         if (checkoutFormEl.elements.observacoes) {
           checkoutFormEl.elements.observacoes.value = '';
         }

@@ -2,6 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 
 const { publicStoreService } = require('../src/services/publicStoreService')
+const { signToken } = require('../src/utils/jwt')
 
 function createPrismaMock(user = null, overrides = {}) {
   return {
@@ -21,6 +22,90 @@ function createPrismaMock(user = null, overrides = {}) {
     taxas_entrega_locais: {
       findMany() {
         return Promise.resolve(overrides.deliveryFees || [])
+      },
+    },
+  }
+}
+
+function createOrderPrismaMock() {
+  const calls = {
+    pedidoCreate: null,
+    createMany: null,
+  }
+
+  return {
+    calls,
+    prisma: {
+      configuracoes_loja: {
+        findFirst() {
+          return Promise.resolve({
+            loja_aberta: true,
+            taxa_entrega_padrao: '0.00',
+          })
+        },
+      },
+      taxas_entrega_locais: {
+        findMany() {
+          return Promise.resolve([])
+        },
+      },
+      produtos: {
+        findMany() {
+          return Promise.resolve([
+            {
+              id: 1,
+              nome_doce: 'Brigadeiro',
+              preco: '12.00',
+              ativo: true,
+              estoque_disponivel: 10,
+            },
+          ])
+        },
+      },
+      $transaction(callback) {
+        const tx = {
+          clientes: {
+            findUnique(args) {
+              if (args?.where?.id) return Promise.resolve(null)
+              if (args?.where?.telefone_whatsapp) return Promise.resolve(null)
+              return Promise.resolve(null)
+            },
+            create({ data }) {
+              return Promise.resolve({ id: 21, ...data })
+            },
+            update({ data }) {
+              return Promise.resolve({ id: 21, ...data })
+            },
+          },
+          enderecos: {
+            create({ data }) {
+              return Promise.resolve({ id: 31, ...data })
+            },
+          },
+          produtos: {
+            updateMany() {
+              return Promise.resolve({ count: 1 })
+            },
+          },
+          pedidos: {
+            create({ data }) {
+              calls.pedidoCreate = data
+              return Promise.resolve({
+                id: 41,
+                criado_em: '2026-03-16T18:00:00.000Z',
+                ...data,
+              })
+            },
+          },
+          itens_pedido: {
+            createMany({ data }) {
+              calls.createMany = data
+              return Promise.resolve({ count: data.length })
+            },
+          },
+        }
+
+        return callback(tx)
       },
     },
   }
@@ -76,4 +161,54 @@ test('getStore nao deve expor configuracoes privadas do bot de WhatsApp', async 
   assert.equal(Object.prototype.hasOwnProperty.call(result, 'whatsapp_ativo'), false)
   assert.equal(Object.prototype.hasOwnProperty.call(result, 'whatsapp_webhook_url'), false)
   assert.equal(Object.prototype.hasOwnProperty.call(result, 'whatsapp_webhook_secret'), false)
+})
+
+test('createOrder deve marcar pedido pix como pago de forma persistente', async () => {
+  const originalSecret = process.env.JWT_SECRET
+  process.env.JWT_SECRET = 'test-secret'
+
+  const { prisma, calls } = createOrderPrismaMock()
+  const notifications = []
+  const service = publicStoreService(prisma, {
+    whatsappNotifier: {
+      notifyOrderCreatedSafe(payload) {
+        notifications.push(payload)
+      },
+    },
+  })
+
+  const sessionToken = signToken(
+    {
+      purpose: 'customer_session',
+      customer_id: null,
+      telefone_whatsapp: '11999999999',
+      nome: 'Maria Pix',
+      endereco: {
+        rua: 'Rua das Flores',
+        numero: '20',
+        bairro: 'Centro',
+        cidade: 'Sapiranga',
+      },
+    },
+    process.env.JWT_SECRET,
+    3600,
+  )
+
+  try {
+    const result = await service.createOrder({
+      cliente_session_token: sessionToken,
+      metodo_pagamento: 'pix',
+      itens: [{ produto_id: 1, quantidade: 2 }],
+    })
+
+    assert.equal(calls.pedidoCreate.metodo_pagamento, 'pix')
+    assert.equal(calls.pedidoCreate.status_pagamento, 'pago')
+    assert.equal(result.metodo_pagamento, 'pix')
+    assert.equal(result.status_pagamento, 'pago')
+    assert.equal(calls.createMany.length, 1)
+    assert.equal(notifications.length, 1)
+    assert.equal(notifications[0].order.status_pagamento, 'pago')
+  } finally {
+    process.env.JWT_SECRET = originalSecret
+  }
 })

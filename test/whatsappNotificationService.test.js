@@ -17,6 +17,7 @@ test('buildPayload aplica variaveis do pedido na mensagem', () => {
     {
       id: 77,
       status_entrega: 'pendente',
+      status_pagamento: 'pago',
       valor_total: '49.90',
       valor_entrega: '8.00',
       metodo_pagamento: 'pix',
@@ -38,6 +39,7 @@ test('buildPayload aplica variaveis do pedido na mensagem', () => {
   assert.match(payload.message, /^Pedido #77 para Maria com total R\$\s49,90\.$/)
   assert.equal(payload.variables.previsao_entrega, '20 a 30 min')
   assert.equal(payload.variables.itens_resumo, '2x Brigadeiro')
+  assert.equal(payload.variables.status_pagamento_label, 'Pago')
 })
 
 test('buildPayload monta mensagem contextual para status atualizado', () => {

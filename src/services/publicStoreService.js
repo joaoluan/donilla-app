@@ -27,6 +27,20 @@ function toPhone(value) {
     .trim()
 }
 
+function normalizePaymentMethod(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+
+  if (normalized === 'pix') return 'pix'
+
+  throw new AppError(400, 'No momento aceitamos apenas Pix.')
+}
+
+function resolvePaymentStatus(metodoPagamento) {
+  return metodoPagamento === 'pix' ? 'pago' : 'pendente'
+}
+
 function toAddress(input) {
   if (!input || typeof input !== 'object') return null
 
@@ -157,6 +171,7 @@ function assertOrderBelongsToSession(order, session) {
 function mapOrderSummary(order) {
   return {
     id: order.id,
+    metodo_pagamento: order.metodo_pagamento,
     status_entrega: order.status_entrega,
     status_pagamento: order.status_pagamento,
     valor_total: order.valor_total,
@@ -565,6 +580,8 @@ function publicStoreService(prisma, deps = {}) {
       const sessionToken = input?.cliente_session_token
       const session = parseCustomerSessionToken(sessionToken)
       const observacoes = toObservations(input?.observacoes)
+      const metodoPagamento = normalizePaymentMethod(input?.metodo_pagamento)
+      const statusPagamento = resolvePaymentStatus(metodoPagamento)
 
       const sessionNome = String(session.nome || '').trim()
       const sessionTelefone = toPhone(session.telefone_whatsapp)
@@ -657,8 +674,8 @@ function publicStoreService(prisma, deps = {}) {
             valor_entrega: valorEntrega.toFixed(2),
             valor_total: valorTotal.toFixed(2),
             observacoes,
-            metodo_pagamento: input.metodo_pagamento,
-            status_pagamento: 'pendente',
+            metodo_pagamento: metodoPagamento,
+            status_pagamento: statusPagamento,
             status_entrega: 'pendente',
           },
         })
@@ -676,6 +693,7 @@ function publicStoreService(prisma, deps = {}) {
         return {
           response: {
             id: pedido.id,
+            metodo_pagamento: pedido.metodo_pagamento,
             status_entrega: pedido.status_entrega,
             status_pagamento: pedido.status_pagamento,
             observacoes: pedido.observacoes,
@@ -689,7 +707,7 @@ function publicStoreService(prisma, deps = {}) {
             endereco,
             itens: itensCalculados,
             produtosById,
-            metodo_pagamento: input.metodo_pagamento,
+            metodo_pagamento: metodoPagamento,
           }),
         }
       })
@@ -721,6 +739,7 @@ function publicStoreService(prisma, deps = {}) {
 
       return {
         id: pedido.id,
+        metodo_pagamento: pedido.metodo_pagamento,
         status_entrega: pedido.status_entrega,
         status_pagamento: pedido.status_pagamento,
         observacoes: pedido.observacoes || null,
@@ -777,6 +796,7 @@ function publicStoreService(prisma, deps = {}) {
 
       return {
         id: pedido.id,
+        metodo_pagamento: pedido.metodo_pagamento,
         status_entrega: pedido.status_entrega,
         status_pagamento: pedido.status_pagamento,
         observacoes: pedido.observacoes || null,

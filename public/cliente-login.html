@@ -307,8 +307,6 @@
               <h3>Finalizar pedido</h3>
               <select name="metodo" required>
                 <option value="pix">Pix</option>
-                <option value="cartao">Cartão</option>
-                <option value="dinheiro">Dinheiro</option>
               </select>
               <textarea name="observacoes" rows="3" placeholder="Observações do pedido (ex.: tirar granulado, sem cobertura, etc.)"></textarea>
 
@@ -383,6 +381,14 @@
       saiu_para_entrega: 'Saiu para entrega',
       entregue: 'Entregue',
       cancelado: 'Cancelado',
+    };
+
+    const PAYMENT_STATUS_LABELS = {
+      pendente: 'Pendente',
+      pago: 'Pago',
+      falhou: 'Falhou',
+      cancelado: 'Cancelado',
+      estornado: 'Estornado',
     };
 
     const layoutEl = document.getElementById('clienteLayout');
@@ -939,6 +945,37 @@
       return `status-chip status-${normalized}`;
     }
 
+    function paymentStatusClass(status) {
+      const normalized = String(status || 'pendente').trim().toLowerCase();
+      if (['pendente', 'pago', 'falhou', 'cancelado', 'estornado'].includes(normalized)) {
+        return normalized;
+      }
+      return 'pendente';
+    }
+
+    function paymentStatusLabel(value) {
+      return PAYMENT_STATUS_LABELS[paymentStatusClass(value)] || 'Pendente';
+    }
+
+    function paymentChipClasses(status) {
+      return `status-chip payment-chip payment-${paymentStatusClass(status)}`;
+    }
+
+    function paymentChipMarkup(status) {
+      return `
+        <span class="${paymentChipClasses(status)}">
+          <span class="payment-chip-dot" aria-hidden="true"></span>
+          ${escapeHtml(paymentStatusLabel(status))}
+        </span>
+      `;
+    }
+
+    function paymentMethodLabel(value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (normalized === 'pix') return 'Pix';
+      return value ? String(value) : '--';
+    }
+
     function getProductStockLimit(produto) {
       const raw = produto?.estoque_disponivel;
       if (raw === null || raw === undefined || raw === '') return null;
@@ -1433,10 +1470,13 @@
             <article class="order-card">
               <header>
                 <strong>Pedido #${order.id}</strong>
-                <span class="${statusChipClasses(status)}">${escapeHtml(statusLabel(status))}</span>
+                <div class="order-card-statuses">
+                  <span class="${statusChipClasses(status)}">${escapeHtml(statusLabel(status))}</span>
+                  ${paymentChipMarkup(order.status_pagamento)}
+                </div>
               </header>
               <div class="order-meta">
-                <span><b>Pagamento:</b> ${escapeHtml(order.status_pagamento || '--')}</span>
+                <span><b>Forma de pagamento:</b> ${escapeHtml(paymentMethodLabel(order.metodo_pagamento))}</span>
                 <span><b>Total:</b> ${brl(order.valor_total)}</span>
                 <span><b>Feito em:</b> ${escapeHtml(formatDate(order.criado_em))}</span>
               </div>
@@ -1463,8 +1503,11 @@
         '">',
         escapeHtml(statusLabel(order.status_entrega)),
         '</span></p>',
-        '<p><strong>Pagamento:</strong> ',
-        escapeHtml(order.status_pagamento || '--'),
+        '<p><strong>Forma de pagamento:</strong> ',
+        escapeHtml(paymentMethodLabel(order.metodo_pagamento)),
+        '</p>',
+        '<p><strong>Status do pagamento:</strong> ',
+        paymentChipMarkup(order.status_pagamento),
         '</p>',
         '<p><strong>Total:</strong> ',
         brl(order.valor_total),
@@ -1819,7 +1862,11 @@
           }),
         );
 
-        setStatus(orderStatusEl, `Pedido #${order.id} criado com sucesso.`, 'ok');
+        setStatus(
+          orderStatusEl,
+          `Pedido #${order.id} criado com sucesso. Entrega: ${statusLabel(order.status_entrega)}. Pagamento: ${paymentStatusLabel(order.status_pagamento)}.`,
+          'ok',
+        );
         if (checkoutFormEl.elements.observacoes) {
           checkoutFormEl.elements.observacoes.value = '';
         }

@@ -56,7 +56,13 @@ const createOrderSchema = z.object({
       return trimmed.length === 0 ? null : trimmed
     }, z.string().max(500).nullable())
     .optional(),
-  metodo_pagamento: z.string().trim().min(2).max(50),
+  metodo_pagamento: z
+    .string()
+    .trim()
+    .min(1, 'Metodo de pagamento obrigatorio.')
+    .max(50)
+    .transform((value) => value.toLowerCase())
+    .refine((value) => value === 'pix', 'No momento aceitamos apenas Pix.'),
   itens: z.array(orderItemSchema).min(1),
 })
 
@@ -84,7 +90,13 @@ function validateCustomerLookup(value) {
 
 function validateCreateOrder(input) {
   const parsed = createOrderSchema.safeParse(input)
-  if (!parsed.success) throw new AppError(400, 'Dados de pedido invalidos.')
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues?.[0]?.message
+    if (firstIssue === 'Metodo de pagamento obrigatorio.' || firstIssue === 'No momento aceitamos apenas Pix.') {
+      throw new AppError(400, firstIssue)
+    }
+    throw new AppError(400, 'Dados de pedido invalidos.')
+  }
   return parsed.data
 }
 
