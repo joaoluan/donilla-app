@@ -10,6 +10,8 @@ node_modules/
 
 # Common local artifacts
 .tmp/
+postman/*.postman_environment.json
+!postman/*.example.postman_environment.json
 coverage/
 dist/
 build/
