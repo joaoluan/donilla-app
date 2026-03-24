@@ -785,9 +785,25 @@
       pago: 'Pago',
       falhou: 'Falhou',
       cancelado: 'Cancelado',
+      expirado: 'Expirado',
       estornado: 'Estornado',
     };
-    const PAYMENT_STATUS_OPTIONS = ['pendente', 'pago'];
+    const PAYMENT_STATUS_OPTIONS = ['pendente', 'cancelado', 'falhou', 'estornado'];
+    const ORDER_AUDIT_ACTION_LABELS = {
+      pedido_criado: 'Pedido criado',
+      checkout_criado: 'Checkout criado',
+      checkout_reaberto: 'Checkout reaberto',
+      checkout_falhou: 'Falha ao iniciar checkout',
+      status_atualizado_por_webhook: 'Webhook aplicou atualização',
+      status_atualizado_no_painel: 'Status alterado no painel',
+    };
+    const ORDER_AUDIT_ORIGIN_LABELS = {
+      customer: 'Cliente',
+      checkout: 'Checkout',
+      asaas_webhook: 'Webhook Asaas',
+      admin: 'Painel admin',
+      system: 'Sistema',
+    };
 
     const adminLayoutEl = document.getElementById('adminLayout');
     const loginCardEl = document.getElementById('loginCard');
@@ -930,6 +946,8 @@
     let ordersPaginationMeta = null;
     let categoryPaginationMeta = null;
     let produtoPaginationMeta = null;
+    const orderAuditCache = new Map();
+    const expandedOrderAuditIds = new Set();
 
     const dashboardFilters = {
       period: dashboardRangePresetEl?.value || '7d',
@@ -1108,7 +1126,7 @@
 
     function paymentStatusClass(status) {
       const normalized = String(status || 'pendente').trim().toLowerCase();
-      if (['pendente', 'pago', 'falhou', 'cancelado', 'estornado'].includes(normalized)) {
+      if (['pendente', 'pago', 'falhou', 'cancelado', 'expirado', 'estornado'].includes(normalized)) {
         return normalized;
       }
       return 'pendente';
@@ -1134,11 +1152,125 @@
     function paymentMethodLabel(value) {
       const normalized = String(value || '').trim().toLowerCase();
       if (normalized === 'pix') return 'Pix';
+      if (normalized === 'asaas_checkout') return 'Pagamento online';
       return value ? String(value) : '--';
     }
 
-    function paymentStatusSelectValues(status) {
-      const normalized = paymentStatusClass(status);
+    function orderAuditActionLabel(value) {
+      return ORDER_AUDIT_ACTION_LABELS[String(value || '').trim()] || (value ? String(value) : 'Evento');
+    }
+
+    function orderAuditOriginLabel(value) {
+      return ORDER_AUDIT_ORIGIN_LABELS[String(value || '').trim()] || (value ? String(value) : 'Sistema');
+    }
+
+    function orderAuditActorLabel(value) {
+      const actor = String(value || '').trim();
+      if (!actor) return 'Origem automática';
+      return actor;
+    }
+
+    function orderAuditStatusValueLabel(type, value) {
+      const normalized = String(value || '').trim().toLowerCase();
+      if (!normalized) return null;
+      if (type === 'payment') return PAYMENT_STATUS_LABELS[normalized] || normalized;
+      return STATUS_LABELS[normalized] || normalized;
+    }
+
+    function buildOrderAuditChanges(entry) {
+      const changes = [];
+      const paymentBefore = orderAuditStatusValueLabel('payment', entry.status_pagamento_anterior);
+      const paymentAfter = orderAuditStatusValueLabel('payment', entry.status_pagamento_atual);
+      const deliveryBefore = orderAuditStatusValueLabel('delivery', entry.status_entrega_anterior);
+      const deliveryAfter = orderAuditStatusValueLabel('delivery', entry.status_entrega_atual);
+
+      if (paymentBefore || paymentAfter) {
+        changes.push(`Pagamento: ${paymentBefore || 'vazio'} -> ${paymentAfter || 'vazio'}`);
+      }
+
+      if (deliveryBefore || deliveryAfter) {
+        changes.push(`Entrega: ${deliveryBefore || 'vazio'} -> ${deliveryAfter || 'vazio'}`);
+      }
+
+      return changes;
+    }
+
+    function buildOrderAuditDetailSummary(details) {
+      if (!details || typeof details !== 'object') return '';
+
+      const lines = [];
+      if (details.event) lines.push(`Evento: ${details.event}`);
+      if (details.checkout_id) lines.push(`Checkout: ${details.checkout_id}`);
+      if (details.checkout_id_anterior) lines.push(`Checkout anterior: ${details.checkout_id_anterior}`);
+      if (details.checkout_id_novo) lines.push(`Checkout novo: ${details.checkout_id_novo}`);
+      if (details.asaas_payment_id) lines.push(`Pagamento Asaas: ${details.asaas_payment_id}`);
+      if (details.metodo_pagamento) lines.push(`Pagamento: ${paymentMethodLabel(details.metodo_pagamento)}`);
+      if (details.valor_total !== undefined) lines.push(`Total: ${brl(details.valor_total)}`);
+      if (details.valor_entrega !== undefined) lines.push(`Entrega: ${brl(details.valor_entrega)}`);
+      if (details.itens !== undefined) lines.push(`Itens: ${details.itens}`);
+      if (details.expira_em) lines.push(`Expira em: ${dateTime(details.expira_em)}`);
+      if (details.delivery_changed !== undefined) lines.push(`Mudou entrega: ${details.delivery_changed ? 'sim' : 'não'}`);
+      if (details.payment_changed !== undefined) lines.push(`Mudou pagamento: ${details.payment_changed ? 'sim' : 'não'}`);
+
+      return lines.join('\n');
+    }
+
+    function renderOrderAuditEntry(entry) {
+      const changes = buildOrderAuditChanges(entry);
+      const detailSummary = buildOrderAuditDetailSummary(entry.detalhes);
+
+      return `
+        <li class="order-audit-item">
+          <div class="order-audit-item-head">
+            <strong>${escapeHtml(orderAuditActionLabel(entry.acao))}</strong>
+            <small>${escapeHtml(dateTime(entry.criado_em))}</small>
+          </div>
+          <div class="order-audit-item-meta">
+            <span class="order-audit-pill">${escapeHtml(orderAuditOriginLabel(entry.origem))}</span>
+            <span class="order-audit-pill">${escapeHtml(orderAuditActorLabel(entry.ator))}</span>
+          </div>
+          ${
+            changes.length
+              ? `<ul class="order-audit-changes">${changes.map((change) => `<li>${escapeHtml(change)}</li>`).join('')}</ul>`
+              : '<p class="muted">Sem transição de status registrada neste evento.</p>'
+          }
+          ${detailSummary ? `<pre class="order-audit-details">${escapeHtml(detailSummary)}</pre>` : ''}
+        </li>
+      `;
+    }
+
+    function renderOrderAuditPanelState(orderId, { loading = false, error = '', items = null } = {}) {
+      const panel = document.getElementById(`order-audit-${orderId}`);
+      if (!panel) return;
+
+      panel.classList.remove('hidden');
+
+      if (loading) {
+        panel.innerHTML = '<p class="muted">Carregando histórico do pedido...</p>';
+        return;
+      }
+
+      if (error) {
+        panel.innerHTML = `<p class="status-text err">${escapeHtml(error)}</p>`;
+        return;
+      }
+
+      const safeItems = Array.isArray(items) ? items : [];
+      panel.innerHTML = `
+        <div class="order-audit-panel-head">
+          <h4>Histórico do pedido</h4>
+          <small>${safeItems.length} registro(s)</small>
+        </div>
+        ${
+          safeItems.length
+            ? `<ol class="order-audit-timeline">${safeItems.map(renderOrderAuditEntry).join('')}</ol>`
+            : '<p class="muted">Nenhum evento de auditoria registrado para este pedido até agora.</p>'
+        }
+      `;
+    }
+
+    function paymentStatusSelectValues(order) {
+      const normalized = paymentStatusClass(order?.status_pagamento);
       return [normalized, ...PAYMENT_STATUS_OPTIONS].filter((value, index, items) => items.indexOf(value) === index);
     }
 
@@ -1559,6 +1691,8 @@
       ordersPaginationMeta = null;
       categoryPaginationMeta = null;
       produtoPaginationMeta = null;
+      orderAuditCache.clear();
+      expandedOrderAuditIds.clear();
       customersState.page = 1;
       customersState.pageSize = 12;
       customersState.search = '';
@@ -2046,6 +2180,7 @@
     function orderCard(order) {
       const status = order.status_entrega || 'pendente';
       const paymentStatus = paymentStatusClass(order.status_pagamento);
+      const auditExpanded = expandedOrderAuditIds.has(Number(order.id || 0));
       const itensHtml = (order.itens_pedido || [])
         .map((item) => {
           const nome = item.produtos?.nome_doce || `Produto ${item.produto_id}`;
@@ -2057,7 +2192,7 @@
         const selected = value === status ? 'selected' : '';
         return `<option value="${value}" ${selected}>${STATUS_LABELS[value]}</option>`;
       }).join('');
-      const paymentStatusOptions = paymentStatusSelectValues(order.status_pagamento)
+      const paymentStatusOptions = paymentStatusSelectValues(order)
         .map((value) => {
           const selected = value === paymentStatus ? 'selected' : '';
           return `<option value="${value}" ${selected}>${PAYMENT_STATUS_LABELS[value] || value}</option>`;
@@ -2098,8 +2233,12 @@
               <span class="order-action-field-label">Pagamento</span>
               <select data-payment-status-select="${order.id}">${paymentStatusOptions}</select>
             </label>
-            <button type="button" class="primary-btn" data-status-save="${order.id}">Salvar alterações</button>
+            <div class="order-inline-actions">
+              <button type="button" class="primary-btn" data-status-save="${order.id}">Salvar alterações</button>
+              <button type="button" class="ghost-btn" data-order-audit-toggle="${order.id}">${auditExpanded ? 'Ocultar histórico' : 'Ver histórico'}</button>
+            </div>
           </footer>
+          <div id="order-audit-${order.id}" class="order-audit-panel${auditExpanded ? '' : ' hidden'}"></div>
         </article>
       `;
     }
@@ -2137,6 +2276,7 @@
       }
 
       ordersListEl.innerHTML = allOrders.map(orderCard).join('');
+      hydrateExpandedOrderAudits();
     }
 
     async function loadCurrentUser() {
@@ -2173,6 +2313,53 @@
         period: ordersState.period,
         from: ordersState.period === 'custom' ? ordersState.from : undefined,
         to: ordersState.period === 'custom' ? ordersState.to : undefined,
+      });
+    }
+
+    async function fetchOrderAudit(orderId, { force = false } = {}) {
+      const id = Number(orderId || 0);
+      if (!id) return [];
+
+      if (!force && orderAuditCache.has(id)) {
+        return orderAuditCache.get(id);
+      }
+
+      const response = await fetch(`/admin/orders/${id}/audit`, { headers: authHeaders() });
+      const items = await parseResponse(response);
+      const safeItems = Array.isArray(items) ? items : [];
+      orderAuditCache.set(id, safeItems);
+      return safeItems;
+    }
+
+    async function ensureOrderAuditVisible(orderId, { force = false } = {}) {
+      const id = Number(orderId || 0);
+      if (!id || !expandedOrderAuditIds.has(id)) return;
+
+      renderOrderAuditPanelState(id, { loading: true });
+
+      try {
+        const items = await fetchOrderAudit(id, { force });
+        if (!expandedOrderAuditIds.has(id)) return;
+        renderOrderAuditPanelState(id, { items });
+      } catch (error) {
+        if (!expandedOrderAuditIds.has(id)) return;
+        renderOrderAuditPanelState(id, { error: error.message || 'Não foi possível carregar o histórico do pedido.' });
+      }
+    }
+
+    function hideOrderAudit(orderId) {
+      const id = Number(orderId || 0);
+      const panel = document.getElementById(`order-audit-${id}`);
+      if (!panel) return;
+      panel.classList.add('hidden');
+      panel.innerHTML = '';
+    }
+
+    function hydrateExpandedOrderAudits() {
+      expandedOrderAuditIds.forEach((orderId) => {
+        ensureOrderAuditVisible(orderId).catch((error) => {
+          renderOrderAuditPanelState(orderId, { error: error.message || 'Não foi possível carregar o histórico do pedido.' });
+        });
       });
     }
 
@@ -3129,6 +3316,24 @@
     });
 
     ordersListEl.addEventListener('click', async (event) => {
+      const auditButton = event.target.closest('button[data-order-audit-toggle]');
+      if (auditButton) {
+        const orderId = Number(auditButton.dataset.orderAuditToggle);
+        if (!orderId) return;
+
+        if (expandedOrderAuditIds.has(orderId)) {
+          expandedOrderAuditIds.delete(orderId);
+          auditButton.textContent = 'Ver histórico';
+          hideOrderAudit(orderId);
+          return;
+        }
+
+        expandedOrderAuditIds.add(orderId);
+        auditButton.textContent = 'Ocultar histórico';
+        await ensureOrderAuditVisible(orderId);
+        return;
+      }
+
       const saveButton = event.target.closest('button[data-status-save]');
       if (!saveButton) return;
 
@@ -3152,6 +3357,7 @@
         });
 
         await parseResponse(response);
+        orderAuditCache.delete(orderId);
         await Promise.all([loadDashboard(), loadOrders()]);
       } catch (error) {
         setStatus(ordersStatusEl, error.message, 'err');

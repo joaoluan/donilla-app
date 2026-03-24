@@ -62,13 +62,13 @@ const createOrderSchema = z.object({
     .min(1, 'Metodo de pagamento obrigatorio.')
     .max(50)
     .transform((value) => value.toLowerCase())
-    .refine((value) => value === 'pix', 'No momento aceitamos apenas Pix.'),
+    .refine((value) => value === 'pix' || value === 'asaas_checkout', 'Metodo de pagamento invalido.'),
   itens: z.array(orderItemSchema).min(1),
 })
 
 const updateOrderStatusSchema = z.object({
   status_entrega: z.enum(['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado']).optional(),
-  status_pagamento: z.enum(['pendente', 'pago', 'falhou', 'cancelado', 'estornado']).optional(),
+  status_pagamento: z.enum(['pendente', 'pago', 'falhou', 'cancelado', 'expirado', 'estornado']).optional(),
 }).refine((payload) => payload.status_entrega || payload.status_pagamento, {
   message: 'Status de pedido invalido.',
 })
@@ -95,7 +95,7 @@ function validateCreateOrder(input) {
   const parsed = createOrderSchema.safeParse(input)
   if (!parsed.success) {
     const firstIssue = parsed.error.issues?.[0]?.message
-    if (firstIssue === 'Metodo de pagamento obrigatorio.' || firstIssue === 'No momento aceitamos apenas Pix.') {
+    if (firstIssue === 'Metodo de pagamento obrigatorio.' || firstIssue === 'Metodo de pagamento invalido.') {
       throw new AppError(400, firstIssue)
     }
     throw new AppError(400, 'Dados de pedido invalidos.')

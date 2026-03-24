@@ -2645,6 +2645,7 @@ button {
 
 .payment-falhou,
 .payment-cancelado,
+.payment-expirado,
 .payment-estornado {
   background: #fee2e2;
   color: #b91c1c;
@@ -2689,6 +2690,12 @@ button {
   align-items: stretch;
 }
 
+.order-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .order-action-field {
   display: flex;
   flex-direction: column;
@@ -2713,10 +2720,112 @@ button {
   white-space: pre-wrap;
 }
 
+.order-audit-panel {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--slate-200);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.94) 100%);
+}
+
+.order-audit-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.order-audit-panel-head h4 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.order-audit-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.order-audit-item {
+  border: 1px solid rgba(203, 213, 225, 0.92);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.order-audit-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.order-audit-item-head strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--slate-800);
+}
+
+.order-audit-item-head small {
+  color: var(--slate-500);
+}
+
+.order-audit-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.order-audit-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--slate-100);
+  color: var(--slate-700);
+  border: 1px solid var(--slate-200);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.order-audit-changes {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--slate-700);
+  font-size: 0.88rem;
+}
+
+.order-audit-changes li + li {
+  margin-top: 4px;
+}
+
+.order-audit-details {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--slate-50);
+  color: var(--slate-600);
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .customer-order-card header {
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
+}
+
+.checkout-return-highlight {
+  border-color: rgba(201, 164, 106, 0.88);
+  box-shadow: 0 0 0 4px rgba(201, 164, 106, 0.18);
+  background: linear-gradient(180deg, rgba(255, 252, 245, 0.98) 0%, rgba(255, 248, 235, 0.95) 100%);
 }
 
 .customer-order-payment-row {
@@ -2975,6 +3084,10 @@ button {
 
   .order-actions {
     flex-direction: row;
+  }
+
+  .order-inline-actions {
+    align-items: end;
   }
 
   .order-management-actions .primary-btn {

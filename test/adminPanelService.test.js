@@ -7,12 +7,18 @@ function createPrismaMock() {
   const calls = {
     findMany: [],
     count: [],
+    findUnique: [],
+    auditFindMany: [],
   }
 
   return {
     calls,
     prisma: {
       pedidos: {
+        findUnique(args) {
+          calls.findUnique.push(args)
+          return Promise.resolve({ id: args?.where?.id || 1 })
+        },
         findMany(args) {
           calls.findMany.push(args)
           return Promise.resolve([])
@@ -20,6 +26,12 @@ function createPrismaMock() {
         count(args) {
           calls.count.push(args)
           return Promise.resolve(0)
+        },
+      },
+      pedidos_auditoria: {
+        findMany(args) {
+          calls.auditFindMany.push(args)
+          return Promise.resolve([])
         },
       },
       $transaction(actions) {
@@ -206,6 +218,40 @@ test('listCustomers filtra por segmento recorrente e resume a carteira CRM', asy
   assert.equal(result.meta.summary.revenue_total, 310)
 })
 
+test('getOrderAudit devolve historico ordenado do pedido', async () => {
+  const { prisma, calls } = createPrismaMock()
+  prisma.pedidos_auditoria.findMany = (args) => {
+    calls.auditFindMany.push(args)
+    return Promise.resolve([
+      {
+        id: 11,
+        pedido_id: 42,
+        origem: 'asaas_webhook',
+        ator: 'event:evt_1',
+        acao: 'status_atualizado_por_webhook',
+        status_pagamento_anterior: 'pendente',
+        status_pagamento_atual: 'pago',
+        status_entrega_anterior: 'pendente',
+        status_entrega_atual: 'pendente',
+        detalhes: { event: 'CHECKOUT_PAID' },
+        criado_em: '2026-03-23T20:00:00.000Z',
+      },
+    ])
+  }
+
+  const service = adminPanelService(prisma)
+  const result = await service.getOrderAudit(42)
+
+  assert.equal(calls.findUnique[0].where.id, 42)
+  assert.deepEqual(calls.auditFindMany[0], {
+    where: { pedido_id: 42 },
+    orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+  })
+  assert.equal(result.length, 1)
+  assert.equal(result[0].acao, 'status_atualizado_por_webhook')
+  assert.equal(result[0].detalhes.event, 'CHECKOUT_PAID')
+})
+
 test('listOrders encontra cliente com busca tolerante quando a busca literal falha', async () => {
   const calls = {
     findMany: [],
@@ -340,6 +386,7 @@ test('getCustomer devolve detalhe CRM com favoritos e historico de pedidos', asy
 
 test('updateOrderStatus dispara notificacao quando o status muda', async () => {
   const notifications = []
+  const audits = []
   const currentOrder = {
     id: 9,
     status_entrega: 'pendente',
@@ -375,6 +422,12 @@ test('updateOrderStatus dispara notificacao quando o status muda', async () => {
         })
       },
     },
+    pedidos_auditoria: {
+      create({ data }) {
+        audits.push(data)
+        return Promise.resolve({ id: audits.length, ...data })
+      },
+    },
   }
 
   const service = adminPanelService(prisma, {
@@ -385,12 +438,19 @@ test('updateOrderStatus dispara notificacao quando o status muda', async () => {
     },
   })
 
-  const result = await service.updateOrderStatus(9, { status_entrega: 'preparando' })
+  const result = await service.updateOrderStatus(
+    9,
+    { status_entrega: 'preparando' },
+    { sub: '7', username: 'admin' },
+  )
 
   assert.equal(result.status_entrega, 'preparando')
   assert.equal(notifications.length, 1)
   assert.equal(notifications[0].previousStatus, 'pendente')
   assert.equal(notifications[0].order.cliente.telefone_whatsapp, '5511999990000')
+  assert.equal(audits.length, 1)
+  assert.equal(audits[0].acao, 'status_atualizado_no_painel')
+  assert.equal(audits[0].ator, 'admin#7')
 })
 
 test('updateOrderStatus nao dispara notificacao quando o status nao muda', async () => {
@@ -431,11 +491,12 @@ test('updateOrderStatus nao dispara notificacao quando o status nao muda', async
   assert.equal(notificationCalled, false)
 })
 
-test('updateOrderStatus permite confirmar pagamento sem disparar notificacao de entrega', async () => {
+test('updateOrderStatus bloqueia confirmacao manual de pagamento por qualquer endpoint do app', async () => {
   let notificationCalled = false
   let persistedData = null
   const currentOrder = {
     id: 9,
+    metodo_pagamento: 'pix',
     status_entrega: 'pendente',
     status_pagamento: 'pendente',
     clientes: { id: 1, nome: 'Maria', telefone_whatsapp: '5511999990000' },
@@ -466,11 +527,91 @@ test('updateOrderStatus permite confirmar pagamento sem disparar notificacao de 
     },
   })
 
-  const result = await service.updateOrderStatus(9, { status_pagamento: 'pago' })
+  await assert.rejects(
+    service.updateOrderStatus(9, { status_pagamento: 'pago' }),
+    /Pagamento nao pode ser confirmado manualmente por este endpoint/,
+  )
 
-  assert.equal(result.status_pagamento, 'pago')
-  assert.deepEqual(persistedData, { status_pagamento: 'pago' })
+  assert.equal(persistedData, null)
   assert.equal(notificationCalled, false)
+})
+
+test('updateOrderStatus bloqueia regressao de pedido pago para pendente', async () => {
+  let persistedData = null
+  const currentOrder = {
+    id: 9,
+    metodo_pagamento: 'asaas_checkout',
+    id_transacao_gateway: 'chk_123',
+    status_entrega: 'pendente',
+    status_pagamento: 'pago',
+    clientes: { id: 1, nome: 'Maria', telefone_whatsapp: '5511999990000' },
+    enderecos: null,
+    itens_pedido: [],
+  }
+
+  const prisma = {
+    pedidos: {
+      findUnique() {
+        return Promise.resolve(currentOrder)
+      },
+      update({ data }) {
+        persistedData = data
+        return Promise.resolve({
+          ...currentOrder,
+          ...data,
+        })
+      },
+    },
+  }
+
+  const service = adminPanelService(prisma)
+
+  await assert.rejects(
+    service.updateOrderStatus(9, { status_pagamento: 'pendente' }),
+    /Pedido pago nao pode voltar para um status anterior por este endpoint/,
+  )
+
+  assert.equal(persistedData, null)
+})
+
+test('updateOrderStatus permite atualizar entrega de pedido ja pago sem alterar pagamento', async () => {
+  let persistedData = null
+  const currentOrder = {
+    id: 9,
+    metodo_pagamento: 'asaas_checkout',
+    id_transacao_gateway: 'chk_123',
+    status_entrega: 'pendente',
+    status_pagamento: 'pago',
+    clientes: { id: 1, nome: 'Maria', telefone_whatsapp: '5511999990000' },
+    enderecos: null,
+    itens_pedido: [],
+  }
+
+  const prisma = {
+    pedidos: {
+      findUnique() {
+        return Promise.resolve(currentOrder)
+      },
+      update({ data }) {
+        persistedData = data
+        return Promise.resolve({
+          ...currentOrder,
+          ...data,
+        })
+      },
+    },
+  }
+
+  const service = adminPanelService(prisma)
+
+  const result = await service.updateOrderStatus(9, {
+    status_entrega: 'preparando',
+    status_pagamento: 'pago',
+  })
+
+  assert.equal(result.status_entrega, 'preparando')
+  assert.equal(result.status_pagamento, 'pago')
+  assert.deepEqual(persistedData, { status_entrega: 'preparando' })
 })
 
 test('getWhatsAppSessionStatus expõe status do transporte configurado', async () => {

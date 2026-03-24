@@ -68,7 +68,7 @@
           <form id="checkoutForm" class="checkout-form">
             <h3>Finalizar pedido</h3>
             <select name="metodo" required>
-              <option value="pix">Pix</option>
+              <option value="asaas_checkout">Pagamento online (Pix ou Cartão)</option>
             </select>
             <textarea name="observacoes" rows="3" placeholder="Observações do pedido (ex.: tirar granulado, sem cobertura, etc.)"></textarea>
 
@@ -113,6 +113,7 @@
       pago: 'Pago',
       falhou: 'Falhou',
       cancelado: 'Cancelado',
+      expirado: 'Expirado',
       estornado: 'Estornado',
     };
 
@@ -131,6 +132,15 @@
     let categorias = [];
     let activeCategory = 'all';
     let searchTerm = '';
+
+    function wait(ms) {
+      return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
+    function parseOrderId(value) {
+      const parsed = Number.parseInt(String(value || '').trim(), 10);
+      return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    }
 
     function brl(value) {
       return Number(value || 0).toLocaleString('pt-BR', {
@@ -269,6 +279,26 @@
       checkoutFormEl.reset();
     }
 
+    function getCustomerAuthHeaders() {
+      const session = loadCustomerSession();
+      if (!session?.cliente_session_token) return null;
+      return {
+        'x-customer-session-token': session.cliente_session_token,
+      };
+    }
+
+    async function fetchCustomerOrderStatus(orderId) {
+      const headers = getCustomerAuthHeaders();
+      if (!headers) throw Object.assign(new Error('Sessão não encontrada.'), { status: 401 });
+
+      const response = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'GET',
+        headers,
+      });
+
+      return parseResponse(response);
+    }
+
     function formatAddress(endereco) {
       if (!endereco) return 'Endereço não informado.';
 
@@ -306,6 +336,101 @@
       if (!endereco || !endereco.rua || !endereco.numero || !endereco.bairro) {
         setStatus(orderStatusEl, 'Endereço incompleto no seu cadastro. Atualize seu cadastro se necessário.', 'muted');
       }
+    }
+
+    function buildCheckoutReturnMessage(checkoutStatus, order) {
+      const orderLabel = order?.id ? `#${order.id}` : 'recente';
+      const paymentStatus = String(order?.status_pagamento || '').trim().toLowerCase();
+
+      if (paymentStatus === 'pago') {
+        return {
+          tone: 'ok',
+          message: `Recebemos sua tentativa de pagamento do pedido ${orderLabel} e a confirmação já entrou no sistema. Agora é só acompanhar o andamento pelo seu painel.`,
+        };
+      }
+
+      if (paymentStatus === 'cancelado' || paymentStatus === 'expirado' || paymentStatus === 'falhou' || paymentStatus === 'estornado') {
+        return {
+          tone: 'err',
+          message: `O pedido ${orderLabel} ainda não teve pagamento confirmado. Gere um novo pedido para tentar novamente.`,
+        };
+      }
+
+      if (checkoutStatus === 'success') {
+        return {
+          tone: 'muted',
+          message: `Recebemos sua tentativa de pagamento do pedido ${orderLabel}. Estamos confirmando com o provedor e isso pode levar alguns instantes para aparecer.`,
+        };
+      }
+
+      if (checkoutStatus === 'cancel') {
+        return {
+          tone: 'err',
+          message: `Você voltou sem concluir o pagamento online do pedido ${orderLabel}. Gere um novo pedido para tentar novamente.`,
+        };
+      }
+
+      if (checkoutStatus === 'expired') {
+        return {
+          tone: 'err',
+          message: `O tempo de pagamento do pedido ${orderLabel} terminou. Gere um novo pedido para receber outro link.`,
+        };
+      }
+
+      return {
+        tone: 'muted',
+        message: 'Recebemos seu retorno do pagamento.',
+      };
+    }
+
+    async function consumeCheckoutFeedback() {
+      const currentUrl = new URL(window.location.href);
+      const checkoutStatus = String(currentUrl.searchParams.get('checkout_status') || '').trim().toLowerCase();
+      const orderId = parseOrderId(currentUrl.searchParams.get('order_id'));
+
+      if (!checkoutStatus) return;
+
+      setStatus(
+        orderStatusEl,
+        checkoutStatus === 'success'
+          ? `Recebemos sua tentativa de pagamento do pedido #${orderId || '--'}. Estamos confirmando com o provedor...`
+          : 'Estamos atualizando o status do seu pedido...',
+        'muted',
+      );
+
+      currentUrl.searchParams.delete('checkout_status');
+      currentUrl.searchParams.delete('order_id');
+      const nextUrl = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`;
+      window.history.replaceState({}, document.title, nextUrl);
+
+      let order = null;
+
+      if (orderId && loadCustomerSession()) {
+        const attempts = checkoutStatus === 'success' ? 4 : 2;
+
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+          try {
+            order = await fetchCustomerOrderStatus(orderId);
+            const finalPaymentState = ['pago', 'cancelado', 'expirado', 'falhou', 'estornado'];
+            if (checkoutStatus !== 'success' || finalPaymentState.includes(order.status_pagamento)) {
+              break;
+            }
+          } catch (error) {
+            if (attempt === attempts - 1 && error?.status !== 401) {
+              setStatus(orderStatusEl, error.message || 'Não foi possível atualizar seu pedido agora.', 'err');
+              return;
+            }
+          }
+
+          if (attempt < attempts - 1) {
+            await wait(1500);
+          }
+        }
+      }
+
+      const feedback = buildCheckoutReturnMessage(checkoutStatus, order || (orderId ? { id: orderId } : null));
+      setStatus(orderStatusEl, feedback.message, feedback.tone);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function filteredCategorias() {
@@ -543,7 +668,7 @@
 
         const payload = {
           cliente_session_token: session.cliente_session_token,
-          metodo_pagamento: String(checkoutFormEl.elements.metodo.value || '').trim(),
+          metodo_pagamento: String(checkoutFormEl.elements.metodo.value || 'asaas_checkout').trim(),
           observacoes: String(checkoutFormEl.elements.observacoes?.value || '').trim() || null,
           itens: itens.map((item) => ({ produto_id: item.id, quantidade: item.quantidade })),
         };
@@ -560,7 +685,7 @@
         }
 
       try {
-        const response = await fetch('/public/orders', {
+        const response = await fetch('/api/checkout/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -579,6 +704,15 @@
         carrinho.clear();
         renderCart();
         syncCustomerSession();
+
+        if (order.checkout_url) {
+          setStatus(orderStatusEl, `Pedido #${order.id} criado. Abrindo a tela segura de pagamento...`, 'ok');
+          window.setTimeout(() => {
+            window.location.assign(order.checkout_url);
+          }, 150);
+          return;
+        }
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (error) {
         if (error.status === 401 || error.message.includes('token')) {
@@ -593,6 +727,7 @@
     });
 
     init();
+    consumeCheckoutFeedback();
   </script>
 </body>
 </html>

@@ -18,6 +18,7 @@ const PAYMENT_STATUS_LABELS = {
   pago: 'Pago',
   falhou: 'Falhou',
   cancelado: 'Cancelado',
+  expirado: 'Expirado',
   estornado: 'Estornado',
 }
 

@@ -64,6 +64,7 @@ model itens_pedido {
   id             Int      @id @default(autoincrement())
   pedido_id      Int
   produto_id     Int
+  nome_snapshot  String?  @db.VarChar(150)
   quantidade     Int
   preco_unitario Decimal  @db.Decimal(10, 2)
   subtotal       Decimal  @db.Decimal(10, 2)
@@ -81,12 +82,49 @@ model pedidos {
   observacoes          String?        @db.VarChar(500)
   metodo_pagamento     String         @db.VarChar(50)
   status_pagamento     String?        @default("pendente") @db.VarChar(50)
-  id_transacao_gateway String?        @db.VarChar(255)
+  id_transacao_gateway String?        @unique @db.VarChar(255)
+  asaas_payment_id     String?        @db.VarChar(255)
+  pago_em              DateTime?      @db.Timestamp(6)
+  expira_em            DateTime?      @db.Timestamp(6)
   status_entrega       String?        @default("pendente") @db.VarChar(50)
   criado_em            DateTime?      @default(now()) @db.Timestamp(6)
   itens_pedido         itens_pedido[]
+  auditoria            pedidos_auditoria[]
+  webhook_events       asaas_webhook_events[]
   clientes             clientes       @relation(fields: [cliente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   enderecos            enderecos?     @relation(fields: [endereco_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model pedidos_auditoria {
+  id                        Int      @id @default(autoincrement())
+  pedido_id                 Int
+  origem                    String   @default("system") @db.VarChar(50)
+  ator                      String?  @db.VarChar(120)
+  acao                      String   @db.VarChar(80)
+  status_pagamento_anterior String?  @db.VarChar(50)
+  status_pagamento_atual    String?  @db.VarChar(50)
+  status_entrega_anterior   String?  @db.VarChar(50)
+  status_entrega_atual      String?  @db.VarChar(50)
+  detalhes                  Json?
+  criado_em                 DateTime @default(now()) @db.Timestamp(6)
+  pedidos                   pedidos  @relation(fields: [pedido_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([pedido_id, criado_em])
+}
+
+model asaas_webhook_events {
+  id            Int       @id @default(autoincrement())
+  event_id      String    @unique @db.VarChar(255)
+  event_name    String    @db.VarChar(120)
+  checkout_id   String?   @db.VarChar(255)
+  pedido_id     Int?
+  payload       Json
+  status        String    @default("recebido") @db.VarChar(30)
+  tentativas    Int       @default(0)
+  ultimo_erro   String?   @db.VarChar(1000)
+  recebido_em   DateTime  @default(now()) @db.Timestamp(6)
+  processado_em DateTime? @db.Timestamp(6)
+  pedidos       pedidos?  @relation(fields: [pedido_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 }
 
 model produtos {

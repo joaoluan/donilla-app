@@ -3,6 +3,7 @@ const { cleanLocationField } = require('../utils/deliveryFees')
 const { getDefaultStoreSettings, normalizeStoreSettings } = require('../utils/storeSettings')
 const { assertSafeExternalUrl } = require('../utils/security')
 const { scoreSearchMatch } = require('../utils/search')
+const { createOrderAuditService } = require('./orderAuditService')
 
 function normalizeDeliveryFeeData(data) {
   return {
@@ -40,6 +41,54 @@ function ensureWhatsAppSettings(data, { whatsappTransport = null } = {}) {
       'Para ativar o WhatsApp, configure o WPPConnect no ambiente do servidor ou informe uma URL de webhook externa.',
     )
   }
+}
+
+function normalizeOrderStatus(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+}
+
+function assertPaymentTransitionAllowed(currentOrder, nextPaymentStatus) {
+  const current = normalizeOrderStatus(currentOrder?.status_pagamento)
+  const next = normalizeOrderStatus(nextPaymentStatus)
+
+  if (!next || next === current) {
+    return
+  }
+
+  if (next === 'pago') {
+    throw new AppError(409, 'Pagamento nao pode ser confirmado manualmente por este endpoint.')
+  }
+
+  if (current === 'pago' && next !== 'estornado') {
+    throw new AppError(409, 'Pedido pago nao pode voltar para um status anterior por este endpoint.')
+  }
+
+  if (current === 'estornado') {
+    throw new AppError(409, 'Pedido estornado nao pode voltar para um status anterior por este endpoint.')
+  }
+
+  if (['cancelado', 'expirado'].includes(current) && ['pendente', 'pago'].includes(next)) {
+    throw new AppError(409, 'Este pedido precisa de um novo checkout antes de voltar ao fluxo de pagamento.')
+  }
+
+  if (next === 'estornado' && current !== 'pago') {
+    throw new AppError(409, 'Somente pedidos pagos podem ser marcados como estornados.')
+  }
+}
+
+function buildAdminAuditActor(auth) {
+  const username = String(auth?.username || '').trim()
+  const subject = String(auth?.sub || '').trim()
+
+  if (username && subject) {
+    return `${username}#${subject}`
+  }
+
+  if (username) return username
+  if (subject) return `usuario:${subject}`
+  return null
 }
 
 function startOfUtcDay(dateText) {
@@ -725,6 +774,7 @@ function toNotificationOrderData(order) {
 function adminPanelService(prisma, deps = {}) {
   const whatsappNotifier = deps.whatsappNotifier || null
   const whatsappTransport = deps.whatsappTransport || null
+  const orderAudit = deps.orderAudit || createOrderAuditService(prisma)
   const assertSafeTargetUrl = deps.assertSafeTargetUrl || assertSafeExternalUrl
 
   async function getStoreSettingsConfig() {
@@ -905,6 +955,43 @@ function adminPanelService(prisma, deps = {}) {
       }
     },
 
+    async getOrderAudit(id) {
+      const order = await prisma.pedidos.findUnique({
+        where: { id },
+        select: { id: true },
+      })
+
+      if (!order) {
+        throw new AppError(404, 'Pedido nao encontrado.')
+      }
+
+      if (!prisma?.pedidos_auditoria?.findMany) {
+        throw new AppError(
+          500,
+          'Schema do banco desatualizado. Aplique a atualizacao de auditoria de pedidos no banco de dados.',
+        )
+      }
+
+      const items = await prisma.pedidos_auditoria.findMany({
+        where: { pedido_id: id },
+        orderBy: [{ criado_em: 'desc' }, { id: 'desc' }],
+      })
+
+      return items.map((item) => ({
+        id: item.id,
+        pedido_id: item.pedido_id,
+        origem: item.origem,
+        ator: item.ator || null,
+        acao: item.acao,
+        status_pagamento_anterior: item.status_pagamento_anterior || null,
+        status_pagamento_atual: item.status_pagamento_atual || null,
+        status_entrega_anterior: item.status_entrega_anterior || null,
+        status_entrega_atual: item.status_entrega_atual || null,
+        detalhes: item.detalhes || null,
+        criado_em: item.criado_em,
+      }))
+    },
+
     async listCustomers(query = {}) {
       const page = Number(query.page || 1)
       const pageSize = Number(query.pageSize || 12)
@@ -1003,7 +1090,7 @@ function adminPanelService(prisma, deps = {}) {
       }
     },
 
-    async updateOrderStatus(id, updates = {}) {
+    async updateOrderStatus(id, updates = {}, actor = null) {
       const currentOrder = await prisma.pedidos.findUnique({
         where: { id },
         include: getOrderNotificationInclude(),
@@ -1020,6 +1107,10 @@ function adminPanelService(prisma, deps = {}) {
 
       if (!deliveryChanged && !paymentChanged) {
         return currentOrder
+      }
+
+      if (paymentChanged) {
+        assertPaymentTransitionAllowed(currentOrder, nextStatusPagamento)
       }
 
       const updateData = {}
@@ -1055,6 +1146,21 @@ function adminPanelService(prisma, deps = {}) {
           order: toNotificationOrderData(updatedOrder),
         })
       }
+
+      await orderAudit.record({
+        pedido_id: currentOrder.id,
+        origem: 'admin',
+        ator: buildAdminAuditActor(actor),
+        acao: 'status_atualizado_no_painel',
+        status_pagamento_anterior: currentOrder.status_pagamento,
+        status_pagamento_atual: updatedOrder.status_pagamento,
+        status_entrega_anterior: currentOrder.status_entrega,
+        status_entrega_atual: updatedOrder.status_entrega,
+        detalhes: {
+          delivery_changed: deliveryChanged,
+          payment_changed: paymentChanged,
+        },
+      })
 
       return updatedOrder
     },

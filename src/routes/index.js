@@ -5,6 +5,7 @@ const { authController } = require('../controllers/authController')
 const { publicController } = require('../controllers/publicController')
 const { adminController } = require('../controllers/adminController')
 const { whatsappController } = require('../controllers/whatsappController')
+const { paymentsController } = require('../controllers/paymentsController')
 const { requireAuth, requireRole } = require('../middleware/auth')
 const { categoriasService } = require('../services/categoriasService')
 const { produtosService } = require('../services/produtosService')
@@ -14,16 +15,25 @@ const { adminPanelService } = require('../services/adminPanelService')
 const { createWhatsAppNotificationService } = require('../services/whatsappNotificationService')
 const { createWppConnectService } = require('../services/wppConnectService')
 const { createWhatsAppBotService } = require('../services/whatsappBotService')
+const { createAsaasService } = require('../services/asaasService')
 
-function createRouter(prisma) {
-  const whatsappTransport = createWppConnectService()
-  const whatsappNotifier = createWhatsAppNotificationService({ transportService: whatsappTransport })
+function createRouter(prisma, deps = {}) {
+  const whatsappTransport = deps.whatsappTransport || createWppConnectService()
+  const whatsappNotifier = deps.whatsappNotifier || createWhatsAppNotificationService({ transportService: whatsappTransport })
   const whatsappBot = whatsappController(createWhatsAppBotService(prisma, { transportService: whatsappTransport }))
+  const asaas = deps.asaasService || createAsaasService()
   const categorias = categoriasController(categoriasService(prisma))
   const produtos = produtosController(produtosService(prisma))
   const usuarios = usuariosController(usuariosService(prisma))
   const auth = authController(prisma)
-  const pub = publicController(publicStoreService(prisma, { whatsappNotifier }))
+  const storeService = deps.storeService || publicStoreService(prisma, {
+    whatsappNotifier,
+    asaas,
+    scheduleTask: deps.scheduleTask,
+    logger: deps.logger,
+  })
+  const pub = publicController(storeService)
+  const payments = paymentsController(deps.paymentsService || storeService)
   const admin = adminController(adminPanelService(prisma, { whatsappNotifier, whatsappTransport }))
 
   return async function route(req, method, path, url) {
@@ -76,9 +86,41 @@ function createRouter(prisma) {
       return pub.createOrder(req)
     }
 
+    if (method === 'POST' && path === '/api/checkout/create') {
+      return pub.createCheckout(req)
+    }
+
+    if (method === 'POST' && path === '/webhooks/asaas') {
+      return payments.asaasWebhook(req)
+    }
+
+    if (method === 'POST' && path === '/api/webhooks/asaas') {
+      return payments.asaasWebhook(req)
+    }
+
     if (path.startsWith('/public/orders/')) {
       const id = path.replace('/public/orders/', '')
       if (method === 'GET') return pub.orderStatus(id, req)
+    }
+
+    if (path.startsWith('/api/orders/')) {
+      const rest = path.replace('/api/orders/', '')
+      if (rest.endsWith('/status') && method === 'GET') {
+        const id = rest.replace('/status', '')
+        return pub.orderStatusSummary(req, id)
+      }
+
+      if (method === 'GET') {
+        return pub.customerOrder(req, rest)
+      }
+    }
+
+    if (path.startsWith('/api/checkout/')) {
+      const rest = path.replace('/api/checkout/', '')
+      if (rest.endsWith('/retry') && method === 'POST') {
+        const id = rest.replace('/retry', '')
+        return pub.retryCheckout(req, id)
+      }
     }
 
     if (method === 'POST' && path === '/auth/login') {
@@ -199,6 +241,12 @@ function createRouter(prisma) {
 
     if (path.startsWith('/admin/orders/')) {
       const rest = path.replace('/admin/orders/', '')
+      if (rest.endsWith('/audit') && method === 'GET') {
+        requireRole(req, 'admin')
+        const id = rest.replace('/audit', '')
+        return admin.orderAudit(id)
+      }
+
       if (rest.endsWith('/status') && method === 'PUT') {
         requireRole(req, 'admin')
         const id = rest.replace('/status', '')

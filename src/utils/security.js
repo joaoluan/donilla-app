@@ -24,9 +24,10 @@ const RATE_LIMIT_RULES = [
   {
     key: 'auth-login',
     methods: ['POST'],
-    paths: ['/auth/login', '/public/customer/login'],
+    paths: ['/auth/login', '/api/auth/login', '/public/customer/login'],
     maxRequests: 5,
     windowMs: 10 * 60 * 1000,
+    message: 'Muitas tentativas de login. Tente novamente em instantes.',
   },
   {
     key: 'customer-register',
@@ -34,13 +35,51 @@ const RATE_LIMIT_RULES = [
     paths: ['/public/customer/register'],
     maxRequests: 5,
     windowMs: 30 * 60 * 1000,
+    message: 'Muitas tentativas de cadastro. Tente novamente em instantes.',
   },
   {
-    key: 'order-create',
+    key: 'checkout-create',
     methods: ['POST'],
-    paths: ['/public/orders'],
+    paths: ['/public/orders', '/api/checkout/create'],
+    maxRequests: 10,
+    windowMs: 60 * 1000,
+    message: 'Muitas tentativas. Tente novamente em instantes.',
+  },
+  {
+    key: 'checkout-retry',
+    methods: ['POST'],
+    matcher(path) {
+      return /^\/api\/checkout\/\d+\/retry$/.test(path)
+    },
+    maxRequests: 10,
+    windowMs: 5 * 60 * 1000,
+    message: 'Muitas tentativas de reabrir o checkout. Tente novamente em instantes.',
+  },
+  {
+    key: 'asaas-webhook',
+    methods: ['POST'],
+    paths: ['/webhooks/asaas', '/api/webhooks/asaas'],
+    maxRequests: 120,
+    windowMs: 60 * 1000,
+    message: 'Muitas notificacoes recebidas. Tente novamente em instantes.',
+  },
+  {
+    key: 'order-status-summary',
+    methods: ['GET'],
+    matcher(path) {
+      return /^\/api\/orders\/\d+\/status$/.test(path) || /^\/public\/orders\/\d+$/.test(path)
+    },
+    maxRequests: 30,
+    windowMs: 60 * 1000,
+    message: 'Muitas consultas de status. Tente novamente em instantes.',
+  },
+  {
+    key: 'coupon-validate',
+    methods: ['POST'],
+    paths: ['/api/coupons/validate'],
     maxRequests: 20,
-    windowMs: 10 * 60 * 1000,
+    windowMs: 60 * 1000,
+    message: 'Muitas validacoes de cupom. Tente novamente em instantes.',
   },
   {
     key: 'customer-phone-check',
@@ -48,6 +87,7 @@ const RATE_LIMIT_RULES = [
     paths: ['/public/customer/check-phone'],
     maxRequests: 30,
     windowMs: 10 * 60 * 1000,
+    message: 'Muitas consultas. Tente novamente em instantes.',
   },
 ]
 
@@ -162,7 +202,9 @@ function createRateLimitGuard() {
 
   return function checkRateLimit(req, method, path) {
     const rule = RATE_LIMIT_RULES.find((candidate) => {
-      return candidate.methods.includes(method) && candidate.paths.includes(path)
+      if (!candidate.methods.includes(method)) return false
+      if (typeof candidate.matcher === 'function') return candidate.matcher(path)
+      return candidate.paths.includes(path)
     })
 
     if (!rule) return null
@@ -180,8 +222,14 @@ function createRateLimitGuard() {
     }
 
     if (current.count >= rule.maxRequests) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000))
       return {
-        retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+        message: rule.message || 'Muitas requisicoes. Tente novamente em instantes.',
+        retryAfterSeconds,
+        limit: rule.maxRequests,
+        remaining: 0,
+        resetAfterSeconds: retryAfterSeconds,
+        policy: `${rule.maxRequests};w=${Math.ceil(rule.windowMs / 1000)}`,
       }
     }
 

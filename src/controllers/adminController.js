@@ -47,7 +47,13 @@ function adminController(service) {
       const id = parseOrderId(idParam)
       const body = await parseJsonBody(req)
       const payload = validateUpdateOrderStatus(body)
-      const data = await service.updateOrderStatus(id, payload)
+      const data = await service.updateOrderStatus(id, payload, req.auth || null)
+      return { statusCode: 200, data }
+    },
+
+    async orderAudit(idParam) {
+      const id = parseOrderId(idParam)
+      const data = await service.getOrderAudit(id)
       return { statusCode: 200, data }
     },
 

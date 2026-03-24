@@ -31,6 +31,8 @@ async function checkDatabaseSchema() {
       prisma.taxas_entrega_locais.findMany({ take: 1 }),
       prisma.pedidos.findMany({ take: 1, select: { observacoes: true } }),
       prisma.clientes.findMany({ take: 1, select: { whatsapp_lid: true } }),
+      prisma.asaas_webhook_events.findMany({ take: 1, select: { event_id: true } }),
+      prisma.pedidos_auditoria.findMany({ take: 1, select: { id: true } }),
     ])
     console.log('Schema do banco validado com sucesso.')
     return true
@@ -38,7 +40,7 @@ async function checkDatabaseSchema() {
     if (error?.code === 'P2022') {
       console.error('Falha ao validar o schema do banco.')
       console.error(
-        'Motivo: tabela/coluna ausente. Aplique as atualizacoes SQL em prisma/sql/20260311_add_produtos_estoque_disponivel.sql, prisma/sql/20260311_add_taxas_entrega_por_local.sql, prisma/sql/20260311_add_tempo_entrega_max_minutos.sql, prisma/sql/20260311_add_pedidos_observacoes.sql, prisma/sql/20260311_add_whatsapp_bot_settings.sql e prisma/sql/20260312_add_clientes_whatsapp_lid.sql',
+        'Motivo: tabela/coluna ausente. Aplique as atualizacoes SQL em prisma/sql/20260311_add_produtos_estoque_disponivel.sql, prisma/sql/20260311_add_taxas_entrega_por_local.sql, prisma/sql/20260311_add_tempo_entrega_max_minutos.sql, prisma/sql/20260311_add_pedidos_observacoes.sql, prisma/sql/20260311_add_whatsapp_bot_settings.sql, prisma/sql/20260312_add_clientes_whatsapp_lid.sql, prisma/sql/20260323_add_asaas_webhook_events.sql e prisma/sql/20260323_add_pedidos_auditoria.sql',
       )
       return false
     }

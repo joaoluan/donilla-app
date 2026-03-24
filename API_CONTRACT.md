@@ -72,8 +72,11 @@ Resposta:
 }
 ```
 
-### POST `/public/orders`
-Cria pedido no site.
+### POST `/api/checkout/create`
+Cria pedido no site e, quando `metodo_pagamento = "asaas_checkout"`, inicia o checkout hospedado.
+
+Alias legado ainda aceito:
+- `POST /public/orders`
 
 Request:
 ```json
@@ -88,7 +91,7 @@ Request:
     "referencia": "Portão azul"
   },
   "observacoes": "Tirar granulado",
-  "metodo_pagamento": "pix",
+  "metodo_pagamento": "asaas_checkout",
   "itens": [
     { "produto_id": 1, "quantidade": 2 },
     { "produto_id": 2, "quantidade": 1 }
@@ -96,9 +99,70 @@ Request:
 }
 ```
 
+Métodos aceitos:
+- `asaas_checkout`: recomendado, redireciona para Pix/Cartão no checkout do Asaas
+- `pix`: fluxo legado local
+
 O token é retornado no fluxo:
 - POST `/public/customer/login`
 - POST `/public/customer/register`
+
+Resposta quando o checkout online e iniciado:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 15,
+    "metodo_pagamento": "asaas_checkout",
+    "status_entrega": "pendente",
+    "status_pagamento": "pendente",
+    "valor_entrega": "8.00",
+    "valor_total": "53.80",
+    "id_transacao_gateway": "chk_123",
+    "checkout_url": "https://sandbox.asaas.com/checkoutSession/show?id=chk_123",
+    "criado_em": "2026-03-23T18:00:00.000Z"
+  }
+}
+```
+
+### GET `/api/orders/:id`
+Retorna o detalhe completo do pedido autenticado.
+
+### GET `/api/orders/:id/status`
+Retorna apenas status resumido do pedido autenticado.
+
+Resposta:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 15,
+    "metodo_pagamento": "asaas_checkout",
+    "status_entrega": "pendente",
+    "status_pagamento": "pendente",
+    "id_transacao_gateway": "chk_123",
+    "checkout_url": "https://sandbox.asaas.com/checkoutSession/show?id=chk_123"
+  }
+}
+```
+
+### POST `/api/checkout/:orderId/retry`
+Gera um novo checkout para um pedido online ainda nao pago.
+
+Resposta:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 15,
+    "metodo_pagamento": "asaas_checkout",
+    "status_entrega": "pendente",
+    "status_pagamento": "pendente",
+    "id_transacao_gateway": "chk_retry_456",
+    "checkout_url": "https://sandbox.asaas.com/checkoutSession/show?id=chk_retry_456"
+  }
+}
+```
 
 ### POST `/public/customer/register`
 Cria conta de cliente e devolve a sessão autenticada.
@@ -172,6 +236,7 @@ Resposta:
     "status_entrega": "pendente",
     "status_pagamento": "pendente",
     "valor_total": "53.3",
+    "checkout_url": "https://sandbox.asaas.com/checkoutSession/show?id=chk_123",
     "criado_em": "2026-02-26T03:50:24.176Z"
   }
 }
@@ -179,6 +244,37 @@ Resposta:
 
 ### GET `/public/orders/:id`
 Consulta status do pedido.
+
+Quando existir checkout pendente do Asaas, a API tambem pode devolver:
+- `id_transacao_gateway`
+- `checkout_url`
+
+### POST `/api/webhooks/asaas`
+Webhook server-to-server do Asaas Checkout.
+
+Comportamento:
+- valida `asaas-access-token`
+- registra `event.id` para idempotencia
+- responde `200` rapido
+- processa o evento em segundo plano
+
+Alias legado ainda aceito:
+- `POST /webhooks/asaas`
+
+Headers esperados:
+- `asaas-access-token: <ASAAS_WEBHOOK_TOKEN>`
+
+Configuração recomendada:
+- `ASAAS_ACCESS_TOKEN` no backend, com fallback legado para `ASAAS_API_KEY`
+- `ASAAS_WEBHOOK_TOKEN` no backend, com fallback legado para `ASAAS_WEBHOOK_AUTH_TOKEN`
+- `APP_URL` como URL publica canônica do app
+- `ASAAS_API_BASE_URL` opcional; o backend normaliza `/api/v3` para `/v3` e valida coerencia com `ASAAS_ENVIRONMENT`
+- `ASAAS_USER_AGENT` opcional; o backend envia um `User-Agent` proprio da integracao nas chamadas ao Asaas
+
+Eventos tratados:
+- `CHECKOUT_PAID`
+- `CHECKOUT_CANCELED`
+- `CHECKOUT_EXPIRED`
 
 ## 2) Auth
 
@@ -239,14 +335,46 @@ Request:
 ```json
 {
   "status_entrega": "preparando",
-  "status_pagamento": "pago"
+  "status_pagamento": "cancelado"
 }
 ```
 Campos opcionais:
 - `status_entrega`: `pendente`, `preparando`, `saiu_para_entrega`, `entregue`, `cancelado`
-- `status_pagamento`: `pendente`, `pago`, `falhou`, `cancelado`, `estornado`
+- `status_pagamento`: `pendente`, `falhou`, `cancelado`, `estornado`
+
+Observacoes:
+- `pago` nao pode ser forçado manualmente pelo painel; esse status vem apenas da integração server-to-server
+- pedidos online cancelados ou expirados precisam de novo checkout antes de voltar ao fluxo de pagamento
 
 Quando a integração WhatsApp estiver ativa, a rota dispara um evento `order.status_updated` para o bot apenas se o `status_entrega` mudar.
+
+### GET `/admin/orders/:id/audit`
+Retorna o histórico interno de auditoria do pedido para uso no painel administrativo.
+
+Resposta:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 5,
+      "pedido_id": 41,
+      "origem": "asaas_webhook",
+      "ator": "event:evt_001",
+      "acao": "status_atualizado_por_webhook",
+      "status_pagamento_anterior": "pendente",
+      "status_pagamento_atual": "pago",
+      "status_entrega_anterior": "pendente",
+      "status_entrega_atual": "pendente",
+      "detalhes": {
+        "event": "CHECKOUT_PAID",
+        "checkout_id": "chk_41"
+      },
+      "criado_em": "2026-03-23T19:00:00.000Z"
+    }
+  ]
+}
+```
 
 ### GET `/admin/store-settings`
 Retorna configurações operacionais e a configuração atual do bot WhatsApp.

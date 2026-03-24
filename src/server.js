@@ -85,7 +85,7 @@ function handleError(res, error) {
     sendError(
       res,
       500,
-      'Schema do banco desatualizado. Aplique a atualizacao do cardapio no banco de dados.',
+      'Schema do banco desatualizado. Aplique as atualizacoes SQL pendentes no banco de dados.',
       error?.message || 'Coluna ou tabela ausente no banco.',
     )
     return
@@ -110,8 +110,8 @@ function handleError(res, error) {
   )
 }
 
-function createApp(prisma) {
-  const route = createRouter(prisma)
+function createApp(prisma, deps = {}) {
+  const route = createRouter(prisma, deps)
   const checkRateLimit = createRateLimitGuard()
   const server = createServer(async (req, res) => {
     const method = req.method || 'GET'
@@ -128,9 +128,15 @@ function createApp(prisma) {
         sendError(
           res,
           429,
-          'Muitas requisicoes. Tente novamente em instantes.',
+          rateLimit.message || 'Muitas requisicoes. Tente novamente em instantes.',
           undefined,
-          { 'Retry-After': String(rateLimit.retryAfterSeconds) },
+          {
+            'Retry-After': String(rateLimit.retryAfterSeconds),
+            'RateLimit-Limit': String(rateLimit.limit),
+            'RateLimit-Remaining': String(rateLimit.remaining),
+            'RateLimit-Reset': String(rateLimit.resetAfterSeconds),
+            'RateLimit-Policy': rateLimit.policy,
+          },
         )
         return
       }

@@ -198,7 +198,34 @@ test('validateCreateOrder deve aceitar observacoes e normalizar vazio para null'
   assert.equal(data.metodo_pagamento, 'pix')
 })
 
-test('validateCreateOrder deve rejeitar pagamentos diferentes de pix', () => {
+test('validateCreateOrder deve aceitar Asaas Checkout', () => {
+  const data = validateCreateOrder({
+    cliente_session_token: 'x'.repeat(20),
+    metodo_pagamento: ' ASAAS_CHECKOUT ',
+    itens: [{ produto_id: 1, quantidade: 1 }],
+  })
+
+  assert.equal(data.metodo_pagamento, 'asaas_checkout')
+})
+
+test('validateCreateOrder deve descartar campos monetarios enviados pelo cliente', () => {
+  const data = validateCreateOrder({
+    cliente_session_token: 'x'.repeat(20),
+    metodo_pagamento: 'pix',
+    itens: [{ produto_id: 1, quantidade: 1 }],
+    valor_total: '0.01',
+    valor_entrega: '0.01',
+    desconto: '50.00',
+    status_pagamento: 'pago',
+  })
+
+  assert.equal(Object.prototype.hasOwnProperty.call(data, 'valor_total'), false)
+  assert.equal(Object.prototype.hasOwnProperty.call(data, 'valor_entrega'), false)
+  assert.equal(Object.prototype.hasOwnProperty.call(data, 'desconto'), false)
+  assert.equal(Object.prototype.hasOwnProperty.call(data, 'status_pagamento'), false)
+})
+
+test('validateCreateOrder deve rejeitar pagamentos invalidos', () => {
   assert.throws(
     () =>
       validateCreateOrder({
@@ -206,7 +233,7 @@ test('validateCreateOrder deve rejeitar pagamentos diferentes de pix', () => {
         metodo_pagamento: 'cartao',
         itens: [{ produto_id: 1, quantidade: 1 }],
       }),
-    (error) => error instanceof AppError && error.message === 'No momento aceitamos apenas Pix.',
+    (error) => error instanceof AppError && error.message === 'Metodo de pagamento invalido.',
   )
 })
 
@@ -214,6 +241,12 @@ test('validateUpdateOrderStatus deve aceitar atualizacao isolada do pagamento', 
   const data = validateUpdateOrderStatus({ status_pagamento: 'pago' })
 
   assert.deepEqual(data, { status_pagamento: 'pago' })
+})
+
+test('validateUpdateOrderStatus deve aceitar pedido expirado no payload do admin', () => {
+  const data = validateUpdateOrderStatus({ status_entrega: 'cancelado', status_pagamento: 'expirado' })
+
+  assert.deepEqual(data, { status_entrega: 'cancelado', status_pagamento: 'expirado' })
 })
 
 test('validateUpdateOrderStatus deve rejeitar payload vazio', () => {

@@ -41,10 +41,24 @@ function publicController(service) {
       return { statusCode: 201, data }
     },
 
+    async createCheckout(req) {
+      const body = await parseJsonBody(req)
+      const payload = validateCreateOrder(body)
+      const data = await service.createOrder(payload)
+      return { statusCode: 201, data }
+    },
+
     async orderStatus(idParam, req) {
       const id = parseOrderId(idParam)
       const token = getCustomerSessionToken(req)
       const data = await service.getOrderStatus(id, token)
+      return { statusCode: 200, data }
+    },
+
+    async orderStatusSummary(req, idParam) {
+      const id = parseOrderId(idParam)
+      const token = getCustomerSessionToken(req)
+      const data = await service.getOrderStatusSummary(id, token)
       return { statusCode: 200, data }
     },
 
@@ -86,6 +100,13 @@ function publicController(service) {
       const id = parseOrderId(idParam)
       const token = getCustomerSessionToken(req)
       const data = await service.getCustomerOrder(token, id)
+      return { statusCode: 200, data }
+    },
+
+    async retryCheckout(req, idParam) {
+      const id = parseOrderId(idParam)
+      const token = getCustomerSessionToken(req)
+      const data = await service.retryAsaasCheckout(token, id)
       return { statusCode: 200, data }
     },
   }
