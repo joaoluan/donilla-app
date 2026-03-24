@@ -9,6 +9,7 @@ node_modules/
 /src/generated/prisma
 
 # Common local artifacts
+.tmp/
 coverage/
 dist/
 build/
