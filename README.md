@@ -1,5 +1,25 @@
 # donilla
 
+## Ambiente
+
+Neste projeto, o ambiente de producao nao deve depender de `.env` fixo em disco.
+
+- producao: segredos vindos do Bitwarden via `secrets-vault/bitwarden`
+- desenvolvimento local: copie `.env.example` para `.env` e ajuste os valores locais
+
+Fluxo operacional atual de producao:
+
+```bash
+cd /home/donilla/secrets-vault/bitwarden
+./deploy-service-from-bws.sh donilla-app
+```
+
+Referencia de variaveis:
+
+- `.env.example` documenta os nomes esperados pelo app
+- o Bitwarden e a fonte real dos valores de producao
+- `docker-compose.yml` exige `ASAAS_ENVIRONMENT` explicitamente; nao existe mais fallback implicito para `sandbox`
+
 ## Rotas web
 
 - `/`: loja principal para clientes
@@ -54,6 +74,7 @@ Regras de segredo e ambiente:
 
 - `ASAAS_ACCESS_TOKEN` fica apenas no backend e nunca deve ir para `public/*`
 - nao commitar `.env` nem guardar a chave em codigo-fonte
+- em producao, nao recriar `.env` manualmente na pasta do servico
 - nao logar a chave inteira; o backend agora sanitiza o detalhe bruto de erro do Asaas
 - manter sandbox e producao separados
 - se o prefixo da chave (`$aact_hmlg_` ou `$aact_prod_`) nao bater com `ASAAS_ENVIRONMENT`, o checkout e bloqueado
