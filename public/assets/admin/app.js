@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325g'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325g'
-import { bindCustomersSection } from './modules/customers.js?v=20260325g'
-import { bindOrdersSection } from './modules/orders.js?v=20260325g'
-import { bindSettingsSection } from './modules/settings.js?v=20260325g'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325g'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325h'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325h'
+import { bindCustomersSection } from './modules/customers.js?v=20260325h'
+import { bindOrdersSection } from './modules/orders.js?v=20260325h'
+import { bindSettingsSection } from './modules/settings.js?v=20260325h'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325h'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -78,6 +78,14 @@ const ordersStatusEl = document.getElementById('ordersStatus');
 const ordersListEl = document.getElementById('ordersList');
 const ordersPrevBtnEl = document.getElementById('ordersPrevBtn');
 const ordersNextBtnEl = document.getElementById('ordersNextBtn');
+const ordersOverviewTotalEl = document.getElementById('ordersOverviewTotal');
+const ordersOverviewTotalMetaEl = document.getElementById('ordersOverviewTotalMeta');
+const ordersOverviewPageEl = document.getElementById('ordersOverviewPage');
+const ordersOverviewPageMetaEl = document.getElementById('ordersOverviewPageMeta');
+const ordersOverviewActionEl = document.getElementById('ordersOverviewAction');
+const ordersOverviewActionMetaEl = document.getElementById('ordersOverviewActionMeta');
+const ordersOverviewPaymentEl = document.getElementById('ordersOverviewPayment');
+const ordersOverviewPaymentMetaEl = document.getElementById('ordersOverviewPaymentMeta');
 
 const customersMetaEl = document.getElementById('customersMeta');
 const customersListMetaEl = document.getElementById('customersListMeta');
@@ -1643,10 +1651,66 @@ async function openOrderFromCrm(orderId) {
   await loadOrders();
 }
 
+function renderOrdersOverview() {
+  if (!accessToken) {
+    if (ordersOverviewTotalEl) ordersOverviewTotalEl.textContent = 'Aguardando';
+    if (ordersOverviewTotalMetaEl) ordersOverviewTotalMetaEl.textContent = 'Carregando total do período selecionado.';
+    if (ordersOverviewPageEl) ordersOverviewPageEl.textContent = 'Aguardando';
+    if (ordersOverviewPageMetaEl) ordersOverviewPageMetaEl.textContent = 'Resumo da página atual.';
+    if (ordersOverviewActionEl) ordersOverviewActionEl.textContent = 'Aguardando';
+    if (ordersOverviewActionMetaEl) ordersOverviewActionMetaEl.textContent = 'Pedidos que ainda precisam de ação.';
+    if (ordersOverviewPaymentEl) ordersOverviewPaymentEl.textContent = 'Aguardando';
+    if (ordersOverviewPaymentMetaEl) ordersOverviewPaymentMetaEl.textContent = 'Situações financeiras que merecem atenção.';
+    return;
+  }
+
+  const total = Number(ordersPaginationMeta?.total || 0);
+  const totalPages = Number(ordersPaginationMeta?.totalPages || 1);
+  const page = Number(ordersPaginationMeta?.page || ordersState.page || 1);
+  const pageSize = Number(ordersPaginationMeta?.pageSize || ordersState.pageSize || 10);
+  const filters = ordersPaginationMeta?.filters || null;
+
+  const activeOrders = allOrders.filter((order) => ['pendente', 'preparando', 'saiu_para_entrega'].includes(order.status_entrega || 'pendente'));
+  const preparingOrders = activeOrders.filter((order) => order.status_entrega === 'preparando').length;
+  const deliveryOrders = activeOrders.filter((order) => order.status_entrega === 'saiu_para_entrega').length;
+  const pendingPaymentOrders = allOrders.filter((order) => paymentStatusClass(order.status_pagamento) !== 'pago').length;
+  const paidOrders = allOrders.filter((order) => paymentStatusClass(order.status_pagamento) === 'pago').length;
+
+  if (ordersOverviewTotalEl) {
+    ordersOverviewTotalEl.textContent = String(total);
+  }
+  if (ordersOverviewTotalMetaEl) {
+    ordersOverviewTotalMetaEl.textContent = formatRangeMeta(filters);
+  }
+  if (ordersOverviewPageEl) {
+    ordersOverviewPageEl.textContent = String(allOrders.length);
+  }
+  if (ordersOverviewPageMetaEl) {
+    ordersOverviewPageMetaEl.textContent = total
+      ? `Página ${page} de ${totalPages} · ${pageSize} por página.`
+      : 'Nenhum pedido retornado para a página atual.';
+  }
+  if (ordersOverviewActionEl) {
+    ordersOverviewActionEl.textContent = String(activeOrders.length);
+  }
+  if (ordersOverviewActionMetaEl) {
+    ordersOverviewActionMetaEl.textContent = activeOrders.length
+      ? `${preparingOrders} preparando · ${deliveryOrders} em entrega.`
+      : 'Nenhum pedido ativo nesta página.';
+  }
+  if (ordersOverviewPaymentEl) {
+    ordersOverviewPaymentEl.textContent = String(pendingPaymentOrders);
+  }
+  if (ordersOverviewPaymentMetaEl) {
+    ordersOverviewPaymentMetaEl.textContent = `${paidOrders} pago(s) nesta página.`;
+  }
+}
+
 function orderCard(order) {
   const status = order.status_entrega || 'pendente';
   const paymentStatus = paymentStatusClass(order.status_pagamento);
   const auditExpanded = expandedOrderAuditIds.has(Number(order.id || 0));
+  const itensCount = Array.isArray(order.itens_pedido) ? order.itens_pedido.length : 0;
   const itensHtml = (order.itens_pedido || [])
     .map((item) => {
       const nome = item.produtos?.nome_doce || `Produto ${item.produto_id}`;
@@ -1667,10 +1731,13 @@ function orderCard(order) {
 
   return `
     <article class="order-card">
-      <header>
-        <div>
-          <strong>Pedido #${order.id}</strong>
-          <small>${dateTime(order.criado_em)}</small>
+      <header class="order-card-head">
+        <div class="order-card-head-copy">
+          <div class="order-card-title-row">
+            <strong>Pedido #${order.id}</strong>
+            <small class="order-card-time">${dateTime(order.criado_em)}</small>
+          </div>
+          <p class="order-card-subtitle">${escapeHtml(order.clientes?.nome || '--')} · ${escapeHtml(formatPhone(order.clientes?.telefone_whatsapp || ''))}</p>
         </div>
         <div class="order-card-statuses">
           <span class="status-chip status-${status}">${STATUS_LABELS[status] || status}</span>
@@ -1678,17 +1745,23 @@ function orderCard(order) {
         </div>
       </header>
 
-    <div class="order-meta">
-        <span><b>Cliente:</b> ${escapeHtml(order.clientes?.nome || '--')}</span>
-        <span><b>WhatsApp:</b> ${escapeHtml(order.clientes?.telefone_whatsapp || '--')}</span>
-        <span><b>Endereço:</b> ${formatAddress(order.enderecos)}</span>
-        <span><b>Forma de pagamento:</b> ${escapeHtml(paymentMethodLabel(order.metodo_pagamento))}</span>
-        <span><b>Total:</b> ${brl(order.valor_total)}</span>
+      <div class="order-meta order-summary-grid">
+        <span class="order-summary-pill"><b>Total</b>${brl(order.valor_total)}</span>
+        <span class="order-summary-pill"><b>Itens</b>${pluralize(itensCount, 'item', 'itens')}</span>
+        <span class="order-summary-pill"><b>Pagamento</b>${escapeHtml(paymentMethodLabel(order.metodo_pagamento))}</span>
+        <span class="order-summary-pill"><b>WhatsApp</b>${escapeHtml(formatPhone(order.clientes?.telefone_whatsapp || ''))}</span>
+        <span class="order-summary-pill order-summary-pill-wide"><b>Endereço</b>${formatAddress(order.enderecos)}</span>
       </div>
 
       ${order.observacoes ? `<p class="order-note"><b>Observações:</b> ${escapeHtml(order.observacoes)}</p>` : ''}
 
-      <ul class="order-items">${itensHtml || '<li>Sem itens.</li>'}</ul>
+      <section class="order-items-panel">
+        <div class="order-items-panel-head">
+          <h4>Itens do pedido</h4>
+          <small>${pluralize(itensCount, 'item', 'itens')}</small>
+        </div>
+        <ul class="order-items">${itensHtml || '<li>Sem itens.</li>'}</ul>
+      </section>
 
       <footer class="order-actions order-management-actions">
         <label class="order-action-field">
@@ -1713,7 +1786,13 @@ function renderOrders() {
   if (!accessToken) {
     ordersListEl.innerHTML = '<p class="muted">Faça login para visualizar pedidos.</p>';
     ordersMetaEl.textContent = 'Faça login para carregar pedidos.';
+    renderOrdersOverview();
     updateDatalistOptions(ordersSearchSuggestionsEl, []);
+    document.querySelectorAll('[data-orders-quick-filter]').forEach((button) => {
+      const isActive = (button.dataset.ordersQuickFilter || 'all') === 'all';
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
     return;
   }
 
@@ -1728,6 +1807,7 @@ function renderOrders() {
   ordersMetaEl.textContent = `${start}-${end} de ${total} pedidos · ${formatRangeMeta(filters)}`;
   ordersPrevBtnEl.disabled = page <= 1;
   ordersNextBtnEl.disabled = page >= totalPages;
+  renderOrdersOverview();
   updateDatalistOptions(
     ordersSearchSuggestionsEl,
     allOrders.map((order) => ({
@@ -1735,6 +1815,11 @@ function renderOrders() {
       label: `${order.clientes?.nome || '--'} · ${dateTime(order.criado_em)}`,
     })),
   );
+  document.querySelectorAll('[data-orders-quick-filter]').forEach((button) => {
+    const isActive = (button.dataset.ordersQuickFilter || 'all') === (ordersState.status || 'all');
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  });
 
   if (allOrders.length === 0) {
     ordersListEl.innerHTML = '<p class="muted">Nenhum pedido encontrado para este filtro.</p>';

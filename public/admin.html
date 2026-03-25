@@ -638,53 +638,107 @@
         </article>
 
         <article id="pedidos" class="card admin-card admin-panel-view hidden" data-admin-view="pedidos">
-          <header class="section-head section-head-with-actions">
-            <div class="section-copy">
-              <h2>Gestão de pedidos</h2>
-              <p id="ordersMeta" class="muted">Faça login para carregar pedidos.</p>
-            </div>
-            <div class="section-actions section-actions-wrap">
-              <input id="ordersSearchInput" list="ordersSearchSuggestions" autocomplete="off" placeholder="Pedido, cliente ou WhatsApp" />
-              <datalist id="ordersSearchSuggestions"></datalist>
-              <select id="statusFilter">
-                <option value="all">Todos os status</option>
-                <option value="pendente">Pendente</option>
-                <option value="preparando">Preparando</option>
-                <option value="saiu_para_entrega">Saiu para entrega</option>
-                <option value="entregue">Entregue</option>
-                <option value="cancelado">Cancelado</option>
-              </select>
-              <select id="ordersRangePreset">
-                <option value="today" selected>Pedidos do dia</option>
-                <option value="7d">Últimos 7 dias</option>
-                <option value="30d">Últimos 30 dias</option>
-                <option value="month">Este mês</option>
-                <option value="all">Todo o período</option>
-                <option value="custom">Período personalizado</option>
-              </select>
-              <input id="ordersFromDate" type="date" aria-label="Data inicial dos pedidos" />
-              <input id="ordersToDate" type="date" aria-label="Data final dos pedidos" />
-              <select id="ordersPageSizeInput">
-                <option value="10" selected>10 por página</option>
-                <option value="20">20 por página</option>
-                <option value="40">40 por página</option>
-              </select>
-              <button id="applyOrdersFiltersBtn" class="ghost-btn" type="button">Aplicar</button>
-              <button id="refreshOrdersBtn" class="ghost-btn" type="button">Atualizar</button>
-            </div>
-          </header>
-          <p id="ordersStatus" class="status-text muted"></p>
+          <section class="orders-admin-shell">
+            <section class="orders-admin-top-card">
+              <div class="orders-admin-top-copy">
+                <h2>Gestão de pedidos</h2>
+                <p class="muted">Acompanhe entradas, priorize o que exige ação e atualize os pedidos em tempo real sem sair da operação.</p>
+              </div>
 
-          <div id="ordersList" class="orders-list">
-            <p class="muted">Nenhum dado carregado.</p>
-          </div>
-          <div class="list-footer">
-            <span></span>
-            <div class="pager">
-              <button id="ordersPrevBtn" class="ghost-btn" type="button">Anterior</button>
-              <button id="ordersNextBtn" class="ghost-btn" type="button">Próxima</button>
-            </div>
-          </div>
+              <div class="orders-admin-overview-grid">
+                <article class="orders-admin-overview-card">
+                  <small>No filtro</small>
+                  <strong id="ordersOverviewTotal">Aguardando</strong>
+                  <span id="ordersOverviewTotalMeta" class="muted">Carregando total do período selecionado.</span>
+                </article>
+
+                <article class="orders-admin-overview-card">
+                  <small>Nesta página</small>
+                  <strong id="ordersOverviewPage">Aguardando</strong>
+                  <span id="ordersOverviewPageMeta" class="muted">Resumo da página atual.</span>
+                </article>
+
+                <article class="orders-admin-overview-card">
+                  <small>Operação ativa</small>
+                  <strong id="ordersOverviewAction">Aguardando</strong>
+                  <span id="ordersOverviewActionMeta" class="muted">Pedidos que ainda precisam de ação.</span>
+                </article>
+
+                <article class="orders-admin-overview-card">
+                  <small>Pagamento pendente</small>
+                  <strong id="ordersOverviewPayment">Aguardando</strong>
+                  <span id="ordersOverviewPaymentMeta" class="muted">Situações financeiras que merecem atenção.</span>
+                </article>
+              </div>
+
+              <nav class="orders-admin-tabs" aria-label="Atalhos rápidos de status">
+                <button type="button" class="orders-admin-tab active" data-orders-quick-filter="all">Todos</button>
+                <button type="button" class="orders-admin-tab" data-orders-quick-filter="pendente">Pendentes</button>
+                <button type="button" class="orders-admin-tab" data-orders-quick-filter="preparando">Preparando</button>
+                <button type="button" class="orders-admin-tab" data-orders-quick-filter="saiu_para_entrega">Entrega</button>
+                <button type="button" class="orders-admin-tab" data-orders-quick-filter="entregue">Entregues</button>
+                <button type="button" class="orders-admin-tab" data-orders-quick-filter="cancelado">Cancelados</button>
+              </nav>
+            </section>
+
+            <section class="orders-admin-panel">
+              <div class="orders-admin-toolbar">
+                <div class="search-box">
+                  <span class="search-icon" aria-hidden="true">&#128269;</span>
+                  <input id="ordersSearchInput" list="ordersSearchSuggestions" autocomplete="off" placeholder="Pedido, cliente ou WhatsApp" />
+                </div>
+                <datalist id="ordersSearchSuggestions"></datalist>
+
+                <select id="statusFilter">
+                  <option value="all">Todos os status</option>
+                  <option value="pendente">Pendente</option>
+                  <option value="preparando">Preparando</option>
+                  <option value="saiu_para_entrega">Saiu para entrega</option>
+                  <option value="entregue">Entregue</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+
+                <select id="ordersRangePreset">
+                  <option value="today" selected>Pedidos do dia</option>
+                  <option value="7d">Últimos 7 dias</option>
+                  <option value="30d">Últimos 30 dias</option>
+                  <option value="month">Este mês</option>
+                  <option value="all">Todo o período</option>
+                  <option value="custom">Período personalizado</option>
+                </select>
+
+                <input id="ordersFromDate" type="date" aria-label="Data inicial dos pedidos" />
+                <input id="ordersToDate" type="date" aria-label="Data final dos pedidos" />
+
+                <select id="ordersPageSizeInput">
+                  <option value="10" selected>10 por página</option>
+                  <option value="20">20 por página</option>
+                  <option value="40">40 por página</option>
+                </select>
+
+                <div class="orders-admin-toolbar-actions">
+                  <button id="applyOrdersFiltersBtn" class="ghost-btn" type="button">Aplicar</button>
+                  <button id="refreshOrdersBtn" class="primary-btn" type="button">Atualizar</button>
+                </div>
+              </div>
+
+              <div class="orders-admin-list-head">
+                <p id="ordersMeta" class="muted">Faça login para carregar pedidos.</p>
+                <p id="ordersStatus" class="status-text muted"></p>
+              </div>
+
+              <div id="ordersList" class="orders-list">
+                <p class="muted">Nenhum dado carregado.</p>
+              </div>
+              <div class="list-footer">
+                <span></span>
+                <div class="pager">
+                  <button id="ordersPrevBtn" class="ghost-btn" type="button">Anterior</button>
+                  <button id="ordersNextBtn" class="ghost-btn" type="button">Próxima</button>
+                </div>
+              </div>
+            </section>
+          </section>
         </article>
 
         <article id="config" class="card admin-card admin-panel-view hidden" data-admin-view="config">
@@ -1076,6 +1130,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325g"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260325h"></script>
 </body>
 </html>

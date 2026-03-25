@@ -3,6 +3,7 @@ const ORDERS_AUTO_REFRESH_INTERVAL_MS = 10000;
 export function bindOrdersSection(ctx) {
   const { dom, state, helpers, api } = ctx;
   let autoRefreshRunning = false;
+  const ordersQuickFilterButtons = Array.from(document.querySelectorAll('[data-orders-quick-filter]'));
 
   const debouncedLoadOrdersSearch = helpers.createDebounce(220, () => {
     if (!state.accessToken) return;
@@ -51,6 +52,26 @@ export function bindOrdersSection(ctx) {
     } catch (error) {
       helpers.setStatus(dom.ordersStatusEl, error.message, 'err');
     }
+  });
+
+  ordersQuickFilterButtons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      const nextStatus = button.dataset.ordersQuickFilter || 'all';
+      state.ordersState.status = nextStatus;
+      state.ordersState.page = 1;
+
+      if (dom.statusFilterEl) {
+        dom.statusFilterEl.value = nextStatus;
+      }
+
+      if (!state.accessToken) return;
+
+      try {
+        await api.loadOrders();
+      } catch (error) {
+        helpers.setStatus(dom.ordersStatusEl, error.message, 'err');
+      }
+    });
   });
 
   dom.applyOrdersFiltersBtnEl.addEventListener('click', async () => {
