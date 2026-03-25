@@ -238,11 +238,11 @@
       </div>
 
       <nav class="sidebar-nav admin-sidebar-nav">
-        <a href="#dashboard" data-admin-view-link="dashboard" class="active">Resumo</a>
-        <a href="#clientes" data-admin-view-link="clientes">Clientes</a>
-        <a href="#cardapio" data-admin-view-link="cardapio">Cardápio</a>
-        <a href="#pedidos" data-admin-view-link="pedidos">Pedidos</a>
-        <a href="#config" data-admin-view-link="config">Configurações</a>
+        <a href="/admin/resumo" data-admin-view-link="dashboard" class="active">Resumo</a>
+        <a href="/admin/clientes" data-admin-view-link="clientes">Clientes</a>
+        <a href="/admin/cardapio" data-admin-view-link="cardapio">Cardápio</a>
+        <a href="/admin/pedidos" data-admin-view-link="pedidos">Pedidos</a>
+        <a href="/admin/configuracoes" data-admin-view-link="config">Configurações</a>
         <a href="/">Ir para loja</a>
       </nav>
 
@@ -1012,6 +1012,22 @@
     };
 
     const DEFAULT_ADMIN_VIEW = 'dashboard';
+    const ADMIN_VIEW_PATH_SEGMENTS = {
+      dashboard: 'resumo',
+      clientes: 'clientes',
+      cardapio: 'cardapio',
+      pedidos: 'pedidos',
+      config: 'configuracoes',
+    };
+    const ADMIN_VIEW_ALIASES = {
+      resumo: 'dashboard',
+      dashboard: 'dashboard',
+      clientes: 'clientes',
+      cardapio: 'cardapio',
+      pedidos: 'pedidos',
+      configuracoes: 'config',
+      config: 'config',
+    };
     const ADMIN_VIEW_DESCRIPTIONS = {
       dashboard: 'Indicadores e fotografia rápida da operação da loja.',
       clientes: 'Base de clientes com histórico, preferências e pedidos.',
@@ -1302,13 +1318,51 @@
       return adminPanelViews.some((panel) => panel.dataset.adminView === view);
     }
 
+    function extractAdminViewToken(rawValue) {
+      const normalized = String(rawValue || '').trim().toLowerCase();
+      if (!normalized) return '';
+
+      if (normalized.startsWith('#')) {
+        return normalized.slice(1).replace(/^\/+/, '').replace(/\/+$/, '');
+      }
+
+      const withoutFragment = normalized.split('#')[0].split('?')[0];
+      const withoutTrailingSlash = withoutFragment.replace(/\/+$/, '');
+
+      if (withoutTrailingSlash === '/admin' || withoutTrailingSlash === 'admin') {
+        return '';
+      }
+
+      if (withoutTrailingSlash.startsWith('/admin/')) {
+        return withoutTrailingSlash.slice('/admin/'.length);
+      }
+
+      if (withoutTrailingSlash.startsWith('admin/')) {
+        return withoutTrailingSlash.slice('admin/'.length);
+      }
+
+      return withoutTrailingSlash.replace(/^\/+/, '');
+    }
+
     function normalizeAdminView(rawView) {
-      const view = String(rawView || '').trim().replace(/^#/, '');
+      const view = extractAdminViewToken(rawView);
+      if (ADMIN_VIEW_ALIASES[view]) return ADMIN_VIEW_ALIASES[view];
       return adminViewExists(view) ? view : DEFAULT_ADMIN_VIEW;
     }
 
+    function adminPathForView(view) {
+      const activeView = normalizeAdminView(view);
+      const pathSegment = ADMIN_VIEW_PATH_SEGMENTS[activeView] || ADMIN_VIEW_PATH_SEGMENTS[DEFAULT_ADMIN_VIEW];
+      return `/admin/${pathSegment}`;
+    }
+
     function activeAdminViewFromLocation() {
-      return normalizeAdminView(window.location.hash);
+      const pathView = normalizeAdminView(window.location.pathname);
+      const isBaseAdminRoute = /^\/admin\/?$/.test(window.location.pathname);
+      if (isBaseAdminRoute && window.location.hash) {
+        return normalizeAdminView(window.location.hash);
+      }
+      return pathView;
     }
 
     function setAdminTopbarDescription(view) {
@@ -1331,12 +1385,36 @@
       window.scrollTo({ top: 0, behavior: 'auto' });
     }
 
-    function syncAdminViewFromLocation({ replace = false } = {}) {
-      const activeView = activeAdminViewFromLocation();
+    function navigateToAdminView(view, { replace = false } = {}) {
+      const activeView = normalizeAdminView(view);
+      const nextPath = adminPathForView(activeView);
+      const nextUrl = `${nextPath}${window.location.search}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+
       renderAdminView(activeView);
 
-      if (replace || window.location.hash !== `#${activeView}`) {
-        history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${activeView}`);
+      if (replace) {
+        history.replaceState({ adminView: activeView }, '', nextUrl);
+        return;
+      }
+
+      if (currentUrl !== nextUrl || window.location.hash) {
+        history.pushState({ adminView: activeView }, '', nextUrl);
+      }
+    }
+
+    function syncAdminViewFromLocation({ replace = false } = {}) {
+      const activeView = activeAdminViewFromLocation();
+      const nextPath = adminPathForView(activeView);
+
+      renderAdminView(activeView);
+
+      if (replace || window.location.pathname !== nextPath || window.location.hash) {
+        history.replaceState(
+          { adminView: activeView },
+          '',
+          `${nextPath}${window.location.search}`,
+        );
       }
     }
 
@@ -2192,7 +2270,7 @@
       ordersState.status = 'all';
       ordersState.page = 1;
       updateOrdersControlsFromState();
-      window.location.hash = 'pedidos';
+      navigateToAdminView('pedidos');
       await loadOrders();
     }
 
@@ -3400,6 +3478,20 @@
       }
     });
 
+    adminViewLinks.forEach((link) => {
+      link.addEventListener('click', (event) => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+
+        const targetView = normalizeAdminView(link.dataset.adminViewLink);
+        if (!targetView) return;
+
+        event.preventDefault();
+        navigateToAdminView(targetView);
+      });
+    });
+
     settingsFormEl.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!accessToken) {
@@ -3816,6 +3908,10 @@
           await removeProduto(id);
         }
       }
+    });
+
+    window.addEventListener('popstate', () => {
+      syncAdminViewFromLocation();
     });
 
     window.addEventListener('hashchange', () => {

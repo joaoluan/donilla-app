@@ -7,11 +7,17 @@ const { sendError, sendRaw, sendSuccess } = require('./utils/http')
 const { createRateLimitGuard, getServerTimeoutConfig, shouldExposeErrorDetails } = require('./utils/security')
 
 // Keep public entrypoints explicit so production URLs stay predictable.
+const ADMIN_STATIC_ROUTE = { type: 'file', fileName: 'admin.html' }
 const STATIC_ROUTES = {
   '/': { type: 'file', fileName: 'cliente-login.html' },
   '/loja': { type: 'file', fileName: 'cliente-login.html' },
   '/catalogo': { type: 'file', fileName: 'site.html' },
-  '/admin': { type: 'file', fileName: 'admin.html' },
+  '/admin': ADMIN_STATIC_ROUTE,
+  '/admin/resumo': ADMIN_STATIC_ROUTE,
+  '/admin/clientes': ADMIN_STATIC_ROUTE,
+  '/admin/cardapio': ADMIN_STATIC_ROUTE,
+  '/admin/pedidos': ADMIN_STATIC_ROUTE,
+  '/admin/configuracoes': ADMIN_STATIC_ROUTE,
   '/site': { type: 'redirect', location: '/', statusCode: 308 },
   '/cliente': { type: 'redirect', location: '/', statusCode: 308 },
   '/styles.css': { type: 'file', fileName: 'styles.css' },

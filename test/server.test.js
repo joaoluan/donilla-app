@@ -63,6 +63,26 @@ test('rotas web canonicas devem servir as paginas corretas', async () => {
   const adminResponse = await requestApp(app, { url: '/admin' })
   assert.equal(adminResponse.statusCode, 200)
   assert.match(adminResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
+
+  const adminResumoResponse = await requestApp(app, { url: '/admin/resumo' })
+  assert.equal(adminResumoResponse.statusCode, 200)
+  assert.match(adminResumoResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
+
+  const adminClientesResponse = await requestApp(app, { url: '/admin/clientes' })
+  assert.equal(adminClientesResponse.statusCode, 200)
+  assert.match(adminClientesResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
+
+  const adminCardapioResponse = await requestApp(app, { url: '/admin/cardapio' })
+  assert.equal(adminCardapioResponse.statusCode, 200)
+  assert.match(adminCardapioResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
+
+  const adminPedidosResponse = await requestApp(app, { url: '/admin/pedidos' })
+  assert.equal(adminPedidosResponse.statusCode, 200)
+  assert.match(adminPedidosResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
+
+  const adminConfigResponse = await requestApp(app, { url: '/admin/configuracoes' })
+  assert.equal(adminConfigResponse.statusCode, 200)
+  assert.match(adminConfigResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
 })
 
 test('aliases legados devem redirecionar para a loja principal', async () => {
