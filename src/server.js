@@ -8,6 +8,8 @@ const { createRateLimitGuard, getServerTimeoutConfig, shouldExposeErrorDetails }
 
 // Keep public entrypoints explicit so production URLs stay predictable.
 const ADMIN_STATIC_ROUTE = { type: 'file', fileName: 'admin.html' }
+const PUBLIC_DIR = pathLib.join(process.cwd(), 'public')
+const PUBLIC_ASSETS_DIR = pathLib.join(PUBLIC_DIR, 'assets')
 const STATIC_ROUTES = {
   '/': { type: 'file', fileName: 'cliente-login.html' },
   '/loja': { type: 'file', fileName: 'cliente-login.html' },
@@ -27,11 +29,43 @@ const STATIC_ROUTES = {
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
   '.png': 'image/png',
+}
+
+function resolvePublicAssetPath(routePath) {
+  if (!routePath.startsWith('/assets/')) return null
+
+  const relativePath = routePath.replace(/^\/+/, '')
+  const filePath = pathLib.resolve(PUBLIC_DIR, relativePath)
+
+  if (filePath === PUBLIC_ASSETS_DIR) return null
+  if (!filePath.startsWith(`${PUBLIC_ASSETS_DIR}${pathLib.sep}`)) return null
+
+  return filePath
 }
 
 async function serveStatic(req, res, routePath) {
   if (req.method !== 'GET') return false
+
+  const assetPath = resolvePublicAssetPath(routePath)
+  if (assetPath) {
+    try {
+      const ext = pathLib.extname(assetPath)
+      const mime = MIME_TYPES[ext] || 'application/octet-stream'
+      const content = await readFile(assetPath)
+
+      sendRaw(res, 200, content, mime)
+      return true
+    } catch (error) {
+      if (error?.code === 'ENOENT' || error?.code === 'EISDIR') {
+        return false
+      }
+
+      throw error
+    }
+  }
+
   const route = STATIC_ROUTES[routePath]
   if (!route) return false
 
@@ -43,7 +77,7 @@ async function serveStatic(req, res, routePath) {
   }
 
   const fileName = route.fileName
-  const filePath = pathLib.join(process.cwd(), 'public', fileName)
+  const filePath = pathLib.join(PUBLIC_DIR, fileName)
   const ext = pathLib.extname(fileName)
   const mime = MIME_TYPES[ext] || 'text/plain; charset=utf-8'
   const content = await readFile(filePath)

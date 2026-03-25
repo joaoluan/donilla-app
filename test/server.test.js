@@ -85,6 +85,20 @@ test('rotas web canonicas devem servir as paginas corretas', async () => {
   assert.match(adminConfigResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
 })
 
+test('assets do admin modularizado devem ser servidos como javascript', async () => {
+  const app = createApp({})
+
+  const appModuleResponse = await requestApp(app, { url: '/assets/admin/app.js' })
+  assert.equal(appModuleResponse.statusCode, 200)
+  assert.equal(appModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
+  assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js'/)
+
+  const nestedModuleResponse = await requestApp(app, { url: '/assets/admin/modules/navigation.js' })
+  assert.equal(nestedModuleResponse.statusCode, 200)
+  assert.equal(nestedModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
+  assert.match(nestedModuleResponse.body, /export function bindNavigationSection/)
+})
+
 test('aliases legados devem redirecionar para a loja principal', async () => {
   const app = createApp({})
 
