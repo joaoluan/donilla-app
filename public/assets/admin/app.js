@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325e'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325e'
-import { bindCustomersSection } from './modules/customers.js?v=20260325e'
-import { bindOrdersSection } from './modules/orders.js?v=20260325e'
-import { bindSettingsSection } from './modules/settings.js?v=20260325e'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325e'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325f'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325f'
+import { bindCustomersSection } from './modules/customers.js?v=20260325f'
+import { bindOrdersSection } from './modules/orders.js?v=20260325f'
+import { bindSettingsSection } from './modules/settings.js?v=20260325f'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325f'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -102,11 +102,20 @@ const crmRecurringCustomersEl = document.getElementById('crmRecurringCustomers')
 const crmLeadCustomersEl = document.getElementById('crmLeadCustomers');
 const crmRevenueTotalEl = document.getElementById('crmRevenueTotal');
 
+const settingsFormShellEl = document.getElementById('settingsFormShell');
 const settingsFormEl = document.getElementById('settingsForm');
 const settingsStatusEl = document.getElementById('settingsStatus');
 const storeHoursStatusMetaEl = document.getElementById('storeHoursStatusMeta');
 const storeHoursTimezoneMetaEl = document.getElementById('storeHoursTimezoneMeta');
 const storeHoursStatusEl = document.getElementById('storeHoursStatus');
+const settingsOverviewStoreEl = document.getElementById('settingsOverviewStore');
+const settingsOverviewStoreMetaEl = document.getElementById('settingsOverviewStoreMeta');
+const settingsOverviewHoursEl = document.getElementById('settingsOverviewHours');
+const settingsOverviewHoursMetaEl = document.getElementById('settingsOverviewHoursMeta');
+const settingsOverviewWhatsAppEl = document.getElementById('settingsOverviewWhatsApp');
+const settingsOverviewWhatsAppMetaEl = document.getElementById('settingsOverviewWhatsAppMeta');
+const settingsOverviewFeesEl = document.getElementById('settingsOverviewFees');
+const settingsOverviewFeesMetaEl = document.getElementById('settingsOverviewFeesMeta');
 const whatsappSessionStatusBtnEl = document.getElementById('whatsappSessionStatusBtn');
 const whatsappSessionStartBtnEl = document.getElementById('whatsappSessionStartBtn');
 const whatsappSessionQrBtnEl = document.getElementById('whatsappSessionQrBtn');
@@ -190,6 +199,7 @@ let menuCategorias = [];
 let allCategorias = [];
 let menuProdutos = [];
 let deliveryFees = [];
+let currentStoreSettings = null;
 let produtoImagemDataUrl = '';
 let productImageWebpSupported = null;
 let selectedCustomerId = null;
@@ -1073,6 +1083,7 @@ function clearSession() {
   menuCategorias = [];
   menuProdutos = [];
   deliveryFees = [];
+  currentStoreSettings = null;
   allCategorias = [];
   selectedCustomerId = null;
   customerPaginationMeta = null;
@@ -1104,6 +1115,7 @@ function clearSession() {
   resetCategoriaForm();
   resetProdutoForm();
   resetDeliveryFeeForm();
+  renderSettingsOverview();
   if (customersSearchInputEl) {
     customersSearchInputEl.value = '';
   }
@@ -1763,6 +1775,63 @@ async function loadOrders() {
   renderOrders();
 }
 
+function renderSettingsOverview() {
+  const config = currentStoreSettings || null;
+  const activeFees = deliveryFees.filter((fee) => fee?.ativo !== false);
+  const schedule = config?.horario_funcionamento || {};
+  const enabledDays = STORE_HOURS_DAY_KEYS.filter((dayKey) => Boolean(schedule?.[dayKey]?.enabled)).length;
+
+  if (settingsOverviewStoreEl) {
+    settingsOverviewStoreEl.textContent = !config
+      ? 'Aguardando'
+      : (config.loja_aberta_agora ? 'Loja aberta' : 'Loja fechada');
+  }
+
+  if (settingsOverviewStoreMetaEl) {
+    settingsOverviewStoreMetaEl.textContent = !config
+      ? 'Carregando status da operação.'
+      : (config.loja_status_descricao || 'Status da loja indisponível.');
+  }
+
+  if (settingsOverviewHoursEl) {
+    settingsOverviewHoursEl.textContent = !config
+      ? 'Aguardando'
+      : (config.horario_automatico_ativo ? 'Automático ativo' : 'Automático desligado');
+  }
+
+  if (settingsOverviewHoursMetaEl) {
+    settingsOverviewHoursMetaEl.textContent = !config
+      ? 'Agenda semanal ainda não consultada.'
+      : `${enabledDays} dia(s) configurado(s) na semana.`;
+  }
+
+  if (settingsOverviewWhatsAppEl) {
+    settingsOverviewWhatsAppEl.textContent = !config
+      ? 'Aguardando'
+      : (config.whatsapp_bot_pausado
+        ? 'Bot pausado'
+        : (config.whatsapp_ativo ? 'Automação ativa' : 'Automação desligada'));
+  }
+
+  if (settingsOverviewWhatsAppMetaEl) {
+    settingsOverviewWhatsAppMetaEl.textContent = !config
+      ? 'Bot e automações ainda não consultados.'
+      : (config.whatsapp_bot_pausado
+        ? 'O bot não responde mensagens nem envia automações.'
+        : (config.whatsapp_ativo
+          ? 'Novo pedido e atualização de status estão ligados.'
+          : 'Mensagens automáticas estão desligadas.'));
+  }
+
+  if (settingsOverviewFeesEl) {
+    settingsOverviewFeesEl.textContent = `${deliveryFees.length} taxa(s)`;
+  }
+
+  if (settingsOverviewFeesMetaEl) {
+    settingsOverviewFeesMetaEl.textContent = `${activeFees.length} ativa(s) para cálculo da entrega.`;
+  }
+}
+
 function defaultStoreHoursSchedule() {
   return STORE_HOURS_DAY_KEYS.reduce((acc, dayKey) => {
     acc[dayKey] = {
@@ -1841,6 +1910,7 @@ function applyStoreHoursConfig(config = {}) {
 async function loadStoreSettings() {
   const response = await fetch('/admin/store-settings', { headers: authHeaders() });
   const config = await parseResponse(response);
+  currentStoreSettings = config;
 
   settingsFormEl.elements.loja_aberta.checked = Boolean(config.loja_aberta);
   applyStoreHoursConfig(config);
@@ -1854,6 +1924,7 @@ async function loadStoreSettings() {
   settingsFormEl.elements.whatsapp_mensagem_novo_pedido.value = config.whatsapp_mensagem_novo_pedido || '';
   settingsFormEl.elements.whatsapp_mensagem_status.value = config.whatsapp_mensagem_status || '';
   renderWhatsAppBotPauseState(config.whatsapp_bot_pausado);
+  renderSettingsOverview();
   clearStatus(whatsappTestStatusEl);
   return config;
 }
@@ -2033,6 +2104,7 @@ async function loadDeliveryFees() {
   const response = await fetch('/admin/delivery-fees', { headers: authHeaders() });
   deliveryFees = await parseResponse(response);
   renderDeliveryFeeList();
+  renderSettingsOverview();
 }
 
 async function removeDeliveryFee(id) {
@@ -2553,11 +2625,20 @@ const dom = {
   crmRecurringCustomersEl,
   crmLeadCustomersEl,
   crmRevenueTotalEl,
+  settingsFormShellEl,
   settingsFormEl,
   settingsStatusEl,
   storeHoursStatusMetaEl,
   storeHoursTimezoneMetaEl,
   storeHoursStatusEl,
+  settingsOverviewStoreEl,
+  settingsOverviewStoreMetaEl,
+  settingsOverviewHoursEl,
+  settingsOverviewHoursMetaEl,
+  settingsOverviewWhatsAppEl,
+  settingsOverviewWhatsAppMetaEl,
+  settingsOverviewFeesEl,
+  settingsOverviewFeesMetaEl,
   whatsappSessionStatusBtnEl,
   whatsappSessionStartBtnEl,
   whatsappSessionQrBtnEl,
@@ -2736,6 +2817,7 @@ resetCategoriaForm();
 resetProdutoForm();
 resetDeliveryFeeForm();
 renderDeliveryFeeList();
+renderSettingsOverview();
 syncStoreHoursInputsState();
 if (accessToken) {
   loadAdminData();

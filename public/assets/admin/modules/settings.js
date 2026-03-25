@@ -1,5 +1,36 @@
 export function bindSettingsSection(ctx) {
   const { dom, state, helpers, api } = ctx;
+  const settingsTabButtons = Array.from(document.querySelectorAll('[data-settings-tab]'));
+  const settingsPanels = Array.from(document.querySelectorAll('[data-settings-panel]'));
+
+  function setActiveSettingsTab(nextTab = 'operacao') {
+    const activeTab = ['operacao', 'horarios', 'whatsapp', 'taxas'].includes(nextTab) ? nextTab : 'operacao';
+    const showFeesOnly = activeTab === 'taxas';
+
+    settingsTabButtons.forEach((button) => {
+      const active = button.dataset.settingsTab === activeTab;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    if (dom.settingsFormShellEl) {
+      dom.settingsFormShellEl.classList.toggle('hidden', showFeesOnly);
+    }
+
+    settingsPanels.forEach((panel) => {
+      const panelKey = panel.dataset.settingsPanel;
+      const active = panelKey === activeTab;
+      panel.classList.toggle('hidden', !active);
+    });
+  }
+
+  settingsTabButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setActiveSettingsTab(button.dataset.settingsTab || 'operacao');
+    });
+  });
+
+  setActiveSettingsTab('operacao');
 
   dom.settingsFormEl.addEventListener('change', (event) => {
     const target = event.target;

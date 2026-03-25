@@ -591,331 +591,391 @@
           <header class="section-head">
             <div>
               <h2>Configuração da loja</h2>
-              <p class="muted">Defina disponibilidade, tempo e avisos da loja. As taxas são gerenciadas por local logo abaixo.</p>
+              <p class="muted">Organize operação, horários, WhatsApp e taxas em blocos separados para não concentrar tudo em uma tela só.</p>
             </div>
           </header>
-
-          <form id="settingsForm" class="settings-form">
-            <label class="toggle-line">
-              <input type="checkbox" name="loja_aberta" />
-              <span>Loja aberta para pedidos</span>
-            </label>
-
-            <section class="store-hours-admin-section">
-              <div class="store-hours-admin-head">
-                <div>
-                  <h3>Horario de funcionamento automatico</h3>
-                  <p class="muted">A Donilla pode abrir e fechar a loja sozinha conforme a agenda abaixo. Se voce fechar manualmente acima, o fechamento manual continua tendo prioridade.</p>
-                </div>
-                <div class="store-hours-admin-live">
-                  <strong id="storeHoursStatusMeta">Status ainda nao consultado.</strong>
-                  <small id="storeHoursTimezoneMeta" class="muted">Fuso da loja: America/Sao_Paulo</small>
-                </div>
+          <section class="admin-settings-shell">
+            <section class="admin-settings-top-card">
+              <div class="admin-settings-top-copy">
+                <h3>Portal de configurações</h3>
+                <p class="muted">Separei a operação em áreas menores para ficar mais próximo da experiência de portais como o iFood e evitar uma tela única muito pesada.</p>
               </div>
 
-              <label class="toggle-line">
-                <input type="checkbox" name="horario_automatico_ativo" />
-                <span>Ativar abertura e fechamento automaticos por horario</span>
-              </label>
+              <div class="admin-settings-overview-grid">
+                <article class="admin-settings-overview-card">
+                  <small>Loja</small>
+                  <strong id="settingsOverviewStore">Aguardando</strong>
+                  <span id="settingsOverviewStoreMeta" class="muted">Carregando status da operação.</span>
+                </article>
 
-              <p id="storeHoursStatus" class="status-text muted">Configure os dias e horarios para a loja abrir e fechar sozinha.</p>
+                <article class="admin-settings-overview-card">
+                  <small>Horários</small>
+                  <strong id="settingsOverviewHours">Aguardando</strong>
+                  <span id="settingsOverviewHoursMeta" class="muted">Agenda semanal ainda não consultada.</span>
+                </article>
 
-              <div class="store-hours-grid">
-                <div class="store-hours-row" data-store-hours-row="monday">
-                  <label class="toggle-line store-hours-day-toggle">
-                    <input type="checkbox" name="horario_funcionamento_monday_enabled" />
-                    <span>Segunda-feira</span>
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Abre</span>
-                    <input name="horario_funcionamento_monday_open" type="time" step="60" />
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Fecha</span>
-                    <input name="horario_funcionamento_monday_close" type="time" step="60" />
-                  </label>
-                </div>
+                <article class="admin-settings-overview-card">
+                  <small>WhatsApp</small>
+                  <strong id="settingsOverviewWhatsApp">Aguardando</strong>
+                  <span id="settingsOverviewWhatsAppMeta" class="muted">Bot e automações ainda não consultados.</span>
+                </article>
 
-                <div class="store-hours-row" data-store-hours-row="tuesday">
-                  <label class="toggle-line store-hours-day-toggle">
-                    <input type="checkbox" name="horario_funcionamento_tuesday_enabled" />
-                    <span>Terca-feira</span>
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Abre</span>
-                    <input name="horario_funcionamento_tuesday_open" type="time" step="60" />
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Fecha</span>
-                    <input name="horario_funcionamento_tuesday_close" type="time" step="60" />
-                  </label>
-                </div>
-
-                <div class="store-hours-row" data-store-hours-row="wednesday">
-                  <label class="toggle-line store-hours-day-toggle">
-                    <input type="checkbox" name="horario_funcionamento_wednesday_enabled" />
-                    <span>Quarta-feira</span>
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Abre</span>
-                    <input name="horario_funcionamento_wednesday_open" type="time" step="60" />
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Fecha</span>
-                    <input name="horario_funcionamento_wednesday_close" type="time" step="60" />
-                  </label>
-                </div>
-
-                <div class="store-hours-row" data-store-hours-row="thursday">
-                  <label class="toggle-line store-hours-day-toggle">
-                    <input type="checkbox" name="horario_funcionamento_thursday_enabled" />
-                    <span>Quinta-feira</span>
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Abre</span>
-                    <input name="horario_funcionamento_thursday_open" type="time" step="60" />
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Fecha</span>
-                    <input name="horario_funcionamento_thursday_close" type="time" step="60" />
-                  </label>
-                </div>
-
-                <div class="store-hours-row" data-store-hours-row="friday">
-                  <label class="toggle-line store-hours-day-toggle">
-                    <input type="checkbox" name="horario_funcionamento_friday_enabled" />
-                    <span>Sexta-feira</span>
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Abre</span>
-                    <input name="horario_funcionamento_friday_open" type="time" step="60" />
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Fecha</span>
-                    <input name="horario_funcionamento_friday_close" type="time" step="60" />
-                  </label>
-                </div>
-
-                <div class="store-hours-row" data-store-hours-row="saturday">
-                  <label class="toggle-line store-hours-day-toggle">
-                    <input type="checkbox" name="horario_funcionamento_saturday_enabled" />
-                    <span>Sabado</span>
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Abre</span>
-                    <input name="horario_funcionamento_saturday_open" type="time" step="60" />
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Fecha</span>
-                    <input name="horario_funcionamento_saturday_close" type="time" step="60" />
-                  </label>
-                </div>
-
-                <div class="store-hours-row" data-store-hours-row="sunday">
-                  <label class="toggle-line store-hours-day-toggle">
-                    <input type="checkbox" name="horario_funcionamento_sunday_enabled" />
-                    <span>Domingo</span>
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Abre</span>
-                    <input name="horario_funcionamento_sunday_open" type="time" step="60" />
-                  </label>
-                  <label class="store-hours-time">
-                    <span class="muted">Fecha</span>
-                    <input name="horario_funcionamento_sunday_close" type="time" step="60" />
-                  </label>
-                </div>
+                <article class="admin-settings-overview-card">
+                  <small>Taxas</small>
+                  <strong id="settingsOverviewFees">Aguardando</strong>
+                  <span id="settingsOverviewFeesMeta" class="muted">Resumo das taxas por local.</span>
+                </article>
               </div>
 
-              <p class="muted">Se o horario de fechamento for menor que o de abertura, a Donilla entende que o atendimento vira a madrugada. Ex.: abre 18:00 e fecha 00:30.</p>
+              <nav class="admin-settings-tabs" aria-label="Seções das configurações">
+                <button type="button" class="admin-settings-tab active" data-settings-tab="operacao">Operação</button>
+                <button type="button" class="admin-settings-tab" data-settings-tab="horarios">Horários</button>
+                <button type="button" class="admin-settings-tab" data-settings-tab="whatsapp">WhatsApp</button>
+                <button type="button" class="admin-settings-tab" data-settings-tab="taxas">Taxas</button>
+              </nav>
             </section>
 
-            <div class="split-2">
-              <input name="tempo_entrega_minutos" type="number" min="1" max="240" placeholder="Tempo mínimo (min)" />
-              <input name="tempo_entrega_max_minutos" type="number" min="1" max="240" placeholder="Tempo máximo (min)" />
+            <div id="settingsFormShell" class="admin-settings-form-shell">
+              <form id="settingsForm" class="settings-form">
+                <section class="admin-settings-panel" data-settings-panel="operacao">
+                  <header class="section-head stacked-section-head">
+                    <div>
+                      <h3>Operação da loja</h3>
+                      <p class="muted">Controle disponibilidade manual, prazo de entrega e avisos mostrados para os clientes.</p>
+                    </div>
+                  </header>
+
+                  <label class="toggle-line">
+                    <input type="checkbox" name="loja_aberta" />
+                    <span>Loja aberta para pedidos</span>
+                  </label>
+
+                  <div class="split-2">
+                    <input name="tempo_entrega_minutos" type="number" min="1" max="240" placeholder="Tempo mínimo (min)" />
+                    <input name="tempo_entrega_max_minutos" type="number" min="1" max="240" placeholder="Tempo máximo (min)" />
+                  </div>
+
+                  <textarea name="mensagem_aviso" rows="4" lang="pt-BR" spellcheck="true" autocapitalize="sentences" placeholder="Mensagem para clientes (opcional)"></textarea>
+                </section>
+
+                <section class="admin-settings-panel hidden" data-settings-panel="horarios">
+                  <section class="store-hours-admin-section">
+                    <div class="store-hours-admin-head">
+                      <div>
+                        <h3>Horario de funcionamento automatico</h3>
+                        <p class="muted">A Donilla pode abrir e fechar a loja sozinha conforme a agenda abaixo. Se voce fechar manualmente na aba Operação, o fechamento manual continua tendo prioridade.</p>
+                      </div>
+                      <div class="store-hours-admin-live">
+                        <strong id="storeHoursStatusMeta">Status ainda nao consultado.</strong>
+                        <small id="storeHoursTimezoneMeta" class="muted">Fuso da loja: America/Sao_Paulo</small>
+                      </div>
+                    </div>
+
+                    <label class="toggle-line">
+                      <input type="checkbox" name="horario_automatico_ativo" />
+                      <span>Ativar abertura e fechamento automaticos por horario</span>
+                    </label>
+
+                    <p id="storeHoursStatus" class="status-text muted">Configure os dias e horarios para a loja abrir e fechar sozinha.</p>
+
+                    <div class="store-hours-grid">
+                      <div class="store-hours-row" data-store-hours-row="monday">
+                        <label class="toggle-line store-hours-day-toggle">
+                          <input type="checkbox" name="horario_funcionamento_monday_enabled" />
+                          <span>Segunda-feira</span>
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Abre</span>
+                          <input name="horario_funcionamento_monday_open" type="time" step="60" />
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Fecha</span>
+                          <input name="horario_funcionamento_monday_close" type="time" step="60" />
+                        </label>
+                      </div>
+
+                      <div class="store-hours-row" data-store-hours-row="tuesday">
+                        <label class="toggle-line store-hours-day-toggle">
+                          <input type="checkbox" name="horario_funcionamento_tuesday_enabled" />
+                          <span>Terca-feira</span>
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Abre</span>
+                          <input name="horario_funcionamento_tuesday_open" type="time" step="60" />
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Fecha</span>
+                          <input name="horario_funcionamento_tuesday_close" type="time" step="60" />
+                        </label>
+                      </div>
+
+                      <div class="store-hours-row" data-store-hours-row="wednesday">
+                        <label class="toggle-line store-hours-day-toggle">
+                          <input type="checkbox" name="horario_funcionamento_wednesday_enabled" />
+                          <span>Quarta-feira</span>
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Abre</span>
+                          <input name="horario_funcionamento_wednesday_open" type="time" step="60" />
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Fecha</span>
+                          <input name="horario_funcionamento_wednesday_close" type="time" step="60" />
+                        </label>
+                      </div>
+
+                      <div class="store-hours-row" data-store-hours-row="thursday">
+                        <label class="toggle-line store-hours-day-toggle">
+                          <input type="checkbox" name="horario_funcionamento_thursday_enabled" />
+                          <span>Quinta-feira</span>
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Abre</span>
+                          <input name="horario_funcionamento_thursday_open" type="time" step="60" />
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Fecha</span>
+                          <input name="horario_funcionamento_thursday_close" type="time" step="60" />
+                        </label>
+                      </div>
+
+                      <div class="store-hours-row" data-store-hours-row="friday">
+                        <label class="toggle-line store-hours-day-toggle">
+                          <input type="checkbox" name="horario_funcionamento_friday_enabled" />
+                          <span>Sexta-feira</span>
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Abre</span>
+                          <input name="horario_funcionamento_friday_open" type="time" step="60" />
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Fecha</span>
+                          <input name="horario_funcionamento_friday_close" type="time" step="60" />
+                        </label>
+                      </div>
+
+                      <div class="store-hours-row" data-store-hours-row="saturday">
+                        <label class="toggle-line store-hours-day-toggle">
+                          <input type="checkbox" name="horario_funcionamento_saturday_enabled" />
+                          <span>Sabado</span>
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Abre</span>
+                          <input name="horario_funcionamento_saturday_open" type="time" step="60" />
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Fecha</span>
+                          <input name="horario_funcionamento_saturday_close" type="time" step="60" />
+                        </label>
+                      </div>
+
+                      <div class="store-hours-row" data-store-hours-row="sunday">
+                        <label class="toggle-line store-hours-day-toggle">
+                          <input type="checkbox" name="horario_funcionamento_sunday_enabled" />
+                          <span>Domingo</span>
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Abre</span>
+                          <input name="horario_funcionamento_sunday_open" type="time" step="60" />
+                        </label>
+                        <label class="store-hours-time">
+                          <span class="muted">Fecha</span>
+                          <input name="horario_funcionamento_sunday_close" type="time" step="60" />
+                        </label>
+                      </div>
+                    </div>
+
+                    <p class="muted">Se o horario de fechamento for menor que o de abertura, a Donilla entende que o atendimento vira a madrugada. Ex.: abre 18:00 e fecha 00:30.</p>
+                  </section>
+                </section>
+
+                <section class="admin-settings-panel hidden" data-settings-panel="whatsapp">
+                  <section class="delivery-fee-admin-section">
+                    <header class="section-head stacked-section-head">
+                      <div>
+                        <h3>WhatsApp da loja</h3>
+                        <p class="muted">Use esta área para conectar o número da loja ao WPPConnect, enviar mensagens automáticas e responder consultas simples de pedido no WhatsApp.</p>
+                      </div>
+                    </header>
+
+                    <div class="whatsapp-admin-guide">
+                      <article class="whatsapp-admin-note whatsapp-admin-note-primary">
+                        <h4>Modo recomendado</h4>
+                        <p>A Donilla usa o WPPConnect do próprio servidor para enviar mensagens automáticas e responder consultas simples no WhatsApp. Esse é o modo principal desta tela.</p>
+                      </article>
+
+                      <article class="whatsapp-admin-note">
+                        <h4>O que precisa estar pronto</h4>
+                        <p><code>WPP_SERVER_URL</code> aponta para o WPPConnect, <code>WPP_SESSION_NAME</code> define a sessão, <code>WPP_SECRET_KEY</code> autentica a integração e <code>APP_BASE_URL</code> informa a URL pública deste backend. O webhook interno usado pelo sistema será <code>/whatsapp/webhook</code>.</p>
+                      </article>
+
+                      <article class="whatsapp-admin-note">
+                        <h4>Passo a passo</h4>
+                        <ol>
+                          <li>Consulte a sessão para ver o estado atual.</li>
+                          <li>Inicie a sessão no WPPConnect.</li>
+                          <li>Busque o QR Code e escaneie no celular da loja.</li>
+                          <li>Ative as mensagens automáticas e envie um teste.</li>
+                        </ol>
+                      </article>
+                    </div>
+
+                    <label class="toggle-line">
+                      <input type="checkbox" name="whatsapp_ativo" />
+                      <span>Ativar mensagens automáticas de novo pedido e atualização de status</span>
+                    </label>
+
+                    <input type="checkbox" name="whatsapp_bot_pausado" hidden />
+
+                    <article class="whatsapp-admin-card-block">
+                      <div class="whatsapp-admin-card-head">
+                        <strong>Pausa do bot</strong>
+                        <span id="whatsappBotPauseMeta" class="muted">Bot em funcionamento normal.</span>
+                      </div>
+
+                      <p class="muted">Use este botão para pausar o bot inteiro no WhatsApp sem desligar container. Enquanto estiver pausado, a Donilla não responde mensagens recebidas nem dispara automações de pedido/status.</p>
+
+                      <div class="split-2">
+                        <button id="whatsappBotPauseBtn" class="ghost-btn" type="button">Pausar bot</button>
+                        <p id="whatsappBotPauseStatus" class="status-text muted" style="margin: 0;">O teste manual continua disponível para validar a integração.</p>
+                      </div>
+                    </article>
+
+                    <div class="whatsapp-admin-actions">
+                      <article class="whatsapp-admin-card-block">
+                        <div class="whatsapp-admin-card-head">
+                          <strong>Conexão do número</strong>
+                          <span id="whatsappSessionMeta" class="muted">Sessão ainda não consultada.</span>
+                        </div>
+
+                        <p class="muted">Primeiro consulte a sessão. Se o número ainda não estiver conectado, inicie a sessão e depois busque o QR Code para parear o aparelho.</p>
+
+                        <div class="split-2">
+                          <button id="whatsappSessionStatusBtn" class="ghost-btn" type="button">Consultar sessão</button>
+                          <button id="whatsappSessionStartBtn" class="ghost-btn" type="button">Iniciar sessão</button>
+                        </div>
+
+                        <div class="split-2">
+                          <button id="whatsappSessionQrBtn" class="ghost-btn" type="button">Buscar QR Code</button>
+                          <span class="whatsapp-admin-inline-tip">Depois de iniciar, carregue o QR Code para escanear no WhatsApp do número da loja.</span>
+                        </div>
+
+                        <p id="whatsappSessionStatus" class="status-text muted"></p>
+                      </article>
+
+                      <article class="whatsapp-admin-card-block">
+                        <div class="whatsapp-admin-card-head">
+                          <strong>QR Code para parear</strong>
+                          <span class="muted">Leia com o celular da loja</span>
+                        </div>
+
+                        <p class="muted">Quando o QR estiver visível, abra o WhatsApp do número da loja, entre em aparelhos conectados e escaneie o código para concluir a conexão.</p>
+                        <img id="whatsappQrPreview" class="hidden" alt="QR Code do WhatsApp" style="max-width: 260px; border-radius: 1rem; border: 1px solid rgba(15, 23, 42, 0.12);" />
+                      </article>
+                    </div>
+
+                    <details>
+                      <summary>Integração externa opcional</summary>
+                      <p class="muted" style="margin-top: 0.75rem;">Use esta opção apenas se você <b>não</b> quiser usar o WPPConnect interno da Donilla. Nesse modo, a Donilla só repassa os dados do pedido para outro sistema seu, e esse sistema externo assume o envio das mensagens.</p>
+                      <p class="muted">Exemplo: você já tem outro bot, outro servidor ou outra automação e quer que a Donilla envie um webhook para ele sempre que um pedido for criado ou atualizado.</p>
+                      <div class="settings-form" style="margin-top: 0.75rem;">
+                        <input name="whatsapp_webhook_url" type="url" placeholder="URL do webhook externo que vai receber os eventos da Donilla" />
+                        <input name="whatsapp_webhook_secret" placeholder="Secret opcional enviado no header x-donilla-bot-secret" />
+                      </div>
+                    </details>
+
+                    <div class="whatsapp-copy-grid">
+                      <label class="whatsapp-copy-card">
+                        <strong>Mensagem de novo pedido</strong>
+                        <span class="muted">Essa é a mensagem enviada assim que o pedido entra no painel.</span>
+                        <textarea
+                          name="whatsapp_mensagem_novo_pedido"
+                          rows="6"
+                          placeholder="Ex.: Oi {cliente_nome}, recebemos seu pedido #{pedido_id}."
+                        ></textarea>
+                        <small>Prefira um texto leve e acolhedor. O ideal é confirmar o pedido e informar apenas o essencial, sem repetir muitos detalhes.</small>
+                      </label>
+
+                      <label class="whatsapp-copy-card">
+                        <strong>Mensagem de atualização de status</strong>
+                        <span class="muted">Essa é a mensagem enviada quando o status do pedido muda no painel.</span>
+                        <textarea
+                          name="whatsapp_mensagem_status"
+                          rows="6"
+                          placeholder="Ex.: Oi {cliente_nome}, passando para te atualizar sobre o pedido #{pedido_id}. {status_mensagem}"
+                        ></textarea>
+                        <small>Evite repetir status, total e prazo em toda atualizacao. Use <code>{status_mensagem}</code> para deixar o sistema adaptar o texto automaticamente em cada etapa.</small>
+                      </label>
+                    </div>
+
+                    <p class="muted"><b>Variáveis disponíveis nas mensagens:</b> <code>{cliente_nome}</code>, <code>{cliente_telefone}</code>, <code>{pedido_id}</code>, <code>{status_entrega_label}</code>, <code>{status_pagamento_label}</code>, <code>{status_anterior_label}</code>, <code>{status_mensagem}</code>, <code>{valor_total}</code>, <code>{valor_entrega}</code>, <code>{metodo_pagamento}</code>, <code>{observacoes}</code>, <code>{endereco_resumo}</code>, <code>{itens_resumo}</code>, <code>{tempo_entrega_min}</code>, <code>{tempo_entrega_max}</code> e <code>{previsao_entrega}</code>. Você pode usar quebras de linha normalmente.</p>
+
+                    <div class="whatsapp-admin-card-block whatsapp-admin-test-block">
+                      <div class="whatsapp-admin-card-head">
+                        <strong>Teste antes de usar</strong>
+                        <span class="muted">Valide o envio manualmente</span>
+                      </div>
+
+                      <p class="muted">Use este teste para confirmar se o número está conectado, se o envio está funcionando e se o texto chega como esperado.</p>
+
+                      <div class="split-2">
+                        <input id="whatsappTestPhone" type="tel" placeholder="Telefone para teste, de preferência com DDI. Ex.: 5551999999999" />
+                        <button id="whatsappTestBtn" class="ghost-btn" type="button">Enviar teste</button>
+                      </div>
+                    </div>
+                    <p id="whatsappTestStatus" class="status-text muted"></p>
+                  </section>
+                </section>
+
+                <div class="settings-submit-row">
+                  <button class="primary-btn" type="submit">Salvar configuração</button>
+                  <p id="settingsStatus" class="status-text muted"></p>
+                </div>
+              </form>
             </div>
 
-            <textarea name="mensagem_aviso" rows="4" lang="pt-BR" spellcheck="true" autocapitalize="sentences" placeholder="Mensagem para clientes (opcional)"></textarea>
-
-            <section class="delivery-fee-admin-section">
-              <header class="section-head stacked-section-head">
-                <div>
-                  <h3>WhatsApp da loja</h3>
-                  <p class="muted">Use esta área para conectar o número da loja ao WPPConnect, enviar mensagens automáticas e responder consultas simples de pedido no WhatsApp.</p>
-                </div>
-              </header>
-
-              <div class="whatsapp-admin-guide">
-                <article class="whatsapp-admin-note whatsapp-admin-note-primary">
-                  <h4>Modo recomendado</h4>
-                  <p>A Donilla usa o WPPConnect do próprio servidor para enviar mensagens automáticas e responder consultas simples no WhatsApp. Esse é o modo principal desta tela.</p>
-                </article>
-
-                <article class="whatsapp-admin-note">
-                  <h4>O que precisa estar pronto</h4>
-                  <p><code>WPP_SERVER_URL</code> aponta para o WPPConnect, <code>WPP_SESSION_NAME</code> define a sessão, <code>WPP_SECRET_KEY</code> autentica a integração e <code>APP_BASE_URL</code> informa a URL pública deste backend. O webhook interno usado pelo sistema será <code>/whatsapp/webhook</code>.</p>
-                </article>
-
-                <article class="whatsapp-admin-note">
-                  <h4>Passo a passo</h4>
-                  <ol>
-                    <li>Consulte a sessão para ver o estado atual.</li>
-                    <li>Inicie a sessão no WPPConnect.</li>
-                    <li>Busque o QR Code e escaneie no celular da loja.</li>
-                    <li>Ative as mensagens automáticas e envie um teste.</li>
-                  </ol>
-                </article>
-              </div>
-
-              <label class="toggle-line">
-                <input type="checkbox" name="whatsapp_ativo" />
-                <span>Ativar mensagens automáticas de novo pedido e atualização de status</span>
-              </label>
-
-              <input type="checkbox" name="whatsapp_bot_pausado" hidden />
-
-              <article class="whatsapp-admin-card-block">
-                <div class="whatsapp-admin-card-head">
-                  <strong>Pausa do bot</strong>
-                  <span id="whatsappBotPauseMeta" class="muted">Bot em funcionamento normal.</span>
-                </div>
-
-                <p class="muted">Use este botão para pausar o bot inteiro no WhatsApp sem desligar container. Enquanto estiver pausado, a Donilla não responde mensagens recebidas nem dispara automações de pedido/status.</p>
-
-                <div class="split-2">
-                  <button id="whatsappBotPauseBtn" class="ghost-btn" type="button">Pausar bot</button>
-                  <p id="whatsappBotPauseStatus" class="status-text muted" style="margin: 0;">O teste manual continua disponível para validar a integração.</p>
-                </div>
-              </article>
-
-              <div class="whatsapp-admin-actions">
-                <article class="whatsapp-admin-card-block">
-                  <div class="whatsapp-admin-card-head">
-                    <strong>Conexão do número</strong>
-                    <span id="whatsappSessionMeta" class="muted">Sessão ainda não consultada.</span>
+            <section class="admin-settings-panel hidden" data-settings-panel="taxas">
+              <section class="delivery-fee-admin-section">
+                <header class="section-head stacked-section-head">
+                  <div>
+                    <h3>Taxas por local</h3>
+                    <p class="muted">Cadastre por bairro, por cidade inteira, ou pelos dois juntos. Para cidade inteira, deixe o bairro vazio.</p>
                   </div>
+                </header>
 
-                  <p class="muted">Primeiro consulte a sessão. Se o número ainda não estiver conectado, inicie a sessão e depois busque o QR Code para parear o aparelho.</p>
-
+                <form id="deliveryFeeForm" class="menu-admin-form">
+                  <input type="hidden" id="deliveryFeeId" />
                   <div class="split-2">
-                    <button id="whatsappSessionStatusBtn" class="ghost-btn" type="button">Consultar sessão</button>
-                    <button id="whatsappSessionStartBtn" class="ghost-btn" type="button">Iniciar sessão</button>
+                    <input id="deliveryFeeBairro" name="bairro" placeholder="Bairro (opcional para cidade inteira)" />
+                    <input id="deliveryFeeCidade" name="cidade" placeholder="Cidade (opcional)" />
                   </div>
-
                   <div class="split-2">
-                    <button id="whatsappSessionQrBtn" class="ghost-btn" type="button">Buscar QR Code</button>
-                    <span class="whatsapp-admin-inline-tip">Depois de iniciar, carregue o QR Code para escanear no WhatsApp do número da loja.</span>
+                    <input id="deliveryFeeValor" name="valor_entrega" type="number" min="0" step="0.01" placeholder="Valor da entrega" required />
+                    <select id="deliveryFeeAtivo" name="ativo">
+                      <option value="true">Ativa</option>
+                      <option value="false">Inativa</option>
+                    </select>
                   </div>
-
-                  <p id="whatsappSessionStatus" class="status-text muted"></p>
-                </article>
-
-                <article class="whatsapp-admin-card-block">
-                  <div class="whatsapp-admin-card-head">
-                    <strong>QR Code para parear</strong>
-                    <span class="muted">Leia com o celular da loja</span>
+                  <div class="lookup-row">
+                    <button id="deliveryFeeSubmitBtn" class="primary-btn" type="submit">Salvar taxa</button>
+                    <button id="deliveryFeeCancelBtn" class="ghost-btn" type="button">Cancelar</button>
                   </div>
+                  <p id="deliveryFeeStatus" class="status-text muted"></p>
+                </form>
 
-                  <p class="muted">Quando o QR estiver visível, abra o WhatsApp do número da loja, entre em aparelhos conectados e escaneie o código para concluir a conexão.</p>
-                  <img id="whatsappQrPreview" class="hidden" alt="QR Code do WhatsApp" style="max-width: 260px; border-radius: 1rem; border: 1px solid rgba(15, 23, 42, 0.12);" />
-                </article>
-              </div>
-
-              <details>
-                <summary>Integração externa opcional</summary>
-                <p class="muted" style="margin-top: 0.75rem;">Use esta opção apenas se você <b>não</b> quiser usar o WPPConnect interno da Donilla. Nesse modo, a Donilla só repassa os dados do pedido para outro sistema seu, e esse sistema externo assume o envio das mensagens.</p>
-                <p class="muted">Exemplo: você já tem outro bot, outro servidor ou outra automação e quer que a Donilla envie um webhook para ele sempre que um pedido for criado ou atualizado.</p>
-                <div class="settings-form" style="margin-top: 0.75rem;">
-                  <input name="whatsapp_webhook_url" type="url" placeholder="URL do webhook externo que vai receber os eventos da Donilla" />
-                  <input name="whatsapp_webhook_secret" placeholder="Secret opcional enviado no header x-donilla-bot-secret" />
-                </div>
-              </details>
-
-              <div class="whatsapp-copy-grid">
-                <label class="whatsapp-copy-card">
-                  <strong>Mensagem de novo pedido</strong>
-                  <span class="muted">Essa é a mensagem enviada assim que o pedido entra no painel.</span>
-                  <textarea
-                    name="whatsapp_mensagem_novo_pedido"
-                    rows="6"
-                    placeholder="Ex.: Oi {cliente_nome}, recebemos seu pedido #{pedido_id}."
-                  ></textarea>
-                  <small>Prefira um texto leve e acolhedor. O ideal é confirmar o pedido e informar apenas o essencial, sem repetir muitos detalhes.</small>
-                </label>
-
-                <label class="whatsapp-copy-card">
-                  <strong>Mensagem de atualização de status</strong>
-                  <span class="muted">Essa é a mensagem enviada quando o status do pedido muda no painel.</span>
-                  <textarea
-                    name="whatsapp_mensagem_status"
-                    rows="6"
-                    placeholder="Ex.: Oi {cliente_nome}, passando para te atualizar sobre o pedido #{pedido_id}. {status_mensagem}"
-                  ></textarea>
-                  <small>Evite repetir status, total e prazo em toda atualizacao. Use <code>{status_mensagem}</code> para deixar o sistema adaptar o texto automaticamente em cada etapa.</small>
-                </label>
-              </div>
-
-              <p class="muted"><b>Variáveis disponíveis nas mensagens:</b> <code>{cliente_nome}</code>, <code>{cliente_telefone}</code>, <code>{pedido_id}</code>, <code>{status_entrega_label}</code>, <code>{status_pagamento_label}</code>, <code>{status_anterior_label}</code>, <code>{status_mensagem}</code>, <code>{valor_total}</code>, <code>{valor_entrega}</code>, <code>{metodo_pagamento}</code>, <code>{observacoes}</code>, <code>{endereco_resumo}</code>, <code>{itens_resumo}</code>, <code>{tempo_entrega_min}</code>, <code>{tempo_entrega_max}</code> e <code>{previsao_entrega}</code>. Você pode usar quebras de linha normalmente.</p>
-
-              <div class="whatsapp-admin-card-block whatsapp-admin-test-block">
-                <div class="whatsapp-admin-card-head">
-                  <strong>Teste antes de usar</strong>
-                  <span class="muted">Valide o envio manualmente</span>
+                <div class="menu-admin-toolbar">
+                  <input id="deliveryFeeSearchInput" placeholder="Buscar bairro ou cidade" />
                 </div>
 
-                <p class="muted">Use este teste para confirmar se o número está conectado, se o envio está funcionando e se o texto chega como esperado.</p>
-
-                <div class="split-2">
-                  <input id="whatsappTestPhone" type="tel" placeholder="Telefone para teste, de preferência com DDI. Ex.: 5551999999999" />
-                  <button id="whatsappTestBtn" class="ghost-btn" type="button">Enviar teste</button>
-                </div>
-              </div>
-              <p id="whatsappTestStatus" class="status-text muted"></p>
+                <div id="deliveryFeeList" class="menu-admin-list"></div>
+              </section>
             </section>
-
-            <button class="primary-btn" type="submit">Salvar configuração</button>
-            <p id="settingsStatus" class="status-text muted"></p>
-          </form>
-
-          <section class="delivery-fee-admin-section">
-            <header class="section-head stacked-section-head">
-              <div>
-                <h3>Taxas por local</h3>
-                <p class="muted">Cadastre por bairro, por cidade inteira, ou pelos dois juntos. Para cidade inteira, deixe o bairro vazio.</p>
-              </div>
-            </header>
-
-            <form id="deliveryFeeForm" class="menu-admin-form">
-              <input type="hidden" id="deliveryFeeId" />
-              <div class="split-2">
-                <input id="deliveryFeeBairro" name="bairro" placeholder="Bairro (opcional para cidade inteira)" />
-                <input id="deliveryFeeCidade" name="cidade" placeholder="Cidade (opcional)" />
-              </div>
-              <div class="split-2">
-                <input id="deliveryFeeValor" name="valor_entrega" type="number" min="0" step="0.01" placeholder="Valor da entrega" required />
-                <select id="deliveryFeeAtivo" name="ativo">
-                  <option value="true">Ativa</option>
-                  <option value="false">Inativa</option>
-                </select>
-              </div>
-              <div class="lookup-row">
-                <button id="deliveryFeeSubmitBtn" class="primary-btn" type="submit">Salvar taxa</button>
-                <button id="deliveryFeeCancelBtn" class="ghost-btn" type="button">Cancelar</button>
-              </div>
-              <p id="deliveryFeeStatus" class="status-text muted"></p>
-            </form>
-
-            <div class="menu-admin-toolbar">
-              <input id="deliveryFeeSearchInput" placeholder="Buscar bairro ou cidade" />
-            </div>
-
-            <div id="deliveryFeeList" class="menu-admin-list"></div>
           </section>
         </article>
       </section>
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325e"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260325f"></script>
 </body>
 </html>
