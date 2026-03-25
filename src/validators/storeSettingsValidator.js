@@ -12,6 +12,39 @@ const booleanLikeSchema = z
   ])
   .transform((value) => (typeof value === 'boolean' ? value : value === 'true'))
 
+const timeTextSchema = z
+  .string()
+  .trim()
+  .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Informe horarios validos no formato HH:MM.')
+
+const dailyStoreHoursSchema = z
+  .object({
+    enabled: booleanLikeSchema,
+    open: timeTextSchema,
+    close: timeTextSchema,
+  })
+  .superRefine((value, ctx) => {
+    if (value.enabled && value.open === value.close) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'O horario de fechamento precisa ser diferente do horario de abertura.',
+      })
+    }
+  })
+  .strict()
+
+const storeHoursScheduleSchema = z
+  .object({
+    sunday: dailyStoreHoursSchema,
+    monday: dailyStoreHoursSchema,
+    tuesday: dailyStoreHoursSchema,
+    wednesday: dailyStoreHoursSchema,
+    thursday: dailyStoreHoursSchema,
+    friday: dailyStoreHoursSchema,
+    saturday: dailyStoreHoursSchema,
+  })
+  .strict()
+
 function optionalTrimmedString(maxLength, message = 'Valor invalido.') {
   return z
     .preprocess((value) => {
@@ -26,6 +59,8 @@ function optionalTrimmedString(maxLength, message = 'Valor invalido.') {
 const updateStoreSettingsSchema = z
   .object({
     loja_aberta: booleanLikeSchema.optional(),
+    horario_automatico_ativo: booleanLikeSchema.optional(),
+    horario_funcionamento: storeHoursScheduleSchema.optional(),
     tempo_entrega_minutos: z.coerce.number().int().positive().max(240).optional(),
     tempo_entrega_max_minutos: z.coerce.number().int().positive().max(240).optional(),
     taxa_entrega_padrao: z.coerce.number().min(0).max(9999).optional(),
@@ -59,7 +94,11 @@ function validateUpdateStoreSettings(input) {
   const parsed = updateStoreSettingsSchema.safeParse(input || {})
   if (!parsed.success) {
     const firstIssue = parsed.error.issues?.[0]?.message
-    if (firstIssue === 'O tempo maximo de entrega deve ser maior ou igual ao minimo.') {
+    if (
+      firstIssue === 'O tempo maximo de entrega deve ser maior ou igual ao minimo.' ||
+      firstIssue === 'Informe horarios validos no formato HH:MM.' ||
+      firstIssue === 'O horario de fechamento precisa ser diferente do horario de abertura.'
+    ) {
       throw new AppError(400, firstIssue)
     }
     throw new AppError(400, 'Dados de configuracao da loja invalidos.')

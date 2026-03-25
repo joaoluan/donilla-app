@@ -1230,6 +1230,7 @@
           tempo_entrega_max_minutos: Number(store?.tempo_entrega_max_minutos || 60),
           taxa_entrega_padrao: Number(store?.taxa_entrega_padrao || 0),
           mensagem_aviso: store?.mensagem_aviso || null,
+          loja_status_descricao: store?.loja_status_descricao || null,
           taxas_entrega_locais: Array.isArray(store?.taxas_entrega_locais) ? store.taxas_entrega_locais : [],
         };
 
@@ -1241,8 +1242,9 @@
         chipDeliveryEl.textContent = `Entrega ${formatDeliveryWindow(storeConfig)}`;
         updateDeliveryFeeUi(getCurrentSession());
 
-        if (storeConfig.mensagem_aviso) {
-          storeNoticeEl.textContent = storeConfig.mensagem_aviso;
+        const notices = [storeConfig.mensagem_aviso, !aberto ? storeConfig.loja_status_descricao : null].filter(Boolean);
+        if (notices.length) {
+          storeNoticeEl.textContent = notices.join(' ');
           storeNoticeEl.classList.remove('hidden');
         } else {
           storeNoticeEl.classList.add('hidden');

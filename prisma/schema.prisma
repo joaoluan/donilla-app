@@ -26,6 +26,8 @@ model clientes {
 model configuracoes_loja {
   id                            Int      @id @default(autoincrement())
   loja_aberta                   Boolean? @default(true)
+  horario_automatico_ativo      Boolean? @default(false)
+  horario_funcionamento         Json?
   tempo_entrega_minutos         Int?     @default(40)
   tempo_entrega_max_minutos     Int?     @default(60)
   taxa_entrega_padrao           Decimal? @default(0.00) @db.Decimal(10, 2)

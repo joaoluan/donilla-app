@@ -1,6 +1,14 @@
 export function bindSettingsSection(ctx) {
   const { dom, state, helpers, api } = ctx;
 
+  dom.settingsFormEl.addEventListener('change', (event) => {
+    const target = event.target;
+    const fieldName = String(target?.name || '');
+    if (fieldName.startsWith('horario_funcionamento_') && fieldName.endsWith('_enabled')) {
+      api.syncStoreHoursInputsState();
+    }
+  });
+
   dom.settingsFormEl.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!state.accessToken) {
@@ -13,6 +21,8 @@ export function bindSettingsSection(ctx) {
     const fd = new FormData(dom.settingsFormEl);
     const payload = {
       loja_aberta: fd.get('loja_aberta') === 'on',
+      horario_automatico_ativo: fd.get('horario_automatico_ativo') === 'on',
+      horario_funcionamento: api.readStoreHoursScheduleFromForm(),
       tempo_entrega_minutos: Number(fd.get('tempo_entrega_minutos')),
       tempo_entrega_max_minutos: Number(fd.get('tempo_entrega_max_minutos')),
       mensagem_aviso: String(fd.get('mensagem_aviso') || '').trim() || null,

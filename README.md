@@ -156,3 +156,4 @@ Antes de subir a API, aplique também:
 - `prisma/sql/20260312_add_clientes_whatsapp_lid.sql`
 - `prisma/sql/20260323_add_asaas_webhook_events.sql`
 - `prisma/sql/20260323_add_pedidos_auditoria.sql`
+- `prisma/sql/20260325_add_store_hours_schedule.sql`

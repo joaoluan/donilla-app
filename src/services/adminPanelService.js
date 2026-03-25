@@ -1,6 +1,7 @@
 const { AppError } = require('../utils/errors')
 const { cleanLocationField } = require('../utils/deliveryFees')
 const { getDefaultStoreSettings, normalizeStoreSettings } = require('../utils/storeSettings')
+const { STORE_OPERATION_TIMEZONE, resolveStoreAvailability } = require('../utils/storeHours')
 const { assertSafeExternalUrl } = require('../utils/security')
 const { scoreSearchMatch } = require('../utils/search')
 const { createOrderAuditService } = require('./orderAuditService')
@@ -91,25 +92,59 @@ function buildAdminAuditActor(auth) {
   return null
 }
 
-function startOfUtcDay(dateText) {
-  return new Date(`${dateText}T00:00:00.000Z`)
+function parseDateParts(dateText) {
+  const [year, month, day] = String(dateText || '')
+    .split('-')
+    .map((part) => Number(part))
+
+  return { year, month, day }
 }
 
-function endOfUtcDay(dateText) {
-  return new Date(`${dateText}T23:59:59.999Z`)
+function startOfDay(dateText) {
+  const { year, month, day } = parseDateParts(dateText)
+  return new Date(year, month - 1, day, 0, 0, 0, 0)
+}
+
+function endOfDay(dateText) {
+  const { year, month, day } = parseDateParts(dateText)
+  return new Date(year, month - 1, day, 23, 59, 59, 999)
 }
 
 function toDateOnly(value) {
-  return new Date(value).toISOString().slice(0, 10)
+  const date = new Date(value)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-function shiftUtcDays(baseDate, diffDays) {
+function shiftDays(baseDate, diffDays) {
   const next = new Date(baseDate)
-  next.setUTCDate(next.getUTCDate() + diffDays)
+  next.setDate(next.getDate() + diffDays)
   return next
 }
 
+function periodLabel(period) {
+  if (period === 'today') return 'Pedidos do dia'
+  if (period === 'custom') return 'Periodo personalizado'
+  if (period === 'month') return 'Este mes'
+  if (period === '30d') return 'Ultimos 30 dias'
+  if (period === 'all') return 'Todo o periodo'
+  return 'Ultimos 7 dias'
+}
+
 function buildPeriodRange(query = {}) {
+  if (query.period !== 'all' && (query.fromAt || query.toAt)) {
+    return {
+      gte: query.fromAt ? new Date(query.fromAt) : undefined,
+      lte: query.toAt ? new Date(query.toAt) : undefined,
+      label: periodLabel(query.period),
+      from: query.from || null,
+      to: query.to || null,
+      period: query.period || '7d',
+    }
+  }
+
   const now = new Date()
   const today = toDateOnly(now)
 
@@ -117,21 +152,33 @@ function buildPeriodRange(query = {}) {
     const from = query.from || null
     const to = query.to || null
     return {
-      gte: from ? startOfUtcDay(from) : undefined,
-      lte: to ? endOfUtcDay(to) : undefined,
-      label: 'Periodo personalizado',
+      gte: from ? startOfDay(from) : undefined,
+      lte: to ? endOfDay(to) : undefined,
+      label: periodLabel('custom'),
       from,
       to,
       period: 'custom',
     }
   }
 
+  if (query.period === 'today') {
+    const todayStart = startOfDay(today)
+    return {
+      gte: todayStart,
+      lte: endOfDay(today),
+      label: periodLabel('today'),
+      from: today,
+      to: today,
+      period: 'today',
+    }
+  }
+
   if (query.period === 'month') {
-    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
     return {
       gte: monthStart,
-      lte: endOfUtcDay(today),
-      label: 'Este mes',
+      lte: endOfDay(today),
+      label: periodLabel('month'),
       from: toDateOnly(monthStart),
       to: today,
       period: 'month',
@@ -139,11 +186,11 @@ function buildPeriodRange(query = {}) {
   }
 
   if (query.period === '30d') {
-    const fromDate = shiftUtcDays(startOfUtcDay(today), -29)
+    const fromDate = shiftDays(startOfDay(today), -29)
     return {
       gte: fromDate,
-      lte: endOfUtcDay(today),
-      label: 'Ultimos 30 dias',
+      lte: endOfDay(today),
+      label: periodLabel('30d'),
       from: toDateOnly(fromDate),
       to: today,
       period: '30d',
@@ -154,18 +201,18 @@ function buildPeriodRange(query = {}) {
     return {
       gte: undefined,
       lte: undefined,
-      label: 'Todo o periodo',
+      label: periodLabel('all'),
       from: null,
       to: null,
       period: 'all',
     }
   }
 
-  const fromDate = shiftUtcDays(startOfUtcDay(today), -6)
+  const fromDate = shiftDays(startOfDay(today), -6)
   return {
     gte: fromDate,
-    lte: endOfUtcDay(today),
-    label: 'Ultimos 7 dias',
+    lte: endOfDay(today),
+    label: periodLabel('7d'),
     from: toDateOnly(fromDate),
     to: today,
     period: '7d',
@@ -785,6 +832,18 @@ function adminPanelService(prisma, deps = {}) {
     return normalizeStoreSettings(config || {})
   }
 
+  function decorateStoreSettings(config) {
+    const availability = resolveStoreAvailability(config)
+
+    return {
+      ...config,
+      horario_timezone: STORE_OPERATION_TIMEZONE,
+      loja_aberta_agora: availability.isOpen,
+      loja_status_motivo: availability.reason,
+      loja_status_descricao: availability.description,
+    }
+  }
+
   function ensureWhatsAppTransport() {
     if (!whatsappTransport) {
       throw new AppError(500, 'Transporte WhatsApp indisponivel no servidor.')
@@ -1166,7 +1225,8 @@ function adminPanelService(prisma, deps = {}) {
     },
 
     async getStoreSettings() {
-      return getStoreSettingsConfig()
+      const config = await getStoreSettingsConfig()
+      return decorateStoreSettings(config)
     },
 
     async updateStoreSettings(data) {
@@ -1187,10 +1247,10 @@ function adminPanelService(prisma, deps = {}) {
           where: { id: current.id },
           data: persistedData,
         })
-        return normalizeStoreSettings(updated)
+        return decorateStoreSettings(normalizeStoreSettings(updated))
       }
       const created = await prisma.configuracoes_loja.create({ data: persistedData })
-      return normalizeStoreSettings(created)
+      return decorateStoreSettings(normalizeStoreSettings(created))
     },
 
     async sendWhatsAppTest(input) {

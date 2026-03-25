@@ -117,6 +117,64 @@ test('listOrders permite forcar busca por pedido com prefixo #', async () => {
   })
 })
 
+test('listOrders filtra pedidos do dia com intervalo fechado de hoje', async () => {
+  const { prisma, calls } = createPrismaMock()
+  const service = adminPanelService(prisma)
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+  const day = now.getDate()
+  const today = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+  const result = await service.listOrders({ period: 'today' })
+
+  assert.deepEqual(calls.findMany[0].where, {
+    criado_em: {
+      gte: new Date(year, month - 1, day, 0, 0, 0, 0),
+      lte: new Date(year, month - 1, day, 23, 59, 59, 999),
+    },
+  })
+  assert.deepEqual(calls.count[0].where, {
+    criado_em: {
+      gte: new Date(year, month - 1, day, 0, 0, 0, 0),
+      lte: new Date(year, month - 1, day, 23, 59, 59, 999),
+    },
+  })
+  assert.equal(result.meta.filters.period, 'today')
+  assert.equal(result.meta.filters.label, 'Pedidos do dia')
+  assert.equal(result.meta.filters.from, today)
+  assert.equal(result.meta.filters.to, today)
+})
+
+test('listOrders prioriza intervalo exato enviado pela interface', async () => {
+  const { prisma, calls } = createPrismaMock()
+  const service = adminPanelService(prisma)
+
+  const result = await service.listOrders({
+    period: 'today',
+    from: '2026-03-25',
+    to: '2026-03-25',
+    fromAt: '2026-03-25T03:00:00.000Z',
+    toAt: '2026-03-26T02:59:59.999Z',
+  })
+
+  assert.deepEqual(calls.findMany[0].where, {
+    criado_em: {
+      gte: new Date('2026-03-25T03:00:00.000Z'),
+      lte: new Date('2026-03-26T02:59:59.999Z'),
+    },
+  })
+  assert.deepEqual(calls.count[0].where, {
+    criado_em: {
+      gte: new Date('2026-03-25T03:00:00.000Z'),
+      lte: new Date('2026-03-26T02:59:59.999Z'),
+    },
+  })
+  assert.equal(result.meta.filters.period, 'today')
+  assert.equal(result.meta.filters.from, '2026-03-25')
+  assert.equal(result.meta.filters.to, '2026-03-25')
+})
+
 test('listCustomers permite localizar clientes pelo numero de pedido', async () => {
   const { prisma, calls } = createCustomerListPrismaMock([])
   const service = adminPanelService(prisma)

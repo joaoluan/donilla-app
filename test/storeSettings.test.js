@@ -57,3 +57,12 @@ test('normalizeStoreSettings aplica pausa do bot como false por padrao', () => {
 
   assert.equal(config.whatsapp_bot_pausado, false)
 })
+
+test('normalizeStoreSettings aplica horario automatico desligado com agenda semanal padrao', () => {
+  const config = normalizeStoreSettings({})
+
+  assert.equal(config.horario_automatico_ativo, false)
+  assert.equal(config.horario_funcionamento.monday.enabled, false)
+  assert.equal(config.horario_funcionamento.monday.open, '09:00')
+  assert.equal(config.horario_funcionamento.monday.close, '18:00')
+})

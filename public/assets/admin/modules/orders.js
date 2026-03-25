@@ -1,9 +1,46 @@
+const ORDERS_AUTO_REFRESH_INTERVAL_MS = 10000;
+
 export function bindOrdersSection(ctx) {
   const { dom, state, helpers, api } = ctx;
+  let autoRefreshRunning = false;
 
   const debouncedLoadOrdersSearch = helpers.createDebounce(220, () => {
     if (!state.accessToken) return;
     api.loadOrders().catch((error) => helpers.setStatus(dom.ordersStatusEl, error.message, 'err'));
+  });
+
+  function shouldAutoRefreshOrders() {
+    if (!state.accessToken) return false;
+    if (!dom.ordersPanelEl || dom.ordersPanelEl.classList.contains('hidden')) return false;
+    if (document.hidden) return false;
+    if (dom.ordersListEl.contains(document.activeElement)) return false;
+    return helpers.validateRangeState(state.ordersState, dom.ordersStatusEl, 'pedidos');
+  }
+
+  async function refreshOrdersAutomatically() {
+    if (autoRefreshRunning || !shouldAutoRefreshOrders()) return;
+
+    autoRefreshRunning = true;
+    try {
+      await api.loadOrders();
+    } catch (error) {
+      helpers.setStatus(dom.ordersStatusEl, error.message, 'err');
+    } finally {
+      autoRefreshRunning = false;
+    }
+  }
+
+  window.setInterval(() => {
+    refreshOrdersAutomatically();
+  }, ORDERS_AUTO_REFRESH_INTERVAL_MS);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    refreshOrdersAutomatically();
+  });
+
+  window.addEventListener('focus', () => {
+    refreshOrdersAutomatically();
   });
 
   dom.refreshOrdersBtnEl.addEventListener('click', async () => {

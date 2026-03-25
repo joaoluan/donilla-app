@@ -3,6 +3,7 @@ const { signToken, verifyToken } = require('../utils/jwt')
 const { hashPassword, verifyPassword } = require('../utils/password')
 const { cleanLocationField, resolveDeliveryFee } = require('../utils/deliveryFees')
 const { normalizeStoreSettings, toPublicStoreSettings } = require('../utils/storeSettings')
+const { resolveStoreAvailability } = require('../utils/storeHours')
 const { createOrderAuditService } = require('./orderAuditService')
 const {
   isStrongCustomerPassword,
@@ -1184,9 +1185,9 @@ function publicStoreService(prisma, deps = {}) {
 
     async createOrder(input) {
       const [config, taxasEntrega] = await Promise.all([getStoreConfig(), listActiveDeliveryFees()])
-      const lojaAberta = config?.loja_aberta ?? true
-      if (!lojaAberta) {
-        throw new AppError(409, 'Loja fechada no momento.')
+      const availability = resolveStoreAvailability(config)
+      if (!availability.isOpen) {
+        throw new AppError(409, availability.checkoutMessage || 'Loja fechada no momento.')
       }
 
       const produtoIds = input.itens.map((item) => item.produto_id)

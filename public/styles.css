@@ -2875,6 +2875,79 @@ button {
   gap: 10px;
 }
 
+.store-hours-admin-section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--slate-200);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 248, 251, 0.96) 100%);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+}
+
+.store-hours-admin-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.store-hours-admin-head h3 {
+  margin: 0;
+  color: var(--slate-900);
+  font-size: 1rem;
+}
+
+.store-hours-admin-head p {
+  margin: 6px 0 0;
+}
+
+.store-hours-admin-live {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 220px;
+}
+
+.store-hours-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.store-hours-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: #f8fafc;
+  transition: opacity 0.16s ease, background-color 0.16s ease;
+}
+
+.store-hours-row.is-disabled {
+  opacity: 0.72;
+}
+
+.store-hours-day-toggle {
+  min-height: 42px;
+}
+
+.store-hours-time {
+  display: grid;
+  gap: 4px;
+  color: var(--slate-700);
+  font-weight: 600;
+}
+
+.store-hours-time span {
+  font-size: 0.82rem;
+}
+
+.store-hours-time input:disabled {
+  cursor: not-allowed;
+  background: rgba(226, 232, 240, 0.7);
+}
+
 .delivery-fee-admin-section {
   margin-top: 18px;
   padding-top: 18px;
@@ -3001,6 +3074,11 @@ button {
   .whatsapp-admin-actions,
   .whatsapp-copy-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .store-hours-row {
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 180px));
+    align-items: center;
   }
 
   .checkout-form .lookup-row .primary-btn,

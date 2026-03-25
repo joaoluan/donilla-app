@@ -555,6 +555,7 @@
                 <option value="cancelado">Cancelado</option>
               </select>
               <select id="ordersRangePreset">
+                <option value="today" selected>Pedidos do dia</option>
                 <option value="7d">Últimos 7 dias</option>
                 <option value="30d">Últimos 30 dias</option>
                 <option value="month">Este mês</option>
@@ -599,6 +600,135 @@
               <input type="checkbox" name="loja_aberta" />
               <span>Loja aberta para pedidos</span>
             </label>
+
+            <section class="store-hours-admin-section">
+              <div class="store-hours-admin-head">
+                <div>
+                  <h3>Horario de funcionamento automatico</h3>
+                  <p class="muted">A Donilla pode abrir e fechar a loja sozinha conforme a agenda abaixo. Se voce fechar manualmente acima, o fechamento manual continua tendo prioridade.</p>
+                </div>
+                <div class="store-hours-admin-live">
+                  <strong id="storeHoursStatusMeta">Status ainda nao consultado.</strong>
+                  <small id="storeHoursTimezoneMeta" class="muted">Fuso da loja: America/Sao_Paulo</small>
+                </div>
+              </div>
+
+              <label class="toggle-line">
+                <input type="checkbox" name="horario_automatico_ativo" />
+                <span>Ativar abertura e fechamento automaticos por horario</span>
+              </label>
+
+              <p id="storeHoursStatus" class="status-text muted">Configure os dias e horarios para a loja abrir e fechar sozinha.</p>
+
+              <div class="store-hours-grid">
+                <div class="store-hours-row" data-store-hours-row="monday">
+                  <label class="toggle-line store-hours-day-toggle">
+                    <input type="checkbox" name="horario_funcionamento_monday_enabled" />
+                    <span>Segunda-feira</span>
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Abre</span>
+                    <input name="horario_funcionamento_monday_open" type="time" step="60" />
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Fecha</span>
+                    <input name="horario_funcionamento_monday_close" type="time" step="60" />
+                  </label>
+                </div>
+
+                <div class="store-hours-row" data-store-hours-row="tuesday">
+                  <label class="toggle-line store-hours-day-toggle">
+                    <input type="checkbox" name="horario_funcionamento_tuesday_enabled" />
+                    <span>Terca-feira</span>
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Abre</span>
+                    <input name="horario_funcionamento_tuesday_open" type="time" step="60" />
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Fecha</span>
+                    <input name="horario_funcionamento_tuesday_close" type="time" step="60" />
+                  </label>
+                </div>
+
+                <div class="store-hours-row" data-store-hours-row="wednesday">
+                  <label class="toggle-line store-hours-day-toggle">
+                    <input type="checkbox" name="horario_funcionamento_wednesday_enabled" />
+                    <span>Quarta-feira</span>
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Abre</span>
+                    <input name="horario_funcionamento_wednesday_open" type="time" step="60" />
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Fecha</span>
+                    <input name="horario_funcionamento_wednesday_close" type="time" step="60" />
+                  </label>
+                </div>
+
+                <div class="store-hours-row" data-store-hours-row="thursday">
+                  <label class="toggle-line store-hours-day-toggle">
+                    <input type="checkbox" name="horario_funcionamento_thursday_enabled" />
+                    <span>Quinta-feira</span>
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Abre</span>
+                    <input name="horario_funcionamento_thursday_open" type="time" step="60" />
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Fecha</span>
+                    <input name="horario_funcionamento_thursday_close" type="time" step="60" />
+                  </label>
+                </div>
+
+                <div class="store-hours-row" data-store-hours-row="friday">
+                  <label class="toggle-line store-hours-day-toggle">
+                    <input type="checkbox" name="horario_funcionamento_friday_enabled" />
+                    <span>Sexta-feira</span>
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Abre</span>
+                    <input name="horario_funcionamento_friday_open" type="time" step="60" />
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Fecha</span>
+                    <input name="horario_funcionamento_friday_close" type="time" step="60" />
+                  </label>
+                </div>
+
+                <div class="store-hours-row" data-store-hours-row="saturday">
+                  <label class="toggle-line store-hours-day-toggle">
+                    <input type="checkbox" name="horario_funcionamento_saturday_enabled" />
+                    <span>Sabado</span>
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Abre</span>
+                    <input name="horario_funcionamento_saturday_open" type="time" step="60" />
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Fecha</span>
+                    <input name="horario_funcionamento_saturday_close" type="time" step="60" />
+                  </label>
+                </div>
+
+                <div class="store-hours-row" data-store-hours-row="sunday">
+                  <label class="toggle-line store-hours-day-toggle">
+                    <input type="checkbox" name="horario_funcionamento_sunday_enabled" />
+                    <span>Domingo</span>
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Abre</span>
+                    <input name="horario_funcionamento_sunday_open" type="time" step="60" />
+                  </label>
+                  <label class="store-hours-time">
+                    <span class="muted">Fecha</span>
+                    <input name="horario_funcionamento_sunday_close" type="time" step="60" />
+                  </label>
+                </div>
+              </div>
+
+              <p class="muted">Se o horario de fechamento for menor que o de abertura, a Donilla entende que o atendimento vira a madrugada. Ex.: abre 18:00 e fecha 00:30.</p>
+            </section>
 
             <div class="split-2">
               <input name="tempo_entrega_minutos" type="number" min="1" max="240" placeholder="Tempo mínimo (min)" />
@@ -786,6 +916,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325c"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260325e"></script>
 </body>
 </html>

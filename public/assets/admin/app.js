@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js'
-import { bindDashboardSection } from './modules/dashboard.js'
-import { bindCustomersSection } from './modules/customers.js'
-import { bindOrdersSection } from './modules/orders.js'
-import { bindSettingsSection } from './modules/settings.js'
-import { bindCatalogSection } from './modules/catalog.js'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325e'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325e'
+import { bindCustomersSection } from './modules/customers.js?v=20260325e'
+import { bindOrdersSection } from './modules/orders.js?v=20260325e'
+import { bindSettingsSection } from './modules/settings.js?v=20260325e'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325e'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -38,6 +38,7 @@ const ORDER_AUDIT_ORIGIN_LABELS = {
   admin: 'Painel admin',
   system: 'Sistema',
 };
+const STORE_HOURS_DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 const adminLayoutEl = document.getElementById('adminLayout');
 const loginCardEl = document.getElementById('loginCard');
@@ -65,6 +66,7 @@ const kpiFaturamentoEl = document.getElementById('kpiFaturamento');
 const ordersMetaEl = document.getElementById('ordersMeta');
 const ordersSearchInputEl = document.getElementById('ordersSearchInput');
 const ordersSearchSuggestionsEl = document.getElementById('ordersSearchSuggestions');
+const ordersPanelEl = document.getElementById('pedidos');
 const statusFilterEl = document.getElementById('statusFilter');
 const ordersRangePresetEl = document.getElementById('ordersRangePreset');
 const ordersFromDateEl = document.getElementById('ordersFromDate');
@@ -102,6 +104,9 @@ const crmRevenueTotalEl = document.getElementById('crmRevenueTotal');
 
 const settingsFormEl = document.getElementById('settingsForm');
 const settingsStatusEl = document.getElementById('settingsStatus');
+const storeHoursStatusMetaEl = document.getElementById('storeHoursStatusMeta');
+const storeHoursTimezoneMetaEl = document.getElementById('storeHoursTimezoneMeta');
+const storeHoursStatusEl = document.getElementById('storeHoursStatus');
 const whatsappSessionStatusBtnEl = document.getElementById('whatsappSessionStatusBtn');
 const whatsappSessionStartBtnEl = document.getElementById('whatsappSessionStartBtn');
 const whatsappSessionQrBtnEl = document.getElementById('whatsappSessionQrBtn');
@@ -125,6 +130,15 @@ const deliveryFeeCancelBtnEl = document.getElementById('deliveryFeeCancelBtn');
 const deliveryFeeSearchInputEl = document.getElementById('deliveryFeeSearchInput');
 const deliveryFeeStatusEl = document.getElementById('deliveryFeeStatus');
 const deliveryFeeListEl = document.getElementById('deliveryFeeList');
+const storeHoursDayInputs = STORE_HOURS_DAY_KEYS.reduce((acc, dayKey) => {
+  acc[dayKey] = {
+    row: document.querySelector(`[data-store-hours-row="${dayKey}"]`),
+    enabled: settingsFormEl?.elements?.[`horario_funcionamento_${dayKey}_enabled`] || null,
+    open: settingsFormEl?.elements?.[`horario_funcionamento_${dayKey}_open`] || null,
+    close: settingsFormEl?.elements?.[`horario_funcionamento_${dayKey}_close`] || null,
+  };
+  return acc;
+}, {});
 
 const categoryFormEl = document.getElementById('categoryForm');
 const categoryIdEl = document.getElementById('categoriaId');
@@ -197,7 +211,7 @@ const ordersState = {
   pageSize: Number(ordersPageSizeInputEl?.value || 10),
   status: statusFilterEl?.value || 'all',
   search: '',
-  period: ordersRangePresetEl?.value || '7d',
+  period: ordersRangePresetEl?.value || 'today',
   from: '',
   to: '',
 };
@@ -678,7 +692,7 @@ function syncCustomersStateFromControls() {
 function syncOrdersStateFromControls() {
   ordersState.search = String(ordersSearchInputEl?.value || '').trim();
   ordersState.status = statusFilterEl?.value || 'all';
-  ordersState.period = ordersRangePresetEl?.value || '7d';
+  ordersState.period = ordersRangePresetEl?.value || 'today';
   ordersState.from = ordersFromDateEl?.value || '';
   ordersState.to = ordersToDateEl?.value || '';
 }
@@ -863,8 +877,67 @@ function buildQueryString(params) {
   return query.toString();
 }
 
+function toIsoDateText(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function parseIsoDateToLocalDate(dateText, { endOfDay = false } = {}) {
+  if (!dateText) return null;
+  const [year, month, day] = String(dateText).split('-').map(Number);
+  if (!year || !month || !day) return null;
+
+  return endOfDay
+    ? new Date(year, month - 1, day, 23, 59, 59, 999)
+    : new Date(year, month - 1, day, 0, 0, 0, 0);
+}
+
+function buildPeriodParams(state, defaultPeriod = '7d') {
+  const period = state?.period || defaultPeriod;
+  if (period === 'all') {
+    return { period };
+  }
+
+  if (period === 'custom') {
+    const fromDate = parseIsoDateToLocalDate(state?.from || '');
+    const toDate = parseIsoDateToLocalDate(state?.to || '', { endOfDay: true });
+
+    return {
+      period,
+      from: state?.from || undefined,
+      to: state?.to || undefined,
+      fromAt: fromDate ? fromDate.toISOString() : undefined,
+      toAt: toDate ? toDate.toISOString() : undefined,
+    };
+  }
+
+  const now = new Date();
+  const toDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  let fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
+  if (period === 'month') {
+    fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  } else if (period === '30d') {
+    fromDate.setDate(fromDate.getDate() - 29);
+  } else if (period === '7d') {
+    fromDate.setDate(fromDate.getDate() - 6);
+  }
+
+  return {
+    period,
+    from: toIsoDateText(fromDate),
+    to: toIsoDateText(toDate),
+    fromAt: fromDate.toISOString(),
+    toAt: toDate.toISOString(),
+  };
+}
+
 function formatRangeMeta(filters) {
   if (!filters) return 'Todo o período';
+  if (filters.from && filters.to && filters.from === filters.to) return `${filters.label} (${filters.from})`;
   if (filters.from && filters.to) return `${filters.label} (${filters.from} a ${filters.to})`;
   if (filters.from) return `${filters.label} (desde ${filters.from})`;
   if (filters.to) return `${filters.label} (até ${filters.to})`;
@@ -1019,7 +1092,7 @@ function clearSession() {
   ordersState.page = 1;
   ordersState.search = '';
   ordersState.status = 'all';
-  ordersState.period = '7d';
+  ordersState.period = 'today';
   ordersState.from = '';
   ordersState.to = '';
   applySessionUi();
@@ -1419,9 +1492,7 @@ function customersQueryString() {
     search: customersState.search,
     segment: customersState.segment,
     sort: customersState.sort,
-    period: customersState.period,
-    from: customersState.period === 'custom' ? customersState.from : undefined,
-    to: customersState.period === 'custom' ? customersState.to : undefined,
+    ...buildPeriodParams(customersState, 'all'),
   });
 }
 
@@ -1603,9 +1674,7 @@ async function loadCurrentUser() {
 
 function dashboardQueryString() {
   return buildQueryString({
-    period: dashboardFilters.period,
-    from: dashboardFilters.period === 'custom' ? dashboardFilters.from : undefined,
-    to: dashboardFilters.period === 'custom' ? dashboardFilters.to : undefined,
+    ...buildPeriodParams(dashboardFilters, '7d'),
   });
 }
 
@@ -1625,9 +1694,7 @@ function ordersQueryString() {
     pageSize: ordersState.pageSize,
     status: ordersState.status,
     search: ordersState.search,
-    period: ordersState.period,
-    from: ordersState.period === 'custom' ? ordersState.from : undefined,
-    to: ordersState.period === 'custom' ? ordersState.to : undefined,
+    ...buildPeriodParams(ordersState, 'today'),
   });
 }
 
@@ -1696,11 +1763,87 @@ async function loadOrders() {
   renderOrders();
 }
 
+function defaultStoreHoursSchedule() {
+  return STORE_HOURS_DAY_KEYS.reduce((acc, dayKey) => {
+    acc[dayKey] = {
+      enabled: false,
+      open: '09:00',
+      close: '18:00',
+    };
+    return acc;
+  }, {});
+}
+
+function readStoreHoursScheduleFromForm() {
+  return STORE_HOURS_DAY_KEYS.reduce((acc, dayKey) => {
+    const inputs = storeHoursDayInputs[dayKey] || {};
+    acc[dayKey] = {
+      enabled: Boolean(inputs.enabled?.checked),
+      open: String(inputs.open?.value || '09:00'),
+      close: String(inputs.close?.value || '18:00'),
+    };
+    return acc;
+  }, {});
+}
+
+function syncStoreHoursInputsState() {
+  STORE_HOURS_DAY_KEYS.forEach((dayKey) => {
+    const inputs = storeHoursDayInputs[dayKey];
+    if (!inputs) return;
+
+    const enabled = Boolean(inputs.enabled?.checked);
+    if (inputs.open) inputs.open.disabled = !enabled;
+    if (inputs.close) inputs.close.disabled = !enabled;
+    inputs.row?.classList.toggle('is-disabled', !enabled);
+  });
+}
+
+function renderStoreHoursStatus(config = {}) {
+  if (storeHoursStatusMetaEl) {
+    storeHoursStatusMetaEl.textContent = config.loja_aberta_agora
+      ? 'Loja aberta agora'
+      : 'Loja fechada agora';
+  }
+
+  if (storeHoursTimezoneMetaEl) {
+    storeHoursTimezoneMetaEl.textContent = `Fuso da loja: ${config.horario_timezone || 'America/Sao_Paulo'}`;
+  }
+
+  if (storeHoursStatusEl) {
+    const automatic = Boolean(config.horario_automatico_ativo);
+    const openNow = Boolean(config.loja_aberta_agora);
+    storeHoursStatusEl.className = `status-text ${openNow ? 'ok' : 'muted'}`;
+    storeHoursStatusEl.textContent = automatic
+      ? (config.loja_status_descricao || 'Horario automatico ativo.')
+      : 'Horario automatico desligado. A loja segue apenas o controle manual acima.';
+  }
+}
+
+function applyStoreHoursConfig(config = {}) {
+  const schedule = config?.horario_funcionamento || defaultStoreHoursSchedule();
+
+  settingsFormEl.elements.horario_automatico_ativo.checked = Boolean(config.horario_automatico_ativo);
+
+  STORE_HOURS_DAY_KEYS.forEach((dayKey) => {
+    const inputs = storeHoursDayInputs[dayKey];
+    const current = schedule[dayKey] || {};
+    if (!inputs) return;
+
+    if (inputs.enabled) inputs.enabled.checked = Boolean(current.enabled);
+    if (inputs.open) inputs.open.value = String(current.open || '09:00');
+    if (inputs.close) inputs.close.value = String(current.close || '18:00');
+  });
+
+  syncStoreHoursInputsState();
+  renderStoreHoursStatus(config);
+}
+
 async function loadStoreSettings() {
   const response = await fetch('/admin/store-settings', { headers: authHeaders() });
   const config = await parseResponse(response);
 
   settingsFormEl.elements.loja_aberta.checked = Boolean(config.loja_aberta);
+  applyStoreHoursConfig(config);
   settingsFormEl.elements.tempo_entrega_minutos.value = Number(config.tempo_entrega_minutos || 40);
   settingsFormEl.elements.tempo_entrega_max_minutos.value = Number(config.tempo_entrega_max_minutos || 60);
   settingsFormEl.elements.mensagem_aviso.value = config.mensagem_aviso || '';
@@ -1712,6 +1855,7 @@ async function loadStoreSettings() {
   settingsFormEl.elements.whatsapp_mensagem_status.value = config.whatsapp_mensagem_status || '';
   renderWhatsAppBotPauseState(config.whatsapp_bot_pausado);
   clearStatus(whatsappTestStatusEl);
+  return config;
 }
 
 function renderWhatsAppBotPauseState(isPaused) {
@@ -2375,6 +2519,7 @@ const dom = {
   ordersMetaEl,
   ordersSearchInputEl,
   ordersSearchSuggestionsEl,
+  ordersPanelEl,
   statusFilterEl,
   ordersRangePresetEl,
   ordersFromDateEl,
@@ -2410,6 +2555,9 @@ const dom = {
   crmRevenueTotalEl,
   settingsFormEl,
   settingsStatusEl,
+  storeHoursStatusMetaEl,
+  storeHoursTimezoneMetaEl,
+  storeHoursStatusEl,
   whatsappSessionStatusBtnEl,
   whatsappSessionStartBtnEl,
   whatsappSessionQrBtnEl,
@@ -2524,6 +2672,9 @@ const api = {
   ensureOrderAuditVisible,
   hideOrderAudit,
   loadStoreSettings,
+  readStoreHoursScheduleFromForm,
+  syncStoreHoursInputsState,
+  renderStoreHoursStatus,
   renderWhatsAppBotPauseState,
   renderWhatsAppSessionState,
   loadWhatsAppSessionStatus,
@@ -2585,6 +2736,7 @@ resetCategoriaForm();
 resetProdutoForm();
 resetDeliveryFeeForm();
 renderDeliveryFeeList();
+syncStoreHoursInputsState();
 if (accessToken) {
   loadAdminData();
 } else {

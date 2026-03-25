@@ -119,6 +119,34 @@ test('parseOrdersQuery deve parsear filtros de listagem', () => {
   })
 })
 
+test('parseOrdersQuery deve aceitar periodo de pedidos do dia', () => {
+  const query = parseOrdersQuery(mockUrl('/admin/orders?period=today'))
+
+  assert.deepEqual(query, {
+    page: 1,
+    pageSize: 10,
+    status: 'all',
+    period: 'today',
+  })
+})
+
+test('parseOrdersQuery deve aceitar timestamps exatos enviados pela interface', () => {
+  const query = parseOrdersQuery(
+    mockUrl('/admin/orders?period=today&from=2026-03-25&to=2026-03-25&fromAt=2026-03-25T03:00:00.000Z&toAt=2026-03-26T02:59:59.999Z'),
+  )
+
+  assert.deepEqual(query, {
+    page: 1,
+    pageSize: 10,
+    status: 'all',
+    period: 'today',
+    from: '2026-03-25',
+    to: '2026-03-25',
+    fromAt: '2026-03-25T03:00:00.000Z',
+    toAt: '2026-03-26T02:59:59.999Z',
+  })
+})
+
 test('parseOrdersQuery deve rejeitar periodo customizado sem datas', () => {
   assert.throws(
     () => parseOrdersQuery(mockUrl('/admin/orders?period=custom')),
@@ -309,6 +337,43 @@ test('validateUpdateStoreSettings deve aceitar payload valido e normalizar mensa
     taxa_entrega_padrao: 7.5,
     mensagem_aviso: null,
   })
+})
+
+test('validateUpdateStoreSettings deve aceitar horario automatico semanal', () => {
+  const data = validateUpdateStoreSettings({
+    horario_automatico_ativo: 'true',
+    horario_funcionamento: {
+      sunday: { enabled: false, open: '09:00', close: '18:00' },
+      monday: { enabled: true, open: '09:00', close: '18:00' },
+      tuesday: { enabled: true, open: '09:00', close: '18:00' },
+      wednesday: { enabled: true, open: '09:00', close: '18:00' },
+      thursday: { enabled: true, open: '09:00', close: '18:00' },
+      friday: { enabled: true, open: '09:00', close: '18:00' },
+      saturday: { enabled: true, open: '09:00', close: '18:00' },
+    },
+  })
+
+  assert.equal(data.horario_automatico_ativo, true)
+  assert.equal(data.horario_funcionamento.monday.enabled, true)
+  assert.equal(data.horario_funcionamento.monday.open, '09:00')
+})
+
+test('validateUpdateStoreSettings deve rejeitar horario com abertura e fechamento iguais', () => {
+  assert.throws(
+    () =>
+      validateUpdateStoreSettings({
+        horario_funcionamento: {
+          sunday: { enabled: false, open: '09:00', close: '18:00' },
+          monday: { enabled: true, open: '09:00', close: '09:00' },
+          tuesday: { enabled: true, open: '09:00', close: '18:00' },
+          wednesday: { enabled: true, open: '09:00', close: '18:00' },
+          thursday: { enabled: true, open: '09:00', close: '18:00' },
+          friday: { enabled: true, open: '09:00', close: '18:00' },
+          saturday: { enabled: true, open: '09:00', close: '18:00' },
+        },
+      }),
+    (error) => error instanceof AppError && error.message === 'O horario de fechamento precisa ser diferente do horario de abertura.',
+  )
 })
 
 test('validateUpdateStoreSettings deve rejeitar tempo maximo menor que minimo', () => {

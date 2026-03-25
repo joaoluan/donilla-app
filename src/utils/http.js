@@ -14,6 +14,7 @@ function sendJson(res, statusCode, data, headers = {}) {
 function sendRaw(res, statusCode, body, contentType = 'text/plain; charset=utf-8', headers = {}) {
   res.writeHead(statusCode, {
     ...getSecurityHeaders(),
+    ...getNoStoreHeaders(),
     'Content-Type': contentType,
     ...headers,
   })

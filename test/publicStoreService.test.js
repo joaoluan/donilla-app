@@ -318,6 +318,84 @@ test('getStore nao deve expor configuracoes privadas do bot de WhatsApp', async 
   assert.equal(Object.prototype.hasOwnProperty.call(result, 'whatsapp_webhook_secret'), false)
 })
 
+test('getStore deve refletir loja fechada quando o horario automatico nao tem agenda ativa', async () => {
+  const service = publicStoreService(
+    createPrismaMock(null, {
+      storeConfig: {
+        id: 2,
+        loja_aberta: true,
+        horario_automatico_ativo: true,
+        horario_funcionamento: {
+          sunday: { enabled: false, open: '09:00', close: '18:00' },
+          monday: { enabled: false, open: '09:00', close: '18:00' },
+          tuesday: { enabled: false, open: '09:00', close: '18:00' },
+          wednesday: { enabled: false, open: '09:00', close: '18:00' },
+          thursday: { enabled: false, open: '09:00', close: '18:00' },
+          friday: { enabled: false, open: '09:00', close: '18:00' },
+          saturday: { enabled: false, open: '09:00', close: '18:00' },
+        },
+      },
+    }),
+  )
+
+  const result = await service.getStore()
+
+  assert.equal(result.loja_aberta, false)
+  assert.equal(result.loja_status_motivo, 'schedule_unavailable')
+})
+
+test('createOrder deve bloquear pedido quando a loja estiver fechada pelo horario automatico', async () => {
+  const originalSecret = process.env.JWT_SECRET
+  process.env.JWT_SECRET = 'test-secret'
+  const { prisma } = createOrderPrismaMock({
+    storeConfig: {
+      loja_aberta: true,
+      horario_automatico_ativo: true,
+      horario_funcionamento: {
+        sunday: { enabled: false, open: '09:00', close: '18:00' },
+        monday: { enabled: false, open: '09:00', close: '18:00' },
+        tuesday: { enabled: false, open: '09:00', close: '18:00' },
+        wednesday: { enabled: false, open: '09:00', close: '18:00' },
+        thursday: { enabled: false, open: '09:00', close: '18:00' },
+        friday: { enabled: false, open: '09:00', close: '18:00' },
+        saturday: { enabled: false, open: '09:00', close: '18:00' },
+      },
+      taxa_entrega_padrao: '0.00',
+    },
+  })
+  const service = publicStoreService(prisma)
+
+  try {
+    await assert.rejects(
+      () =>
+        service.createOrder({
+          cliente_session_token: signToken(
+            {
+              purpose: 'customer_session',
+              customer_id: null,
+              telefone_whatsapp: '11999999999',
+              nome: 'Maria Teste',
+              endereco: {
+                rua: 'Rua das Flores',
+                numero: '20',
+                bairro: 'Centro',
+                cidade: 'Sapiranga',
+              },
+            },
+            'test-secret',
+            3600,
+          ),
+          metodo_pagamento: 'pix',
+          itens: [{ produto_id: 1, quantidade: 1 }],
+        }),
+      /Loja fechada no momento/i,
+    )
+  } finally {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET
+    else process.env.JWT_SECRET = originalSecret
+  }
+})
+
 test('createOrder deve criar pedido pix aguardando pagamento de forma persistente', async () => {
   const originalSecret = process.env.JWT_SECRET
   process.env.JWT_SECRET = 'test-secret'

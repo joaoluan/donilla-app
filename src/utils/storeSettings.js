@@ -1,3 +1,10 @@
+const {
+  STORE_OPERATION_TIMEZONE,
+  getDefaultStoreHours,
+  normalizeStoreHours,
+  resolveStoreAvailability,
+} = require('./storeHours')
+
 const DEFAULT_WHATSAPP_NEW_ORDER_TEMPLATE =
   [
     'Oi {cliente_nome}, recebemos seu pedido #{pedido_id}.',
@@ -38,6 +45,8 @@ const LEGACY_WHATSAPP_STATUS_TEMPLATES = [
 function getDefaultStoreSettings() {
   return {
     loja_aberta: true,
+    horario_automatico_ativo: false,
+    horario_funcionamento: getDefaultStoreHours(),
     tempo_entrega_minutos: 40,
     tempo_entrega_max_minutos: 60,
     taxa_entrega_padrao: 0,
@@ -72,6 +81,8 @@ function normalizeStoreSettings(input = {}) {
   return {
     ...defaults,
     ...input,
+    horario_automatico_ativo: input.horario_automatico_ativo ?? defaults.horario_automatico_ativo,
+    horario_funcionamento: normalizeStoreHours(input.horario_funcionamento),
     mensagem_aviso: input.mensagem_aviso ?? defaults.mensagem_aviso,
     whatsapp_ativo: input.whatsapp_ativo ?? defaults.whatsapp_ativo,
     whatsapp_bot_pausado: input.whatsapp_bot_pausado ?? defaults.whatsapp_bot_pausado,
@@ -92,10 +103,17 @@ function normalizeStoreSettings(input = {}) {
 
 function toPublicStoreSettings(input = {}) {
   const config = normalizeStoreSettings(input)
+  const availability = resolveStoreAvailability(config)
 
   return {
     id: input.id,
-    loja_aberta: config.loja_aberta,
+    loja_aberta: availability.isOpen,
+    loja_aberta_manual: config.loja_aberta,
+    horario_automatico_ativo: config.horario_automatico_ativo,
+    horario_funcionamento: config.horario_funcionamento,
+    horario_timezone: STORE_OPERATION_TIMEZONE,
+    loja_status_motivo: availability.reason,
+    loja_status_descricao: availability.description,
     tempo_entrega_minutos: config.tempo_entrega_minutos,
     tempo_entrega_max_minutos: config.tempo_entrega_max_minutos,
     taxa_entrega_padrao: config.taxa_entrega_padrao,
