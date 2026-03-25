@@ -3,6 +3,8 @@ export function bindCatalogSection(ctx) {
 
   const catalogTabButtons = Array.from(document.querySelectorAll('[data-catalog-tab]'));
   const catalogPanels = Array.from(document.querySelectorAll('[data-catalog-tab-panel]'));
+  const categoryOpenFormBtn = document.getElementById('categoryOpenFormBtn');
+  const categoryEditorCard = document.getElementById('categoryEditorCard');
   const produtoOpenFormBtn = document.getElementById('produtoOpenFormBtn');
   const produtoEditorCard = document.getElementById('produtoEditorCard');
 
@@ -35,6 +37,16 @@ export function bindCatalogSection(ctx) {
     api.renderCatalogPortal();
   });
 
+  const focusCategoriaEditor = ({ reset = false } = {}) => {
+    if (reset) {
+      api.resetCategoriaForm();
+    }
+
+    setActiveCatalogTab('categorias');
+    categoryEditorCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    dom.categoryNomeEl?.focus({ preventScroll: true });
+  };
+
   const focusProdutoEditor = ({ reset = false } = {}) => {
     if (reset) {
       api.resetProdutoForm();
@@ -63,9 +75,13 @@ export function bindCatalogSection(ctx) {
 
   if (dom.catalogGoToCategoriasBtnEl) {
     dom.catalogGoToCategoriasBtnEl.addEventListener('click', () => {
-      api.resetCategoriaForm();
-      setActiveCatalogTab('categorias');
-      dom.categoryNomeEl?.focus();
+      focusCategoriaEditor({ reset: true });
+    });
+  }
+
+  if (categoryOpenFormBtn) {
+    categoryOpenFormBtn.addEventListener('click', () => {
+      focusCategoriaEditor({ reset: true });
     });
   }
 
@@ -89,8 +105,7 @@ export function bindCatalogSection(ctx) {
         const categoria = state.allCategorias.find((item) => item.id === categoriaId);
         if (categoria) {
           api.startCategoriaEdit(categoria);
-          setActiveCatalogTab('categorias');
-          dom.categoryNomeEl?.focus();
+          focusCategoriaEditor();
         }
         return;
       }
@@ -361,6 +376,7 @@ export function bindCatalogSection(ctx) {
       const categoria = state.menuCategorias.find((item) => item.id === id);
       if (categoria) {
         api.startCategoriaEdit(categoria);
+        focusCategoriaEditor();
       }
       return;
     }

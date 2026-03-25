@@ -2235,6 +2235,63 @@ button {
   gap: 16px;
 }
 
+.catalog-categories-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.catalog-categories-filter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.catalog-categories-filter-head .primary-btn {
+  flex: 0 0 auto;
+}
+
+.catalog-categories-list-head {
+  margin-bottom: 12px;
+}
+
+.catalog-categories-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.catalog-categories-editor-card {
+  width: min(100%, 640px);
+}
+
+.catalog-admin-category-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalog-admin-category-metric {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #dbe4ee;
+}
+
+.catalog-admin-category-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .catalog-products-shell {
   display: flex;
   flex-direction: column;
@@ -4113,6 +4170,11 @@ button {
   .catalog-admin-toolbar-actions .ghost-btn,
   .catalog-admin-toolbar-actions .primary-btn {
     flex: 0 0 auto;
+  }
+
+  .catalog-categories-toolbar {
+    grid-template-columns: minmax(0, 1.3fr) repeat(2, minmax(180px, 0.72fr));
+    align-items: center;
   }
 
   .catalog-products-toolbar {

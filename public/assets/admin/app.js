@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325i'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325i'
-import { bindCustomersSection } from './modules/customers.js?v=20260325i'
-import { bindOrdersSection } from './modules/orders.js?v=20260325i'
-import { bindSettingsSection } from './modules/settings.js?v=20260325i'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325i'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325j'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325j'
+import { bindCustomersSection } from './modules/customers.js?v=20260325j'
+import { bindOrdersSection } from './modules/orders.js?v=20260325j'
+import { bindSettingsSection } from './modules/settings.js?v=20260325j'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325j'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -1193,10 +1193,10 @@ function clearSession() {
     customersPageSizeInputEl.value = '12';
   }
   if (categoryListEl) {
-    categoryListEl.innerHTML = '<p class="muted">Faça login para carregar categorias.</p>';
+    categoryListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para carregar categorias.</p></div>';
   }
   if (produtoListEl) {
-    produtoListEl.innerHTML = '<p class="muted">Faça login para carregar itens.</p>';
+    produtoListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para carregar itens.</p></div>';
   }
   if (catalogPortalListEl) {
     catalogPortalListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para visualizar a vitrine do cardápio.</p></div>';
@@ -2283,7 +2283,7 @@ async function removeDeliveryFee(id) {
 
 function renderCategoryList() {
   if (!accessToken) {
-    categoryListEl.innerHTML = '<p class="muted">Faça login para gerenciar categorias.</p>';
+    categoryListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para gerenciar categorias.</p></div>';
     updateDatalistOptions(categorySearchSuggestionsEl, []);
     renderCategoryMeta();
     return;
@@ -2300,27 +2300,37 @@ function renderCategoryList() {
   if (menuCategorias.length === 0) {
     const semBusca = String(categoryState.search || '').trim();
     categoryListEl.innerHTML = semBusca
-      ? '<p class="muted">Nenhuma categoria corresponde ao filtro.</p>'
-      : '<p class="muted">Nenhuma categoria cadastrada.</p>';
+      ? '<div class="catalog-admin-preview-empty"><p class="muted">Nenhuma categoria corresponde ao filtro.</p></div>'
+      : '<div class="catalog-admin-preview-empty"><p class="muted">Nenhuma categoria cadastrada.</p></div>';
     renderCategoryMeta();
     return;
   }
 
   categoryListEl.innerHTML = menuCategorias
-    .map((categoria) => `
-      <article class="menu-admin-item">
-        <div class="menu-admin-item-main">
-          <strong>${escapeHtml(categoria.nome)}</strong>
-          <span>ID: ${categoria.id}</span>
-          <span>Ordem: ${categoria.ordem_exibicao || 0}</span>
-          <span>Itens vinculados: ${Number(categoria._count?.produtos || 0)}</span>
-        </div>
-        <div class="menu-admin-item-actions">
-          <button type="button" class="ghost-btn" data-category-edit="${categoria.id}">Editar</button>
-          <button type="button" class="ghost-btn" data-category-delete="${categoria.id}">Excluir</button>
-        </div>
-      </article>
-    `)
+    .map((categoria) => {
+      const totalProdutos = Number(categoria._count?.produtos || 0);
+      const ordem = Number(categoria.ordem_exibicao || 0);
+
+      return `
+        <article class="catalog-admin-category-card">
+          <header class="catalog-admin-category-head">
+            <div class="catalog-admin-category-title">
+              <h4>${escapeHtml(categoria.nome)}</h4>
+              <p>${totalProdutos} item(ns) vinculados nesta categoria.</p>
+            </div>
+            <div class="catalog-admin-category-actions">
+              <button type="button" class="ghost-btn" data-category-edit="${categoria.id}">Editar</button>
+              <button type="button" class="ghost-btn" data-category-delete="${categoria.id}">Excluir</button>
+            </div>
+          </header>
+          <div class="catalog-admin-category-metrics">
+            <span class="catalog-admin-category-metric">ID ${categoria.id}</span>
+            <span class="catalog-admin-category-metric">Ordem ${ordem}</span>
+            <span class="catalog-admin-category-metric">${totalProdutos} item(ns)</span>
+          </div>
+        </article>
+      `;
+    })
     .join('');
 
   renderCategoryMeta();

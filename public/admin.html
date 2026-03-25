@@ -484,10 +484,53 @@
             </section>
 
             <section class="catalog-admin-panel hidden" data-catalog-tab-panel="categorias">
-              <div class="catalog-management-layout">
-                <section class="menu-admin-card">
+              <div class="catalog-categories-shell">
+                <section class="menu-admin-card catalog-categories-filter-card">
+                  <div class="catalog-categories-filter-head">
+                    <div class="catalog-section-copy">
+                      <h3>Lista de categorias</h3>
+                      <p class="muted">Filtre, ordene e reorganize rapidamente os grupos do menu.</p>
+                    </div>
+                    <button id="categoryOpenFormBtn" class="primary-btn" type="button">Cadastrar categoria</button>
+                  </div>
+
+                  <div class="menu-admin-toolbar catalog-categories-toolbar">
+                    <input id="categorySearchInput" list="categorySearchSuggestions" autocomplete="off" placeholder="Buscar categoria" />
+                    <datalist id="categorySearchSuggestions"></datalist>
+                    <select id="categorySortInput">
+                      <option value="ordem_exibicao">Ordenar por ordem</option>
+                      <option value="nome">Ordenar por nome</option>
+                      <option value="id">Ordenar por cadastro</option>
+                    </select>
+                    <select id="categoryPageSizeInput">
+                      <option value="6">6 por página</option>
+                      <option value="10" selected>10 por página</option>
+                      <option value="20">20 por página</option>
+                    </select>
+                  </div>
+                </section>
+
+                <section class="menu-admin-card catalog-categories-list-card">
+                  <div class="catalog-categories-list-head">
+                    <div class="catalog-section-copy">
+                      <h3>Categorias cadastradas</h3>
+                      <p class="muted">Os grupos aparecem em cards para facilitar revisão, ordem e edição rápida.</p>
+                    </div>
+                  </div>
+
+                  <div id="categoryList" class="catalog-categories-results"></div>
+                  <div class="list-footer">
+                    <p id="categoryMeta" class="muted">Faça login para carregar categorias.</p>
+                    <div class="pager">
+                      <button id="categoryPrevBtn" class="ghost-btn" type="button">Anterior</button>
+                      <button id="categoryNextBtn" class="ghost-btn" type="button">Próxima</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section id="categoryEditorCard" class="menu-admin-card catalog-categories-editor-card">
                   <div class="catalog-section-copy">
-                    <h3>Categorias</h3>
+                    <h3>Cadastro e edição</h3>
                     <p class="muted">Crie e reorganize os grupos do cardápio.</p>
                   </div>
 
@@ -502,37 +545,6 @@
                     </div>
                     <p id="categoryStatus" class="status-text muted"></p>
                   </form>
-                </section>
-
-                <section class="menu-admin-card">
-                  <div class="catalog-section-copy">
-                    <h3>Lista de categorias</h3>
-                    <p class="muted">Filtre, ordene e edite rapidamente os grupos do menu.</p>
-                  </div>
-
-                  <div class="menu-admin-toolbar">
-                    <input id="categorySearchInput" list="categorySearchSuggestions" autocomplete="off" placeholder="Buscar categoria" />
-                    <datalist id="categorySearchSuggestions"></datalist>
-                    <select id="categorySortInput">
-                      <option value="ordem_exibicao">Ordenar por ordem</option>
-                      <option value="nome">Ordenar por nome</option>
-                      <option value="id">Ordenar por cadastro</option>
-                    </select>
-                    <select id="categoryPageSizeInput">
-                      <option value="6">6 por página</option>
-                      <option value="10" selected>10 por página</option>
-                      <option value="20">20 por página</option>
-                    </select>
-                  </div>
-
-                  <div id="categoryList" class="menu-admin-list"></div>
-                  <div class="list-footer">
-                    <p id="categoryMeta" class="muted">Faça login para carregar categorias.</p>
-                    <div class="pager">
-                      <button id="categoryPrevBtn" class="ghost-btn" type="button">Anterior</button>
-                      <button id="categoryNextBtn" class="ghost-btn" type="button">Próxima</button>
-                    </div>
-                  </div>
                 </section>
               </div>
             </section>
@@ -1142,6 +1154,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325i"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260325j"></script>
 </body>
 </html>
