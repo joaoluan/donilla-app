@@ -538,10 +538,63 @@
             </section>
 
             <section class="catalog-admin-panel hidden" data-catalog-tab-panel="produtos">
-              <div class="catalog-management-layout">
-                <section class="menu-admin-card">
+              <div class="catalog-products-shell">
+                <section class="menu-admin-card catalog-products-filter-card">
+                  <div class="catalog-products-filter-head">
+                    <div class="catalog-section-copy">
+                      <h3>Lista de produtos</h3>
+                      <p class="muted">Filtre por disponibilidade, categoria e estoque para agir rápido.</p>
+                    </div>
+                    <button id="produtoOpenFormBtn" class="primary-btn" type="button">Cadastrar item</button>
+                  </div>
+
+                  <div class="menu-admin-toolbar catalog-products-toolbar">
+                    <input id="produtoSearchInput" list="produtoSearchSuggestions" autocomplete="off" placeholder="Buscar item" />
+                    <datalist id="produtoSearchSuggestions"></datalist>
+                    <select id="produtoSortInput">
+                      <option value="nome_doce">Ordenar por nome</option>
+                      <option value="preco">Ordenar por preço</option>
+                      <option value="estoque_disponivel">Ordenar por estoque</option>
+                      <option value="categoria">Ordenar por categoria</option>
+                    </select>
+                    <select id="produtoDisponibilidadeFilter">
+                      <option value="all">Todos</option>
+                      <option value="disponiveis">Disponíveis</option>
+                      <option value="inativos">Inativos</option>
+                      <option value="sem_estoque">Sem estoque</option>
+                    </select>
+                    <select id="produtoCategoriaFilter">
+                      <option value="all">Todas as categorias</option>
+                    </select>
+                    <select id="produtoPageSizeInput">
+                      <option value="8">8 por página</option>
+                      <option value="12" selected>12 por página</option>
+                      <option value="24">24 por página</option>
+                    </select>
+                  </div>
+                </section>
+
+                <section class="menu-admin-card catalog-products-list-card">
+                  <div class="catalog-products-list-head">
+                    <div class="catalog-section-copy">
+                      <h3>Produtos cadastrados</h3>
+                      <p class="muted">Os itens aparecem em cards padronizados para facilitar leitura e edição rápida.</p>
+                    </div>
+                  </div>
+
+                  <div id="produtoList" class="catalog-products-results"></div>
+                  <div class="list-footer">
+                    <p id="produtoMeta" class="muted">Faça login para carregar itens.</p>
+                    <div class="pager">
+                      <button id="produtoPrevBtn" class="ghost-btn" type="button">Anterior</button>
+                      <button id="produtoNextBtn" class="ghost-btn" type="button">Próxima</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section id="produtoEditorCard" class="menu-admin-card catalog-products-editor-card">
                   <div class="catalog-section-copy">
-                    <h3>Produtos</h3>
+                    <h3>Cadastro e edição</h3>
                     <p class="muted">Cadastre preço, descrição, imagem e disponibilidade do item.</p>
                   </div>
 
@@ -582,47 +635,6 @@
                     </div>
                     <p id="produtoStatus" class="status-text muted"></p>
                   </form>
-                </section>
-
-                <section class="menu-admin-card">
-                  <div class="catalog-section-copy">
-                    <h3>Lista de produtos</h3>
-                    <p class="muted">Filtre por disponibilidade, categoria e estoque para agir rápido.</p>
-                  </div>
-
-                  <div class="menu-admin-toolbar">
-                    <input id="produtoSearchInput" list="produtoSearchSuggestions" autocomplete="off" placeholder="Buscar item" />
-                    <datalist id="produtoSearchSuggestions"></datalist>
-                    <select id="produtoSortInput">
-                      <option value="nome_doce">Ordenar por nome</option>
-                      <option value="preco">Ordenar por preço</option>
-                      <option value="estoque_disponivel">Ordenar por estoque</option>
-                      <option value="categoria">Ordenar por categoria</option>
-                    </select>
-                    <select id="produtoDisponibilidadeFilter">
-                      <option value="all">Todos</option>
-                      <option value="disponiveis">Disponíveis</option>
-                      <option value="inativos">Inativos</option>
-                      <option value="sem_estoque">Sem estoque</option>
-                    </select>
-                    <select id="produtoCategoriaFilter">
-                      <option value="all">Todas as categorias</option>
-                    </select>
-                    <select id="produtoPageSizeInput">
-                      <option value="8">8 por página</option>
-                      <option value="12" selected>12 por página</option>
-                      <option value="24">24 por página</option>
-                    </select>
-                  </div>
-
-                  <div id="produtoList" class="menu-admin-list"></div>
-                  <div class="list-footer">
-                    <p id="produtoMeta" class="muted">Faça login para carregar itens.</p>
-                    <div class="pager">
-                      <button id="produtoPrevBtn" class="ghost-btn" type="button">Anterior</button>
-                      <button id="produtoNextBtn" class="ghost-btn" type="button">Próxima</button>
-                    </div>
-                  </div>
                 </section>
               </div>
             </section>
@@ -1130,6 +1142,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325h"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260325i"></script>
 </body>
 </html>

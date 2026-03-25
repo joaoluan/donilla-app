@@ -3,6 +3,8 @@ export function bindCatalogSection(ctx) {
 
   const catalogTabButtons = Array.from(document.querySelectorAll('[data-catalog-tab]'));
   const catalogPanels = Array.from(document.querySelectorAll('[data-catalog-tab-panel]'));
+  const produtoOpenFormBtn = document.getElementById('produtoOpenFormBtn');
+  const produtoEditorCard = document.getElementById('produtoEditorCard');
 
   const setActiveCatalogTab = (nextTab) => {
     const fallbackTab = catalogTabButtons[0]?.dataset.catalogTab || 'cardapio';
@@ -33,6 +35,18 @@ export function bindCatalogSection(ctx) {
     api.renderCatalogPortal();
   });
 
+  const focusProdutoEditor = ({ reset = false } = {}) => {
+    if (reset) {
+      api.resetProdutoForm();
+    }
+
+    setActiveCatalogTab('produtos');
+    produtoEditorCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const focusTarget = reset ? dom.produtoCategoriaEl : dom.produtoNomeEl;
+    focusTarget?.focus({ preventScroll: true });
+  };
+
   if (dom.catalogPortalSearchInputEl) {
     dom.catalogPortalSearchInputEl.addEventListener('input', () => {
       state.catalogPortalState.search = String(dom.catalogPortalSearchInputEl.value || '').trim();
@@ -57,9 +71,13 @@ export function bindCatalogSection(ctx) {
 
   if (dom.catalogGoToProdutosBtnEl) {
     dom.catalogGoToProdutosBtnEl.addEventListener('click', () => {
-      api.resetProdutoForm();
-      setActiveCatalogTab('produtos');
-      dom.produtoNomeEl?.focus();
+      focusProdutoEditor({ reset: true });
+    });
+  }
+
+  if (produtoOpenFormBtn) {
+    produtoOpenFormBtn.addEventListener('click', () => {
+      focusProdutoEditor({ reset: true });
     });
   }
 
@@ -83,8 +101,7 @@ export function bindCatalogSection(ctx) {
         const produto = state.allMenuProdutos.find((item) => item.id === produtoId);
         if (produto) {
           api.populateProdutoForm(produto);
-          setActiveCatalogTab('produtos');
-          dom.produtoNomeEl?.focus();
+          focusProdutoEditor();
         }
       }
     });
@@ -364,6 +381,7 @@ export function bindCatalogSection(ctx) {
       const produto = state.menuProdutos.find((item) => item.id === id);
       if (produto) {
         api.populateProdutoForm(produto);
+        focusProdutoEditor();
       }
       return;
     }

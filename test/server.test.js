@@ -92,7 +92,7 @@ test('assets do admin modularizado devem ser servidos como javascript', async ()
   assert.equal(appModuleResponse.statusCode, 200)
   assert.equal(appModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
   assert.equal(appModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
-  assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=20260325h)?'/)
+  assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=20260325i)?'/)
 
   const nestedModuleResponse = await requestApp(app, { url: '/assets/admin/modules/navigation.js' })
   assert.equal(nestedModuleResponse.statusCode, 200)

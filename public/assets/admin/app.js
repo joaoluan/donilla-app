@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325h'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325h'
-import { bindCustomersSection } from './modules/customers.js?v=20260325h'
-import { bindOrdersSection } from './modules/orders.js?v=20260325h'
-import { bindSettingsSection } from './modules/settings.js?v=20260325h'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325h'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325i'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325i'
+import { bindCustomersSection } from './modules/customers.js?v=20260325i'
+import { bindOrdersSection } from './modules/orders.js?v=20260325i'
+import { bindSettingsSection } from './modules/settings.js?v=20260325i'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325i'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -2528,7 +2528,7 @@ function renderProdutoMeta() {
 
 function renderProdutoList() {
   if (!accessToken) {
-    produtoListEl.innerHTML = '<p class="muted">Faça login para gerenciar itens.</p>';
+    produtoListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para gerenciar itens.</p></div>';
     updateDatalistOptions(produtoSearchSuggestionsEl, []);
     renderProdutoMeta();
     return;
@@ -2546,8 +2546,8 @@ function renderProdutoList() {
     const semBusca = String(produtoState.search || '').trim();
     const semFiltro = semBusca || produtoState.disponibilidade !== 'all' || produtoState.categoria_id !== 'all';
     produtoListEl.innerHTML = semFiltro
-      ? '<p class="muted">Nenhum item corresponde ao filtro.</p>'
-      : '<p class="muted">Nenhum item cadastrado.</p>';
+      ? '<div class="catalog-admin-preview-empty"><p class="muted">Nenhum item corresponde ao filtro.</p></div>'
+      : '<div class="catalog-admin-preview-empty"><p class="muted">Nenhum item cadastrado.</p></div>';
     renderProdutoMeta();
     return;
   }
@@ -2555,15 +2555,32 @@ function renderProdutoList() {
   produtoListEl.innerHTML = menuProdutos
     .map((produto) => {
       const estoque = normalizeEstoque(produto.estoque_disponivel);
-      const estoqueTexto = estoque === null ? 'Sem limite' : String(estoque);
+      const disponibilidadeClasse = isProdutoDisponivel(produto) ? 'is-live' : 'is-off';
+      const disponibilidadeTexto = availabilityLabel(produto);
+      const categoriaNome = productCategoryName(produto.categoria_id || produto.categorias?.id);
+      const estoqueTexto = estoque === null ? 'Sem limite de estoque' : (estoque <= 0 ? 'Estoque zerado' : `Estoque ${estoque}`);
+      const media = produto.imagem_url
+        ? `<img src="${escapeHtml(produto.imagem_url)}" alt="${escapeHtml(produto.nome_doce)}" loading="lazy" />`
+        : `<div class="catalog-admin-product-media-fallback">${escapeHtml(String(produto.nome_doce || '?').slice(0, 1).toUpperCase())}</div>`;
+
       return `
-        <article class="menu-admin-item">
-          <div class="menu-admin-item-main">
-            <strong>${escapeHtml(produto.nome_doce)}</strong>
-            <span>${escapeHtml(productCategoryName(produto.categoria_id || produto.categorias?.id))}</span>
-            <span>Preço: ${brl(produto.preco)} | Estoque: ${estoqueTexto} | Disponível: ${availabilityLabel(produto)}</span>
+        <article class="catalog-admin-product-card catalog-products-result-card">
+          <div class="catalog-admin-product-main">
+            <div class="catalog-admin-product-media">${media}</div>
+            <div class="catalog-admin-product-copy">
+              <div class="catalog-admin-product-head">
+                <strong>${escapeHtml(produto.nome_doce)}</strong>
+                <span class="catalog-admin-product-price">${brl(produto.preco)}</span>
+              </div>
+              <p class="catalog-admin-product-description">${escapeHtml(produto.descricao || 'Sem descrição cadastrada.')}</p>
+              <div class="catalog-admin-product-tags">
+                <span class="catalog-admin-product-tag is-category">${escapeHtml(categoriaNome)}</span>
+                <span class="catalog-admin-product-tag ${disponibilidadeClasse}">${escapeHtml(disponibilidadeTexto)}</span>
+                <span class="catalog-admin-product-tag is-stock">${escapeHtml(estoqueTexto)}</span>
+              </div>
+            </div>
           </div>
-          <div class="menu-admin-item-actions">
+          <div class="catalog-admin-product-actions">
             <button type="button" class="ghost-btn" data-produto-edit="${produto.id}">Editar</button>
             <button type="button" class="ghost-btn" data-produto-delete="${produto.id}">Excluir</button>
           </div>
