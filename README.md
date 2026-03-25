@@ -14,6 +14,13 @@ cd /home/donilla/secrets-vault/bitwarden
 ./deploy-service-from-bws.sh donilla-app
 ```
 
+Para rebuildar apenas o container do backend do `donilla-app`:
+
+```bash
+cd /home/donilla/secrets-vault/bitwarden
+./deploy-service-from-bws.sh donilla-app --build
+```
+
 Referencia de variaveis:
 
 - `.env.example` documenta os nomes esperados pelo app
