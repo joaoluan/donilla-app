@@ -51,3 +51,9 @@ test('normalizeStoreSettings preserva templates personalizados do WhatsApp', () 
   assert.equal(config.whatsapp_mensagem_novo_pedido, 'Pedido #{pedido_id} confirmado.')
   assert.equal(config.whatsapp_mensagem_status, 'Status: {status_entrega_label}. {status_mensagem}')
 })
+
+test('normalizeStoreSettings aplica pausa do bot como false por padrao', () => {
+  const config = normalizeStoreSettings({})
+
+  assert.equal(config.whatsapp_bot_pausado, false)
+})

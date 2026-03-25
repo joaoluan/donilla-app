@@ -731,6 +731,43 @@ test('handleWebhookEvent pausa respostas automaticas ao transferir para a loja',
   assert.match(sentMessages[1].body, /3\. Acompanhar pedido/)
 })
 
+test('handleWebhookEvent ignora mensagens quando o bot esta pausado no admin', async () => {
+  const sentMessages = []
+  const prisma = {
+    configuracoes_loja: {
+      findFirst() {
+        return Promise.resolve({ whatsapp_bot_pausado: true })
+      },
+    },
+    pedidos: {
+      findFirst() {
+        throw new Error('nao deveria consultar pedidos com o bot pausado')
+      },
+    },
+  }
+
+  const service = createWhatsAppBotService(prisma, {
+    transportService: createTransport(sentMessages),
+  })
+
+  const result = await service.handleWebhookEvent({
+    event: 'onmessage',
+    payload: {
+      from: '5511999990000@c.us',
+      body: 'oi',
+      sender: { pushname: 'Maria' },
+    },
+  })
+
+  assert.deepEqual(result, {
+    processed: false,
+    ignored: true,
+    reason: 'paused',
+    messages: 1,
+  })
+  assert.equal(sentMessages.length, 0)
+})
+
 test('verifyWebhook usa a validacao do transporte', async () => {
   const service = createWhatsAppBotService(
     { pedidos: { findFirst() { return Promise.resolve(null) } } },

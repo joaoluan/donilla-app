@@ -259,6 +259,10 @@ function createWhatsAppNotificationService({
   async function sendEvent(eventName, { config, order, previousStatus = null, force = false, customMessage = null }) {
     const normalizedConfig = normalizeStoreSettings(config)
 
+    if (!force && normalizedConfig.whatsapp_bot_pausado) {
+      return { delivered: false, skipped: true, reason: 'paused' }
+    }
+
     if (!force && !normalizedConfig.whatsapp_ativo) {
       return { delivered: false, skipped: true, reason: 'disabled' }
     }

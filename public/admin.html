@@ -642,6 +642,22 @@
                 <span>Ativar mensagens automáticas de novo pedido e atualização de status</span>
               </label>
 
+              <input type="checkbox" name="whatsapp_bot_pausado" hidden />
+
+              <article class="whatsapp-admin-card-block">
+                <div class="whatsapp-admin-card-head">
+                  <strong>Pausa do bot</strong>
+                  <span id="whatsappBotPauseMeta" class="muted">Bot em funcionamento normal.</span>
+                </div>
+
+                <p class="muted">Use este botão para pausar o bot inteiro no WhatsApp sem desligar container. Enquanto estiver pausado, a Donilla não responde mensagens recebidas nem dispara automações de pedido/status.</p>
+
+                <div class="split-2">
+                  <button id="whatsappBotPauseBtn" class="ghost-btn" type="button">Pausar bot</button>
+                  <p id="whatsappBotPauseStatus" class="status-text muted" style="margin: 0;">O teste manual continua disponível para validar a integração.</p>
+                </div>
+              </article>
+
               <div class="whatsapp-admin-actions">
                 <article class="whatsapp-admin-card-block">
                   <div class="whatsapp-admin-card-head">
@@ -873,6 +889,9 @@
     const whatsappSessionQrBtnEl = document.getElementById('whatsappSessionQrBtn');
     const whatsappSessionMetaEl = document.getElementById('whatsappSessionMeta');
     const whatsappSessionStatusEl = document.getElementById('whatsappSessionStatus');
+    const whatsappBotPauseBtnEl = document.getElementById('whatsappBotPauseBtn');
+    const whatsappBotPauseMetaEl = document.getElementById('whatsappBotPauseMeta');
+    const whatsappBotPauseStatusEl = document.getElementById('whatsappBotPauseStatus');
     const whatsappQrPreviewEl = document.getElementById('whatsappQrPreview');
     const whatsappTestPhoneEl = document.getElementById('whatsappTestPhone');
     const whatsappTestBtnEl = document.getElementById('whatsappTestBtn');
@@ -2390,11 +2409,26 @@
       settingsFormEl.elements.tempo_entrega_max_minutos.value = Number(config.tempo_entrega_max_minutos || 60);
       settingsFormEl.elements.mensagem_aviso.value = config.mensagem_aviso || '';
       settingsFormEl.elements.whatsapp_ativo.checked = Boolean(config.whatsapp_ativo);
+      settingsFormEl.elements.whatsapp_bot_pausado.checked = Boolean(config.whatsapp_bot_pausado);
       settingsFormEl.elements.whatsapp_webhook_url.value = config.whatsapp_webhook_url || '';
       settingsFormEl.elements.whatsapp_webhook_secret.value = config.whatsapp_webhook_secret || '';
       settingsFormEl.elements.whatsapp_mensagem_novo_pedido.value = config.whatsapp_mensagem_novo_pedido || '';
       settingsFormEl.elements.whatsapp_mensagem_status.value = config.whatsapp_mensagem_status || '';
+      renderWhatsAppBotPauseState(config.whatsapp_bot_pausado);
       clearStatus(whatsappTestStatusEl);
+    }
+
+    function renderWhatsAppBotPauseState(isPaused) {
+      const paused = Boolean(isPaused);
+      settingsFormEl.elements.whatsapp_bot_pausado.checked = paused;
+      whatsappBotPauseBtnEl.textContent = paused ? 'Retomar bot' : 'Pausar bot';
+      whatsappBotPauseMetaEl.textContent = paused
+        ? 'Bot pausado no admin.'
+        : 'Bot em funcionamento normal.';
+      whatsappBotPauseStatusEl.className = 'status-text muted';
+      whatsappBotPauseStatusEl.textContent = paused
+        ? 'As respostas e automações do WhatsApp estão pausadas até você retomar.'
+        : 'O bot responde normalmente e segue as demais configurações salvas.';
     }
 
     function describeWhatsAppSessionState(data) {
@@ -3382,6 +3416,7 @@
         tempo_entrega_max_minutos: Number(fd.get('tempo_entrega_max_minutos')),
         mensagem_aviso: String(fd.get('mensagem_aviso') || '').trim() || null,
         whatsapp_ativo: fd.get('whatsapp_ativo') === 'on',
+        whatsapp_bot_pausado: settingsFormEl.elements.whatsapp_bot_pausado.checked,
         whatsapp_webhook_url: String(fd.get('whatsapp_webhook_url') || '').trim() || null,
         whatsapp_webhook_secret: String(fd.get('whatsapp_webhook_secret') || '').trim() || null,
         whatsapp_mensagem_novo_pedido: String(fd.get('whatsapp_mensagem_novo_pedido') || '').trim() || null,
@@ -3401,6 +3436,44 @@
         setStatus(settingsStatusEl, 'Configuração salva com sucesso.', 'ok');
       } catch (error) {
         setStatus(settingsStatusEl, error.message, 'err');
+      }
+    });
+
+    whatsappBotPauseBtnEl.addEventListener('click', async () => {
+      if (!accessToken) {
+        setStatus(whatsappBotPauseStatusEl, 'Faça login antes de pausar o bot.', 'err');
+        return;
+      }
+
+      const nextPaused = !settingsFormEl.elements.whatsapp_bot_pausado.checked;
+      whatsappBotPauseBtnEl.disabled = true;
+      setStatus(
+        whatsappBotPauseStatusEl,
+        nextPaused ? 'Pausando bot do WhatsApp...' : 'Retomando bot do WhatsApp...',
+        'muted',
+      );
+
+      try {
+        const response = await fetch('/admin/store-settings', {
+          method: 'PUT',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ whatsapp_bot_pausado: nextPaused }),
+        });
+
+        const config = await parseResponse(response);
+        renderWhatsAppBotPauseState(config.whatsapp_bot_pausado);
+        setStatus(
+          whatsappBotPauseStatusEl,
+          config.whatsapp_bot_pausado
+            ? 'Bot pausado com sucesso. Nenhuma automação do WhatsApp será enviada.'
+            : 'Bot reativado com sucesso.',
+          'ok',
+        );
+      } catch (error) {
+        renderWhatsAppBotPauseState(settingsFormEl.elements.whatsapp_bot_pausado.checked);
+        setStatus(whatsappBotPauseStatusEl, error.message, 'err');
+      } finally {
+        whatsappBotPauseBtnEl.disabled = false;
       }
     });
 

@@ -810,6 +810,24 @@ function createWhatsAppBotService(prisma, { transportService, logger = console }
     return transportService.verifyWebhook ? transportService.verifyWebhook(url) : 'ok'
   }
 
+  async function isBotPaused() {
+    if (typeof prisma?.configuracoes_loja?.findFirst !== 'function') {
+      return false
+    }
+
+    try {
+      const config = await prisma.configuracoes_loja.findFirst({
+        orderBy: { id: 'asc' },
+        select: { whatsapp_bot_pausado: true },
+      })
+
+      return Boolean(config?.whatsapp_bot_pausado)
+    } catch (error) {
+      logger.warn('[whatsapp] Falha ao consultar pausa do bot:', error?.message || error)
+      return false
+    }
+  }
+
   async function findOrderByPhoneAndIdExact(telefone, id, { fallbackPhones = [] } = {}) {
     const clientesWhere = buildClienteLookupExactWhere([telefone, ...fallbackPhones])
     if (!clientesWhere) return null
@@ -1186,6 +1204,15 @@ function createWhatsAppBotService(prisma, { transportService, logger = console }
     const messages = extractTextMessages(payload)
     if (messages.length === 0) {
       return { processed: false, ignored: true }
+    }
+
+    if (await isBotPaused()) {
+      return {
+        processed: false,
+        ignored: true,
+        reason: 'paused',
+        messages: messages.length,
+      }
     }
 
     for (const message of messages) {

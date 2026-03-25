@@ -43,6 +43,7 @@ function getDefaultStoreSettings() {
     taxa_entrega_padrao: 0,
     mensagem_aviso: null,
     whatsapp_ativo: false,
+    whatsapp_bot_pausado: false,
     whatsapp_webhook_url: null,
     whatsapp_webhook_secret: null,
     whatsapp_mensagem_novo_pedido: DEFAULT_WHATSAPP_NEW_ORDER_TEMPLATE,
@@ -73,6 +74,7 @@ function normalizeStoreSettings(input = {}) {
     ...input,
     mensagem_aviso: input.mensagem_aviso ?? defaults.mensagem_aviso,
     whatsapp_ativo: input.whatsapp_ativo ?? defaults.whatsapp_ativo,
+    whatsapp_bot_pausado: input.whatsapp_bot_pausado ?? defaults.whatsapp_bot_pausado,
     whatsapp_webhook_url: normalizeOptionalString(input.whatsapp_webhook_url),
     whatsapp_webhook_secret: normalizeOptionalString(input.whatsapp_webhook_secret),
     whatsapp_mensagem_novo_pedido: normalizeWhatsAppTemplate(

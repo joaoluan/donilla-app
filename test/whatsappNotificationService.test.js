@@ -94,6 +94,31 @@ test('notifyOrderCreated retorna skipped quando integracao esta desativada', asy
   })
 })
 
+test('notifyOrderCreated retorna skipped quando o bot esta pausado no admin', async () => {
+  const service = createWhatsAppNotificationService({
+    fetchImpl() {
+      throw new Error('fetch nao deveria ser chamado')
+    },
+  })
+
+  const result = await service.notifyOrderCreated({
+    config: { whatsapp_ativo: true, whatsapp_bot_pausado: true },
+    order: {
+      id: 1,
+      cliente: {
+        nome: 'Maria',
+        telefone_whatsapp: '5511999990000',
+      },
+    },
+  })
+
+  assert.deepEqual(result, {
+    delivered: false,
+    skipped: true,
+    reason: 'paused',
+  })
+})
+
 test('sendTestMessage envia payload para o webhook do bot', async () => {
   const calls = []
   const service = createWhatsAppNotificationService({

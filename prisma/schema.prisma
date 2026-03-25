@@ -31,6 +31,7 @@ model configuracoes_loja {
   taxa_entrega_padrao           Decimal? @default(0.00) @db.Decimal(10, 2)
   mensagem_aviso                String?
   whatsapp_ativo                Boolean? @default(false)
+  whatsapp_bot_pausado          Boolean? @default(false)
   whatsapp_webhook_url          String?  @db.VarChar(500)
   whatsapp_webhook_secret       String?  @db.VarChar(255)
   whatsapp_mensagem_novo_pedido String?  @db.VarChar(1000)

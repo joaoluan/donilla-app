@@ -31,6 +31,7 @@ const updateStoreSettingsSchema = z
     taxa_entrega_padrao: z.coerce.number().min(0).max(9999).optional(),
     mensagem_aviso: optionalTrimmedString(500),
     whatsapp_ativo: booleanLikeSchema.optional(),
+    whatsapp_bot_pausado: booleanLikeSchema.optional(),
     whatsapp_webhook_url: z
       .preprocess((value) => {
         if (value === undefined || value === null) return value
