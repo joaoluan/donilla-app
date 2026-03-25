@@ -416,125 +416,225 @@
           <header class="section-head">
             <div>
               <h2>Cardápio</h2>
-              <p class="muted">Gerencie categorias e itens: preço, disponibilidade e estoque.</p>
+              <p class="muted">Defina quais itens seus clientes podem pedir e organize a gestão do menu por etapas.</p>
             </div>
           </header>
 
-          <div class="menu-admin-layout">
-            <section class="menu-admin-card">
-              <h3>Categoria</h3>
-              <form id="categoryForm" class="menu-admin-form">
-                <input type="hidden" id="categoriaId" name="id" />
-                <input id="categoriaNome" name="nome" lang="pt-BR" spellcheck="true" autocapitalize="words" placeholder="Nome da categoria" required />
-                <input id="categoriaOrdem" name="ordem_exibicao" type="number" min="0" placeholder="Ordem de exibição (opcional)" />
-
-                <div class="lookup-row">
-                  <button id="categoriaSubmitBtn" class="primary-btn" type="submit">Salvar categoria</button>
-                  <button id="categoriaCancelBtn" class="ghost-btn" type="button">Cancelar</button>
-                </div>
-                <p id="categoryStatus" class="status-text muted"></p>
-              </form>
-
-              <div class="menu-admin-toolbar">
-                <input id="categorySearchInput" list="categorySearchSuggestions" autocomplete="off" placeholder="Buscar categoria" />
-                <datalist id="categorySearchSuggestions"></datalist>
-                <select id="categorySortInput">
-                  <option value="ordem_exibicao">Ordenar por ordem</option>
-                  <option value="nome">Ordenar por nome</option>
-                  <option value="id">Ordenar por cadastro</option>
-                </select>
-                <select id="categoryPageSizeInput">
-                  <option value="6">6 por página</option>
-                  <option value="10" selected>10 por página</option>
-                  <option value="20">20 por página</option>
-                </select>
+          <section class="catalog-admin-shell">
+            <section class="catalog-admin-top-card">
+              <div class="catalog-admin-top-copy">
+                <h3>Portal do cardápio</h3>
+                <p class="muted">Separei vitrine, categorias e produtos em etapas menores para deixar a operação mais próxima do fluxo de portais como o iFood.</p>
               </div>
 
-              <div id="categoryList" class="menu-admin-list"></div>
-              <div class="list-footer">
-                <p id="categoryMeta" class="muted">Faça login para carregar categorias.</p>
-                <div class="pager">
-                  <button id="categoryPrevBtn" class="ghost-btn" type="button">Anterior</button>
-                  <button id="categoryNextBtn" class="ghost-btn" type="button">Próxima</button>
-                </div>
+              <div class="catalog-admin-overview-grid">
+                <article class="catalog-admin-overview-card">
+                  <small>Categorias</small>
+                  <strong id="catalogOverviewCategorias">Aguardando</strong>
+                  <span id="catalogOverviewCategoriasMeta" class="muted">Carregando grupos do cardápio.</span>
+                </article>
+
+                <article class="catalog-admin-overview-card">
+                  <small>Itens</small>
+                  <strong id="catalogOverviewItens">Aguardando</strong>
+                  <span id="catalogOverviewItensMeta" class="muted">Resumo dos produtos cadastrados.</span>
+                </article>
+
+                <article class="catalog-admin-overview-card">
+                  <small>Disponíveis</small>
+                  <strong id="catalogOverviewDisponiveis">Aguardando</strong>
+                  <span id="catalogOverviewDisponiveisMeta" class="muted">Itens prontos para venda.</span>
+                </article>
+
+                <article class="catalog-admin-overview-card">
+                  <small>Sem estoque</small>
+                  <strong id="catalogOverviewSemEstoque">Aguardando</strong>
+                  <span id="catalogOverviewSemEstoqueMeta" class="muted">Itens que exigem reposição ou revisão.</span>
+                </article>
               </div>
+
+              <nav class="catalog-admin-tabs" aria-label="Seções do cardápio">
+                <button type="button" class="catalog-admin-tab active" data-catalog-tab="cardapio">Cardápio</button>
+                <button type="button" class="catalog-admin-tab" data-catalog-tab="categorias">Categorias</button>
+                <button type="button" class="catalog-admin-tab" data-catalog-tab="produtos">Produtos</button>
+                <button type="button" class="catalog-admin-tab" data-catalog-tab="complementos">Complementos</button>
+              </nav>
             </section>
 
-            <section class="menu-admin-card">
-              <h3>Itens</h3>
-              <form id="produtoForm" class="menu-admin-form">
-                <input type="hidden" id="produtoId" name="id" />
-                <select id="produtoCategoria" name="categoria_id" required>
-                  <option value="">Selecione a categoria</option>
-                </select>
-                <input id="produtoNome" name="nome_doce" lang="pt-BR" spellcheck="true" autocapitalize="words" placeholder="Nome do doce" required />
-                <input id="produtoDescricao" name="descricao" lang="pt-BR" spellcheck="true" autocapitalize="sentences" placeholder="Descrição" />
-                <div class="split-2">
-                  <input id="produtoPreco" name="preco" type="number" min="0" step="0.01" placeholder="Preço" required />
-                  <input id="produtoEstoque" name="estoque_disponivel" type="number" min="0" placeholder="Estoque (deixe vazio para ilimitado)" />
+            <section class="catalog-admin-panel" data-catalog-tab-panel="cardapio">
+              <div class="catalog-admin-toolbar">
+                <div class="search-box">
+                  <span class="search-icon" aria-hidden="true">&#128269;</span>
+                  <input id="catalogPortalSearchInput" list="catalogPortalSearchSuggestions" autocomplete="off" placeholder="Buscar um item" />
                 </div>
+                <datalist id="catalogPortalSearchSuggestions"></datalist>
 
-                <label class="toggle-line">
-                  <input id="produtoAtivo" name="ativo" type="checkbox" checked />
-                  <span>Item disponível no cardápio</span>
-                </label>
+                <select id="catalogPortalCategoryFilter">
+                  <option value="all">Selecionar categoria</option>
+                </select>
 
-                <div class="split-2">
-                  <div>
-                    <label for="produtoImagem" class="muted">Imagem do item</label>
-                    <input id="produtoImagem" name="imagem" type="file" accept="image/*" />
-                    <small class="muted">JPG/PNG/WebP recomendados. Tente manter até 1100px e ~1.5MB.</small>
+                <div class="catalog-admin-toolbar-actions">
+                  <button id="catalogGoToCategoriasBtn" class="ghost-btn" type="button">Adicionar categoria</button>
+                  <button id="catalogGoToProdutosBtn" class="primary-btn" type="button">Adicionar item</button>
+                </div>
+              </div>
+
+              <p id="catalogPortalMeta" class="muted">Faça login para carregar o cardápio.</p>
+              <div id="catalogPortalList" class="catalog-admin-preview-list"></div>
+            </section>
+
+            <section class="catalog-admin-panel hidden" data-catalog-tab-panel="categorias">
+              <div class="catalog-management-layout">
+                <section class="menu-admin-card">
+                  <div class="catalog-section-copy">
+                    <h3>Categorias</h3>
+                    <p class="muted">Crie e reorganize os grupos do cardápio.</p>
                   </div>
-                  <label class="toggle-line" style="margin-top: 20px;">
-                    <input id="produtoClearImagem" name="clear_imagem_url" type="checkbox" />
-                    <span>Remover imagem atual</span>
-                  </label>
-                </div>
 
-                <img id="produtoImagemPreview" class="produto-imagem-preview hidden" alt="Preview da imagem" />
+                  <form id="categoryForm" class="menu-admin-form">
+                    <input type="hidden" id="categoriaId" name="id" />
+                    <input id="categoriaNome" name="nome" lang="pt-BR" spellcheck="true" autocapitalize="words" placeholder="Nome da categoria" required />
+                    <input id="categoriaOrdem" name="ordem_exibicao" type="number" min="0" placeholder="Ordem de exibição (opcional)" />
 
-                <div class="lookup-row">
-                  <button id="produtoSubmitBtn" class="primary-btn" type="submit">Salvar item</button>
-                  <button id="produtoCancelBtn" class="ghost-btn" type="button">Cancelar</button>
-                </div>
-                <p id="produtoStatus" class="status-text muted"></p>
-              </form>
+                    <div class="lookup-row">
+                      <button id="categoriaSubmitBtn" class="primary-btn" type="submit">Salvar categoria</button>
+                      <button id="categoriaCancelBtn" class="ghost-btn" type="button">Cancelar</button>
+                    </div>
+                    <p id="categoryStatus" class="status-text muted"></p>
+                  </form>
+                </section>
 
-              <div class="menu-admin-toolbar">
-                <input id="produtoSearchInput" list="produtoSearchSuggestions" autocomplete="off" placeholder="Buscar item" />
-                <datalist id="produtoSearchSuggestions"></datalist>
-                <select id="produtoSortInput">
-                  <option value="nome_doce">Ordenar por nome</option>
-                  <option value="preco">Ordenar por preço</option>
-                  <option value="estoque_disponivel">Ordenar por estoque</option>
-                  <option value="categoria">Ordenar por categoria</option>
-                </select>
-                <select id="produtoDisponibilidadeFilter">
-                  <option value="all">Todos</option>
-                  <option value="disponiveis">Disponíveis</option>
-                  <option value="inativos">Inativos</option>
-                  <option value="sem_estoque">Sem estoque</option>
-                </select>
-                <select id="produtoCategoriaFilter">
-                  <option value="all">Todas as categorias</option>
-                </select>
-                <select id="produtoPageSizeInput">
-                  <option value="8">8 por página</option>
-                  <option value="12" selected>12 por página</option>
-                  <option value="24">24 por página</option>
-                </select>
-              </div>
+                <section class="menu-admin-card">
+                  <div class="catalog-section-copy">
+                    <h3>Lista de categorias</h3>
+                    <p class="muted">Filtre, ordene e edite rapidamente os grupos do menu.</p>
+                  </div>
 
-              <div id="produtoList" class="menu-admin-list"></div>
-              <div class="list-footer">
-                <p id="produtoMeta" class="muted">Faça login para carregar itens.</p>
-                <div class="pager">
-                  <button id="produtoPrevBtn" class="ghost-btn" type="button">Anterior</button>
-                  <button id="produtoNextBtn" class="ghost-btn" type="button">Próxima</button>
-                </div>
+                  <div class="menu-admin-toolbar">
+                    <input id="categorySearchInput" list="categorySearchSuggestions" autocomplete="off" placeholder="Buscar categoria" />
+                    <datalist id="categorySearchSuggestions"></datalist>
+                    <select id="categorySortInput">
+                      <option value="ordem_exibicao">Ordenar por ordem</option>
+                      <option value="nome">Ordenar por nome</option>
+                      <option value="id">Ordenar por cadastro</option>
+                    </select>
+                    <select id="categoryPageSizeInput">
+                      <option value="6">6 por página</option>
+                      <option value="10" selected>10 por página</option>
+                      <option value="20">20 por página</option>
+                    </select>
+                  </div>
+
+                  <div id="categoryList" class="menu-admin-list"></div>
+                  <div class="list-footer">
+                    <p id="categoryMeta" class="muted">Faça login para carregar categorias.</p>
+                    <div class="pager">
+                      <button id="categoryPrevBtn" class="ghost-btn" type="button">Anterior</button>
+                      <button id="categoryNextBtn" class="ghost-btn" type="button">Próxima</button>
+                    </div>
+                  </div>
+                </section>
               </div>
             </section>
-          </div>
+
+            <section class="catalog-admin-panel hidden" data-catalog-tab-panel="produtos">
+              <div class="catalog-management-layout">
+                <section class="menu-admin-card">
+                  <div class="catalog-section-copy">
+                    <h3>Produtos</h3>
+                    <p class="muted">Cadastre preço, descrição, imagem e disponibilidade do item.</p>
+                  </div>
+
+                  <form id="produtoForm" class="menu-admin-form">
+                    <input type="hidden" id="produtoId" name="id" />
+                    <select id="produtoCategoria" name="categoria_id" required>
+                      <option value="">Selecione a categoria</option>
+                    </select>
+                    <input id="produtoNome" name="nome_doce" lang="pt-BR" spellcheck="true" autocapitalize="words" placeholder="Nome do doce" required />
+                    <input id="produtoDescricao" name="descricao" lang="pt-BR" spellcheck="true" autocapitalize="sentences" placeholder="Descrição" />
+                    <div class="split-2">
+                      <input id="produtoPreco" name="preco" type="number" min="0" step="0.01" placeholder="Preço" required />
+                      <input id="produtoEstoque" name="estoque_disponivel" type="number" min="0" placeholder="Estoque (deixe vazio para ilimitado)" />
+                    </div>
+
+                    <label class="toggle-line">
+                      <input id="produtoAtivo" name="ativo" type="checkbox" checked />
+                      <span>Item disponível no cardápio</span>
+                    </label>
+
+                    <div class="split-2">
+                      <div>
+                        <label for="produtoImagem" class="muted">Imagem do item</label>
+                        <input id="produtoImagem" name="imagem" type="file" accept="image/*" />
+                        <small class="muted">JPG/PNG/WebP recomendados. Tente manter até 1100px e cerca de 1.5MB.</small>
+                      </div>
+                      <label class="toggle-line" style="margin-top: 20px;">
+                        <input id="produtoClearImagem" name="clear_imagem_url" type="checkbox" />
+                        <span>Remover imagem atual</span>
+                      </label>
+                    </div>
+
+                    <img id="produtoImagemPreview" class="produto-imagem-preview hidden" alt="Preview da imagem" />
+
+                    <div class="lookup-row">
+                      <button id="produtoSubmitBtn" class="primary-btn" type="submit">Salvar item</button>
+                      <button id="produtoCancelBtn" class="ghost-btn" type="button">Cancelar</button>
+                    </div>
+                    <p id="produtoStatus" class="status-text muted"></p>
+                  </form>
+                </section>
+
+                <section class="menu-admin-card">
+                  <div class="catalog-section-copy">
+                    <h3>Lista de produtos</h3>
+                    <p class="muted">Filtre por disponibilidade, categoria e estoque para agir rápido.</p>
+                  </div>
+
+                  <div class="menu-admin-toolbar">
+                    <input id="produtoSearchInput" list="produtoSearchSuggestions" autocomplete="off" placeholder="Buscar item" />
+                    <datalist id="produtoSearchSuggestions"></datalist>
+                    <select id="produtoSortInput">
+                      <option value="nome_doce">Ordenar por nome</option>
+                      <option value="preco">Ordenar por preço</option>
+                      <option value="estoque_disponivel">Ordenar por estoque</option>
+                      <option value="categoria">Ordenar por categoria</option>
+                    </select>
+                    <select id="produtoDisponibilidadeFilter">
+                      <option value="all">Todos</option>
+                      <option value="disponiveis">Disponíveis</option>
+                      <option value="inativos">Inativos</option>
+                      <option value="sem_estoque">Sem estoque</option>
+                    </select>
+                    <select id="produtoCategoriaFilter">
+                      <option value="all">Todas as categorias</option>
+                    </select>
+                    <select id="produtoPageSizeInput">
+                      <option value="8">8 por página</option>
+                      <option value="12" selected>12 por página</option>
+                      <option value="24">24 por página</option>
+                    </select>
+                  </div>
+
+                  <div id="produtoList" class="menu-admin-list"></div>
+                  <div class="list-footer">
+                    <p id="produtoMeta" class="muted">Faça login para carregar itens.</p>
+                    <div class="pager">
+                      <button id="produtoPrevBtn" class="ghost-btn" type="button">Anterior</button>
+                      <button id="produtoNextBtn" class="ghost-btn" type="button">Próxima</button>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </section>
+
+            <section class="catalog-admin-panel hidden" data-catalog-tab-panel="complementos">
+              <div class="catalog-empty-state">
+                <h3>Complementos</h3>
+                <p class="muted">Deixei essa etapa reservada para a próxima evolução do cardápio. O desenho já está pronto para entrar com grupos de complemento, limites e regras por produto.</p>
+                <p class="muted">Por enquanto, a operação principal segue nas abas Cardápio, Categorias e Produtos.</p>
+              </div>
+            </section>
+          </section>
         </article>
 
         <article id="pedidos" class="card admin-card admin-panel-view hidden" data-admin-view="pedidos">
@@ -976,6 +1076,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325f"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260325g"></script>
 </body>
 </html>

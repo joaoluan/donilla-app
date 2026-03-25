@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325f'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325f'
-import { bindCustomersSection } from './modules/customers.js?v=20260325f'
-import { bindOrdersSection } from './modules/orders.js?v=20260325f'
-import { bindSettingsSection } from './modules/settings.js?v=20260325f'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325f'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325g'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325g'
+import { bindCustomersSection } from './modules/customers.js?v=20260325g'
+import { bindOrdersSection } from './modules/orders.js?v=20260325g'
+import { bindSettingsSection } from './modules/settings.js?v=20260325g'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325g'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -139,6 +139,21 @@ const deliveryFeeCancelBtnEl = document.getElementById('deliveryFeeCancelBtn');
 const deliveryFeeSearchInputEl = document.getElementById('deliveryFeeSearchInput');
 const deliveryFeeStatusEl = document.getElementById('deliveryFeeStatus');
 const deliveryFeeListEl = document.getElementById('deliveryFeeList');
+const catalogOverviewCategoriasEl = document.getElementById('catalogOverviewCategorias');
+const catalogOverviewCategoriasMetaEl = document.getElementById('catalogOverviewCategoriasMeta');
+const catalogOverviewItensEl = document.getElementById('catalogOverviewItens');
+const catalogOverviewItensMetaEl = document.getElementById('catalogOverviewItensMeta');
+const catalogOverviewDisponiveisEl = document.getElementById('catalogOverviewDisponiveis');
+const catalogOverviewDisponiveisMetaEl = document.getElementById('catalogOverviewDisponiveisMeta');
+const catalogOverviewSemEstoqueEl = document.getElementById('catalogOverviewSemEstoque');
+const catalogOverviewSemEstoqueMetaEl = document.getElementById('catalogOverviewSemEstoqueMeta');
+const catalogPortalSearchInputEl = document.getElementById('catalogPortalSearchInput');
+const catalogPortalSearchSuggestionsEl = document.getElementById('catalogPortalSearchSuggestions');
+const catalogPortalCategoryFilterEl = document.getElementById('catalogPortalCategoryFilter');
+const catalogPortalMetaEl = document.getElementById('catalogPortalMeta');
+const catalogPortalListEl = document.getElementById('catalogPortalList');
+const catalogGoToCategoriasBtnEl = document.getElementById('catalogGoToCategoriasBtn');
+const catalogGoToProdutosBtnEl = document.getElementById('catalogGoToProdutosBtn');
 const storeHoursDayInputs = STORE_HOURS_DAY_KEYS.reduce((acc, dayKey) => {
   acc[dayKey] = {
     row: document.querySelector(`[data-store-hours-row="${dayKey}"]`),
@@ -198,6 +213,7 @@ let customerDetail = null;
 let menuCategorias = [];
 let allCategorias = [];
 let menuProdutos = [];
+let allMenuProdutos = [];
 let deliveryFees = [];
 let currentStoreSettings = null;
 let produtoImagemDataUrl = '';
@@ -250,6 +266,11 @@ const produtoState = {
   search: '',
   sort: produtoSortInputEl?.value || 'nome_doce',
   disponibilidade: produtoDisponibilidadeFilterEl?.value || 'all',
+  categoria_id: 'all',
+};
+
+const catalogPortalState = {
+  search: '',
   categoria_id: 'all',
 };
 
@@ -1034,6 +1055,26 @@ function populateProdutoCategoriaFilterOptions() {
   produtoCategoriaFilterEl.innerHTML = options.join('');
 }
 
+function populateCatalogPortalCategoryFilterOptions() {
+  const selectedCategoryId = allCategorias.some((categoria) => String(categoria.id) === String(catalogPortalState.categoria_id))
+    ? String(catalogPortalState.categoria_id)
+    : 'all';
+
+  catalogPortalState.categoria_id = selectedCategoryId;
+
+  if (!catalogPortalCategoryFilterEl) return;
+
+  const options = [
+    '<option value="all">Selecionar categoria</option>',
+    ...allCategorias.map((categoria) => {
+      const checked = selectedCategoryId === String(categoria.id) ? 'selected' : '';
+      return `<option value="${categoria.id}" ${checked}>${escapeHtml(categoria.nome)}</option>`;
+    }),
+  ];
+
+  catalogPortalCategoryFilterEl.innerHTML = options.join('');
+}
+
 function productCategoryName(categoriaId) {
   const categoria = allCategorias.find((item) => item.id === categoriaId);
   return categoria?.nome || 'Categoria não encontrada';
@@ -1082,6 +1123,7 @@ function clearSession() {
   customerDetail = null;
   menuCategorias = [];
   menuProdutos = [];
+  allMenuProdutos = [];
   deliveryFees = [];
   currentStoreSettings = null;
   allCategorias = [];
@@ -1106,6 +1148,18 @@ function clearSession() {
   ordersState.period = 'today';
   ordersState.from = '';
   ordersState.to = '';
+  categoryState.page = 1;
+  categoryState.pageSize = 10;
+  categoryState.search = '';
+  categoryState.sort = 'ordem_exibicao';
+  produtoState.page = 1;
+  produtoState.pageSize = 12;
+  produtoState.search = '';
+  produtoState.sort = 'nome_doce';
+  produtoState.disponibilidade = 'all';
+  produtoState.categoria_id = 'all';
+  catalogPortalState.search = '';
+  catalogPortalState.categoria_id = 'all';
   applySessionUi();
   renderCustomersSummary();
   renderCustomerDetail();
@@ -1115,6 +1169,8 @@ function clearSession() {
   resetCategoriaForm();
   resetProdutoForm();
   resetDeliveryFeeForm();
+  renderCatalogOverview();
+  renderCatalogPortal();
   renderSettingsOverview();
   if (customersSearchInputEl) {
     customersSearchInputEl.value = '';
@@ -1134,8 +1190,14 @@ function clearSession() {
   if (produtoListEl) {
     produtoListEl.innerHTML = '<p class="muted">Faça login para carregar itens.</p>';
   }
+  if (catalogPortalListEl) {
+    catalogPortalListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para visualizar a vitrine do cardápio.</p></div>';
+  }
   if (deliveryFeeListEl) {
     deliveryFeeListEl.innerHTML = '<p class="muted">Faça login para gerenciar taxas de entrega.</p>';
+  }
+  if (catalogPortalSearchInputEl) {
+    catalogPortalSearchInputEl.value = '';
   }
   if (categorySearchInputEl) {
     categorySearchInputEl.value = '';
@@ -1158,6 +1220,9 @@ function clearSession() {
   if (produtoCategoriaFilterEl) {
     produtoCategoriaFilterEl.innerHTML = '<option value="all">Todas as categorias</option>';
   }
+  if (catalogPortalCategoryFilterEl) {
+    catalogPortalCategoryFilterEl.innerHTML = '<option value="all">Selecionar categoria</option>';
+  }
   if (produtoPageSizeInputEl) {
     produtoPageSizeInputEl.value = String(produtoState.pageSize);
   }
@@ -1172,6 +1237,9 @@ function clearSession() {
   }
   if (produtoMetaEl) {
     produtoMetaEl.textContent = 'Faça login para carregar itens.';
+  }
+  if (catalogPortalMetaEl) {
+    catalogPortalMetaEl.textContent = 'Faça login para carregar o cardápio.';
   }
   if (customersMetaEl) {
     customersMetaEl.textContent = 'Faça login para carregar a carteira de clientes.';
@@ -2173,6 +2241,186 @@ function renderCategoryList() {
   renderCategoryMeta();
 }
 
+function renderCatalogOverview() {
+  const totalCategorias = allCategorias.length;
+  const totalItens = allMenuProdutos.length;
+  const disponiveis = allMenuProdutos.filter((produto) => isProdutoDisponivel(produto)).length;
+  const semEstoque = allMenuProdutos.filter((produto) => {
+    const estoque = normalizeEstoque(produto.estoque_disponivel);
+    return estoque !== null && estoque <= 0;
+  }).length;
+
+  if (catalogOverviewCategoriasEl) {
+    catalogOverviewCategoriasEl.textContent = accessToken ? String(totalCategorias) : 'Aguardando';
+  }
+  if (catalogOverviewCategoriasMetaEl) {
+    catalogOverviewCategoriasMetaEl.textContent = accessToken
+      ? (totalCategorias === 0 ? 'Nenhuma categoria cadastrada.' : 'Grupos que organizam a vitrine da loja.')
+      : 'Carregando grupos do cardápio.';
+  }
+  if (catalogOverviewItensEl) {
+    catalogOverviewItensEl.textContent = accessToken ? String(totalItens) : 'Aguardando';
+  }
+  if (catalogOverviewItensMetaEl) {
+    catalogOverviewItensMetaEl.textContent = accessToken
+      ? (totalItens === 0 ? 'Nenhum item cadastrado ainda.' : 'Itens totais presentes no catálogo.')
+      : 'Resumo dos produtos cadastrados.';
+  }
+  if (catalogOverviewDisponiveisEl) {
+    catalogOverviewDisponiveisEl.textContent = accessToken ? String(disponiveis) : 'Aguardando';
+  }
+  if (catalogOverviewDisponiveisMetaEl) {
+    catalogOverviewDisponiveisMetaEl.textContent = accessToken
+      ? `${Math.max(totalItens - disponiveis, 0)} item(ns) exigem alguma ação.`
+      : 'Itens prontos para venda.';
+  }
+  if (catalogOverviewSemEstoqueEl) {
+    catalogOverviewSemEstoqueEl.textContent = accessToken ? String(semEstoque) : 'Aguardando';
+  }
+  if (catalogOverviewSemEstoqueMetaEl) {
+    catalogOverviewSemEstoqueMetaEl.textContent = accessToken
+      ? (semEstoque === 0 ? 'Nenhum item com estoque zerado.' : 'Itens sem saldo ou que precisam de revisão.')
+      : 'Itens que exigem reposição ou revisão.';
+  }
+}
+
+function renderCatalogPortal() {
+  if (!catalogPortalListEl || !catalogPortalMetaEl) return;
+
+  if (!accessToken) {
+    catalogPortalMetaEl.textContent = 'Faça login para carregar o cardápio.';
+    catalogPortalListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para visualizar a vitrine do cardápio.</p></div>';
+    updateDatalistOptions(catalogPortalSearchSuggestionsEl, []);
+    return;
+  }
+
+  updateDatalistOptions(
+    catalogPortalSearchSuggestionsEl,
+    allMenuProdutos.map((produto) => ({
+      value: produto.nome_doce,
+      label: `${productCategoryName(produto.categoria_id || produto.categorias?.id)} · ${brl(produto.preco)}`,
+    })),
+  );
+
+  if (allCategorias.length === 0) {
+    catalogPortalMetaEl.textContent = 'Nenhuma categoria cadastrada.';
+    catalogPortalListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Cadastre a primeira categoria para começar a montar o cardápio.</p></div>';
+    return;
+  }
+
+  const selectedCategoryId = String(catalogPortalState.categoria_id || 'all');
+  const normalizedCategoryId = allCategorias.some((categoria) => String(categoria.id) === selectedCategoryId)
+    ? selectedCategoryId
+    : 'all';
+  const search = String(catalogPortalState.search || '').trim().toLowerCase();
+
+  if (normalizedCategoryId !== selectedCategoryId) {
+    catalogPortalState.categoria_id = normalizedCategoryId;
+    if (catalogPortalCategoryFilterEl) {
+      catalogPortalCategoryFilterEl.value = normalizedCategoryId;
+    }
+  }
+
+  const visibleCategorias = [...allCategorias]
+    .sort((a, b) => {
+      const ordemA = Number(a.ordem_exibicao || 0);
+      const ordemB = Number(b.ordem_exibicao || 0);
+      if (ordemA !== ordemB) return ordemA - ordemB;
+      return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR', { sensitivity: 'base' });
+    })
+    .filter((categoria) => normalizedCategoryId === 'all' || String(categoria.id) === normalizedCategoryId);
+
+  const groupedCategorias = visibleCategorias.map((categoria) => {
+    const produtos = allMenuProdutos
+      .filter((produto) => {
+        const categoriaId = String(produto.categoria_id || produto.categorias?.id || '');
+        if (categoriaId !== String(categoria.id)) return false;
+
+        if (!search) return true;
+
+        const haystack = [
+          produto.nome_doce,
+          produto.descricao,
+          categoria.nome,
+        ].join(' ').toLowerCase();
+
+        return haystack.includes(search);
+      })
+      .sort((a, b) => String(a.nome_doce || '').localeCompare(String(b.nome_doce || ''), 'pt-BR', { sensitivity: 'base' }));
+
+    return { categoria, produtos };
+  });
+
+  const categoriesWithProducts = normalizedCategoryId === 'all'
+    ? groupedCategorias.filter((group) => group.produtos.length > 0)
+    : groupedCategorias;
+
+  const totalVisibleItems = categoriesWithProducts.reduce((total, group) => total + group.produtos.length, 0);
+  const selectedCategoryName = normalizedCategoryId === 'all'
+    ? 'todo o cardápio'
+    : productCategoryName(Number(normalizedCategoryId));
+
+  catalogPortalMetaEl.textContent = search
+    ? `${totalVisibleItems} item(ns) encontrados em ${categoriesWithProducts.length} categoria(s).`
+    : `${totalVisibleItems} item(ns) exibidos em ${categoriesWithProducts.length} categoria(s) de ${selectedCategoryName}.`;
+
+  if (categoriesWithProducts.length === 0) {
+    const message = search
+      ? 'Nenhum item corresponde à busca informada.'
+      : 'Nenhum item cadastrado para o filtro selecionado.';
+    catalogPortalListEl.innerHTML = `<div class="catalog-admin-preview-empty"><p class="muted">${message}</p></div>`;
+    return;
+  }
+
+  catalogPortalListEl.innerHTML = categoriesWithProducts
+    .map(({ categoria, produtos }) => `
+      <article class="catalog-admin-category-card">
+        <header class="catalog-admin-category-head">
+          <div class="catalog-admin-category-title">
+            <h4>${escapeHtml(categoria.nome)}</h4>
+            <p>${produtos.length} item(ns) ${categoria.ordem_exibicao != null ? `· Ordem ${Number(categoria.ordem_exibicao || 0)}` : ''}</p>
+          </div>
+          <button type="button" class="ghost-btn" data-catalog-quick-category="${categoria.id}">Editar categoria</button>
+        </header>
+
+        ${produtos.length > 0
+          ? `<div class="catalog-admin-category-products">${produtos.map((produto) => {
+            const estoque = normalizeEstoque(produto.estoque_disponivel);
+            const disponibilidadeClasse = isProdutoDisponivel(produto) ? 'is-live' : 'is-off';
+            const disponibilidadeTexto = availabilityLabel(produto);
+            const estoqueTexto = estoque === null ? 'Sem limite de estoque' : (estoque <= 0 ? 'Estoque zerado' : `Estoque ${estoque}`);
+            const media = produto.imagem_url
+              ? `<img src="${escapeHtml(produto.imagem_url)}" alt="${escapeHtml(produto.nome_doce)}" loading="lazy" />`
+              : `<div class="catalog-admin-product-media-fallback">${escapeHtml(String(produto.nome_doce || '?').slice(0, 1).toUpperCase())}</div>`;
+
+            return `
+              <article class="catalog-admin-product-card">
+                <div class="catalog-admin-product-main">
+                  <div class="catalog-admin-product-media">${media}</div>
+                  <div class="catalog-admin-product-copy">
+                    <div class="catalog-admin-product-head">
+                      <strong>${escapeHtml(produto.nome_doce)}</strong>
+                      <span class="catalog-admin-product-price">${brl(produto.preco)}</span>
+                    </div>
+                    <p class="catalog-admin-product-description">${escapeHtml(produto.descricao || 'Sem descrição cadastrada.')}</p>
+                    <div class="catalog-admin-product-tags">
+                      <span class="catalog-admin-product-tag ${disponibilidadeClasse}">${escapeHtml(disponibilidadeTexto)}</span>
+                      <span class="catalog-admin-product-tag is-stock">${escapeHtml(estoqueTexto)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="catalog-admin-product-actions">
+                  <button type="button" class="ghost-btn" data-catalog-quick-product="${produto.id}">Editar item</button>
+                </div>
+              </article>
+            `;
+          }).join('')}</div>`
+          : '<div class="catalog-admin-preview-empty"><p class="muted">Nenhum item nesta categoria.</p></div>'}
+      </article>
+    `)
+    .join('');
+}
+
 function renderProdutoMeta() {
   if (!accessToken) {
     produtoMetaEl.textContent = 'Faça login para carregar itens.';
@@ -2270,6 +2518,9 @@ async function loadCategoryOptions() {
   const currentCategoryId = produtoCategoriaEl.value;
   populateCategoriaOptions(currentCategoryId);
   populateProdutoCategoriaFilterOptions();
+  populateCatalogPortalCategoryFilterOptions();
+  renderCatalogOverview();
+  renderCatalogPortal();
 }
 
 function categoriasQueryString() {
@@ -2326,9 +2577,38 @@ async function loadProdutos() {
   renderProdutoList();
 }
 
+async function loadCatalogPortalProdutos() {
+  const collectedProdutos = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages) {
+    const query = buildQueryString({
+      sort: 'nome_doce',
+      order: 'asc',
+      page,
+      pageSize: 100,
+    });
+
+    const response = await fetch(`/produtos?${query}`, {
+      headers: authHeaders(),
+    });
+    const payload = await parseEnvelope(response);
+    const items = Array.isArray(payload.data) ? payload.data : [];
+
+    collectedProdutos.push(...items);
+    totalPages = Number(payload.meta?.totalPages || 1);
+    page += 1;
+  }
+
+  allMenuProdutos = collectedProdutos;
+  renderCatalogOverview();
+  renderCatalogPortal();
+}
+
 async function loadCardapioData() {
   await loadCategoryOptions();
-  await Promise.all([loadCategorias(), loadProdutos()]);
+  await Promise.all([loadCategorias(), loadProdutos(), loadCatalogPortalProdutos()]);
 }
 
 function populateProdutoForm(produto) {
@@ -2376,7 +2656,7 @@ async function removeCategoria(categoriaId) {
       headers: authHeaders(),
     }).then(async (response) => parseResponse(response));
 
-    await Promise.all([loadCategoryOptions(), loadCategorias(), loadProdutos()]);
+    await loadCardapioData();
     setStatus(categoryStatusEl, 'Categoria removida.', 'ok');
   } catch (error) {
     setStatus(categoryStatusEl, error.message, 'err');
@@ -2391,7 +2671,7 @@ async function removeProduto(produtoId) {
       headers: authHeaders(),
     });
     const result = await parseResponse(response);
-    await Promise.all([loadProdutos(), loadCategorias()]);
+    await loadCardapioData();
     setStatus(
       produtoStatusEl,
       result?.deactivated
@@ -2510,6 +2790,12 @@ const state = {
   set menuProdutos(value) {
     menuProdutos = value;
   },
+  get allMenuProdutos() {
+    return allMenuProdutos;
+  },
+  set allMenuProdutos(value) {
+    allMenuProdutos = value;
+  },
   get deliveryFees() {
     return deliveryFees;
   },
@@ -2563,6 +2849,7 @@ const state = {
   customersState,
   categoryState,
   produtoState,
+  catalogPortalState,
   orderAuditCache,
   expandedOrderAuditIds,
 };
@@ -2662,6 +2949,21 @@ const dom = {
   deliveryFeeSearchInputEl,
   deliveryFeeStatusEl,
   deliveryFeeListEl,
+  catalogOverviewCategoriasEl,
+  catalogOverviewCategoriasMetaEl,
+  catalogOverviewItensEl,
+  catalogOverviewItensMetaEl,
+  catalogOverviewDisponiveisEl,
+  catalogOverviewDisponiveisMetaEl,
+  catalogOverviewSemEstoqueEl,
+  catalogOverviewSemEstoqueMetaEl,
+  catalogPortalSearchInputEl,
+  catalogPortalSearchSuggestionsEl,
+  catalogPortalCategoryFilterEl,
+  catalogPortalMetaEl,
+  catalogPortalListEl,
+  catalogGoToCategoriasBtnEl,
+  catalogGoToProdutosBtnEl,
   categoryFormEl,
   categoryIdEl,
   categoryNomeEl,
@@ -2767,12 +3069,16 @@ const api = {
   removeDeliveryFee,
   populateCategoriaOptions,
   populateProdutoCategoriaFilterOptions,
+  populateCatalogPortalCategoryFilterOptions,
   resetCategoriaForm,
   resetProdutoForm,
   loadCategoryOptions,
   loadCategorias,
   loadProdutos,
+  loadCatalogPortalProdutos,
   loadCardapioData,
+  renderCatalogOverview,
+  renderCatalogPortal,
   populateProdutoForm,
   startCategoriaEdit,
   removeCategoria,
@@ -2816,6 +3122,8 @@ renderOrders();
 resetCategoriaForm();
 resetProdutoForm();
 resetDeliveryFeeForm();
+renderCatalogOverview();
+renderCatalogPortal();
 renderDeliveryFeeList();
 renderSettingsOverview();
 syncStoreHoursInputsState();

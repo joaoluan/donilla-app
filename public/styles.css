@@ -1899,6 +1899,336 @@ button {
   margin-top: 12px;
 }
 
+.catalog-admin-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.catalog-admin-top-card {
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 24px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(241, 245, 249, 0.96), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+}
+
+.catalog-admin-top-copy h3 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+}
+
+.catalog-admin-top-copy p {
+  margin: 8px 0 0;
+  max-width: 760px;
+}
+
+.catalog-admin-overview-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.catalog-admin-overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.catalog-admin-overview-card small {
+  color: var(--slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.73rem;
+}
+
+.catalog-admin-overview-card strong {
+  font-size: 1.32rem;
+  color: #0f172a;
+}
+
+.catalog-admin-tabs {
+  margin-top: 22px;
+  display: flex;
+  gap: 28px;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+  scrollbar-width: none;
+}
+
+.catalog-admin-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.catalog-admin-tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 1rem;
+  font-weight: 700;
+  min-height: auto;
+  padding: 0 0 12px;
+  white-space: nowrap;
+}
+
+.catalog-admin-tab:hover {
+  color: #111827;
+}
+
+.catalog-admin-tab.active {
+  color: #111827;
+  border-color: #111827;
+}
+
+.catalog-admin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.catalog-admin-toolbar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.catalog-admin-toolbar .search-box input {
+  border-radius: 18px;
+  padding: 14px 16px 14px 42px;
+}
+
+.catalog-admin-toolbar select {
+  min-height: 52px;
+  border: 1px solid var(--slate-300);
+  border-radius: 18px;
+  padding: 0 14px;
+  outline: none;
+  background: #ffffff;
+}
+
+.catalog-admin-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.catalog-admin-toolbar-actions .ghost-btn,
+.catalog-admin-toolbar-actions .primary-btn {
+  flex: 1 1 180px;
+}
+
+.catalog-admin-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.catalog-admin-preview-empty,
+.catalog-empty-state {
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  border-radius: 20px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.catalog-admin-preview-empty p,
+.catalog-empty-state p {
+  margin: 0;
+}
+
+.catalog-empty-state h3 {
+  margin: 0 0 8px;
+}
+
+.catalog-empty-state p + p {
+  margin-top: 8px;
+}
+
+.catalog-admin-category-card {
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 24px;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+}
+
+.catalog-admin-category-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.catalog-admin-category-title {
+  min-width: 0;
+}
+
+.catalog-admin-category-title h4 {
+  margin: 0;
+  font-size: 1.12rem;
+  color: #111827;
+}
+
+.catalog-admin-category-title p {
+  margin: 6px 0 0;
+  color: var(--slate-600);
+}
+
+.catalog-admin-category-products {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.catalog-admin-product-card {
+  border: 1px solid #eceff3;
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.catalog-admin-product-main {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.catalog-admin-product-media {
+  width: 88px;
+  height: 88px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.catalog-admin-product-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.catalog-admin-product-media-fallback {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #475569;
+}
+
+.catalog-admin-product-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalog-admin-product-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.catalog-admin-product-head strong {
+  font-size: 1rem;
+  line-height: 1.35;
+  color: #111827;
+}
+
+.catalog-admin-product-price {
+  color: #111827;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.catalog-admin-product-description {
+  margin: 0;
+  color: var(--slate-600);
+  line-height: 1.45;
+}
+
+.catalog-admin-product-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalog-admin-product-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.catalog-admin-product-tag.is-live {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #bbf7d0;
+}
+
+.catalog-admin-product-tag.is-off {
+  color: #991b1b;
+  background: #fee2e2;
+  border-color: #fecaca;
+}
+
+.catalog-admin-product-tag.is-stock {
+  color: #92400e;
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+.catalog-admin-product-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.catalog-section-copy {
+  margin-bottom: 12px;
+}
+
+.catalog-section-copy h3 {
+  margin: 0 0 4px;
+}
+
+.catalog-section-copy p {
+  margin: 0;
+}
+
+.catalog-management-layout {
+  display: grid;
+  gap: 16px;
+}
+
 .menu-admin-layout {
   display: grid;
   gap: 12px;
@@ -3483,6 +3813,30 @@ button {
 @media (min-width: 1141px) {
   .catalog-shell {
     grid-template-columns: 1fr;
+  }
+
+  .catalog-admin-toolbar {
+    grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.8fr) auto;
+    align-items: center;
+  }
+
+  .catalog-admin-toolbar-actions .ghost-btn,
+  .catalog-admin-toolbar-actions .primary-btn {
+    flex: 0 0 auto;
+  }
+
+  .catalog-management-layout {
+    grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.3fr);
+  }
+
+  .catalog-admin-product-card {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .catalog-admin-product-actions {
+    flex-shrink: 0;
   }
 
   #clienteLayout.admin-layout.logged-out .admin-main {

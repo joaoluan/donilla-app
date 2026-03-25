@@ -1,6 +1,95 @@
 export function bindCatalogSection(ctx) {
   const { dom, state, helpers, api } = ctx;
 
+  const catalogTabButtons = Array.from(document.querySelectorAll('[data-catalog-tab]'));
+  const catalogPanels = Array.from(document.querySelectorAll('[data-catalog-tab-panel]'));
+
+  const setActiveCatalogTab = (nextTab) => {
+    const fallbackTab = catalogTabButtons[0]?.dataset.catalogTab || 'cardapio';
+    const activeTab = catalogTabButtons.some((button) => button.dataset.catalogTab === nextTab)
+      ? nextTab
+      : fallbackTab;
+
+    catalogTabButtons.forEach((button) => {
+      const isActive = button.dataset.catalogTab === activeTab;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
+
+    catalogPanels.forEach((panel) => {
+      panel.classList.toggle('hidden', panel.dataset.catalogTabPanel !== activeTab);
+    });
+  };
+
+  catalogTabButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setActiveCatalogTab(button.dataset.catalogTab || 'cardapio');
+    });
+  });
+
+  setActiveCatalogTab('cardapio');
+
+  const debouncedRenderCatalogPortal = helpers.createDebounce(180, () => {
+    api.renderCatalogPortal();
+  });
+
+  if (dom.catalogPortalSearchInputEl) {
+    dom.catalogPortalSearchInputEl.addEventListener('input', () => {
+      state.catalogPortalState.search = String(dom.catalogPortalSearchInputEl.value || '').trim();
+      debouncedRenderCatalogPortal();
+    });
+  }
+
+  if (dom.catalogPortalCategoryFilterEl) {
+    dom.catalogPortalCategoryFilterEl.addEventListener('change', () => {
+      state.catalogPortalState.categoria_id = dom.catalogPortalCategoryFilterEl.value || 'all';
+      api.renderCatalogPortal();
+    });
+  }
+
+  if (dom.catalogGoToCategoriasBtnEl) {
+    dom.catalogGoToCategoriasBtnEl.addEventListener('click', () => {
+      api.resetCategoriaForm();
+      setActiveCatalogTab('categorias');
+      dom.categoryNomeEl?.focus();
+    });
+  }
+
+  if (dom.catalogGoToProdutosBtnEl) {
+    dom.catalogGoToProdutosBtnEl.addEventListener('click', () => {
+      api.resetProdutoForm();
+      setActiveCatalogTab('produtos');
+      dom.produtoNomeEl?.focus();
+    });
+  }
+
+  if (dom.catalogPortalListEl) {
+    dom.catalogPortalListEl.addEventListener('click', (event) => {
+      const categoryEditBtn = event.target.closest('button[data-catalog-quick-category]');
+      if (categoryEditBtn) {
+        const categoriaId = Number(categoryEditBtn.dataset.catalogQuickCategory);
+        const categoria = state.allCategorias.find((item) => item.id === categoriaId);
+        if (categoria) {
+          api.startCategoriaEdit(categoria);
+          setActiveCatalogTab('categorias');
+          dom.categoryNomeEl?.focus();
+        }
+        return;
+      }
+
+      const productEditBtn = event.target.closest('button[data-catalog-quick-product]');
+      if (productEditBtn) {
+        const produtoId = Number(productEditBtn.dataset.catalogQuickProduct);
+        const produto = state.allMenuProdutos.find((item) => item.id === produtoId);
+        if (produto) {
+          api.populateProdutoForm(produto);
+          setActiveCatalogTab('produtos');
+          dom.produtoNomeEl?.focus();
+        }
+      }
+    });
+  }
+
   const debouncedLoadCategorias = helpers.createDebounce(250, () => {
     if (!state.accessToken) return;
     api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
@@ -141,8 +230,7 @@ export function bindCatalogSection(ctx) {
       });
 
       await helpers.parseResponse(response);
-      await api.loadCategorias();
-      await api.loadCategoryOptions();
+      await api.loadCardapioData();
       api.resetCategoriaForm();
       helpers.setStatus(dom.categoryStatusEl, isEditing ? 'Categoria atualizada.' : 'Categoria salva.', 'ok');
     } catch (error) {
@@ -210,7 +298,7 @@ export function bindCatalogSection(ctx) {
       });
 
       await helpers.parseResponse(response);
-      await Promise.all([api.loadCategoryOptions(), api.loadCategorias(), api.loadProdutos()]);
+      await api.loadCardapioData();
       api.resetProdutoForm();
       helpers.setStatus(dom.produtoStatusEl, isEditing ? 'Item atualizado.' : 'Item salvo.', 'ok');
     } catch (error) {
