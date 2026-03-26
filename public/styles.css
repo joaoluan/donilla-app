@@ -1937,6 +1937,188 @@ button {
   border-color: var(--ifood-red);
 }
 
+:root {
+  --custom-select-bg: #1e1e1e;
+  --custom-select-bg-hover: #2a2a2a;
+  --custom-select-text: #f5f5f5;
+  --custom-select-border: var(--slate-300);
+  --custom-select-focus: rgba(31, 66, 54, 0.18);
+  --custom-select-selected: var(--brand-gold);
+}
+
+.page-admin {
+  --custom-select-bg: #1e1e1e;
+  --custom-select-bg-hover: #2a2a2a;
+  --custom-select-text: var(--admin-text-primary);
+  --custom-select-border: rgba(255, 255, 255, 0.12);
+  --custom-select-focus: rgba(217, 185, 94, 0.14);
+  --custom-select-selected: var(--admin-gold-soft);
+}
+
+.custom-select-shell {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.custom-select-native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  position: relative;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--custom-select-border);
+  background: var(--custom-select-bg);
+  color: var(--custom-select-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.custom-select-trigger:focus-visible,
+.custom-select.is-open .custom-select-trigger {
+  border-color: var(--custom-select-selected);
+  box-shadow: 0 0 0 4px var(--custom-select-focus);
+  outline: 0;
+}
+
+.custom-select-trigger-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select-trigger-icon {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  opacity: 0.72;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.18s ease;
+}
+
+.custom-select.is-open .custom-select-trigger-icon {
+  transform: rotate(-135deg) translateY(2px);
+}
+
+.custom-select.is-disabled .custom-select-trigger {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 120;
+  display: none;
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--custom-select-border);
+  background: var(--custom-select-bg);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+}
+
+.custom-select.is-open .custom-select-dropdown {
+  display: block;
+}
+
+.custom-select.is-open-up .custom-select-dropdown {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.custom-select-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.custom-select-option {
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--custom-select-text);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.custom-select-option:hover,
+.custom-select-option.is-active {
+  background: var(--custom-select-bg-hover);
+}
+
+.custom-select-option.is-selected {
+  color: var(--custom-select-selected);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.custom-select-option.is-disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.checkout-form .custom-select-trigger {
+  border-radius: 12px;
+}
+
+.section-actions > .custom-select-shell,
+.dashboard-filter-controls > .custom-select-shell,
+.split-2 > .custom-select-shell,
+.lookup-row > .custom-select-shell,
+.order-action-field > .custom-select-shell {
+  width: 100%;
+}
+
+.orders-admin-toolbar > .custom-select-shell {
+  flex: 1 1 160px;
+  min-width: 150px;
+}
+
+.dashboard-filter-controls > .custom-select-shell .custom-select-trigger {
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+}
+
+.page-admin :is(.customers-admin-toolbar, .catalog-admin-toolbar, .orders-admin-toolbar, .menu-admin-toolbar, .menu-admin-form, .settings-form) .custom-select-trigger {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color-scheme: dark;
+}
+
 .category-tabs {
   margin-top: 10px;
   display: flex;
