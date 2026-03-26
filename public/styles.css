@@ -26,8 +26,8 @@
   --radius-sm: 10px;
   --shadow-soft: 0 12px 28px rgba(17, 24, 39, 0.1);
   --shadow-thin: 0 4px 12px rgba(17, 24, 39, 0.08);
-  --admin-sidebar-bg: #1b2e1e;
-  --admin-sidebar-bg-soft: #203724;
+  --admin-sidebar-bg: #2e543a;
+  --admin-sidebar-bg-soft: #2f543a;
   --admin-main-bg: #141514;
   --admin-main-header: #2f2d2b;
   --admin-card-bg: #2f2d2b;
@@ -35,7 +35,9 @@
   --admin-text-primary: #f5f4ef;
   --admin-text-secondary: rgba(255, 255, 255, 0.52);
   --admin-text-tertiary: rgba(255, 255, 255, 0.34);
-  --admin-gold: #d4a843;
+  --admin-gold: #d9b95e;
+  --admin-gold-soft: #e3bf60;
+  --admin-gold-shadow: #7b8148;
   --admin-green: #34c759;
   --admin-danger: #e74c3c;
 }
@@ -61,7 +63,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   background:
-    radial-gradient(circle at top left, rgba(212, 168, 67, 0.12) 0%, rgba(212, 168, 67, 0) 20%),
+    radial-gradient(circle at top left, rgba(217, 185, 94, 0.12) 0%, rgba(217, 185, 94, 0) 20%),
     linear-gradient(135deg, #e9ece5 0%, #dce2d9 46%, #d2d9d1 100%);
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
   color: var(--admin-text-primary);
@@ -152,7 +154,7 @@
 .page-admin .sidebar-brand.admin-portal-brand small {
   display: block;
   margin-left: 46px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(227, 191, 96, 0.72);
   font-size: 0.7rem;
   letter-spacing: 0;
 }
@@ -478,7 +480,7 @@
 
 .page-admin .dashboard-action-btn.primary-btn:hover {
   background: var(--admin-sidebar-bg-soft);
-  color: #e7c46f;
+  color: var(--admin-gold-soft);
 }
 
 .page-admin .dashboard-status-line {
@@ -1176,7 +1178,7 @@
 
 .page-admin .admin-panel-view:not(.dashboard-panel) .primary-btn:hover {
   background: var(--admin-sidebar-bg-soft);
-  color: #e7c46f;
+  color: var(--admin-gold-soft);
 }
 
 .page-admin :is(.customers-admin-toolbar, .catalog-admin-toolbar, .orders-admin-toolbar, .menu-admin-toolbar, .menu-admin-form, .settings-form) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) {
@@ -3142,7 +3144,7 @@ button {
   position: relative;
   overflow: auto;
   background:
-    radial-gradient(circle at top left, rgba(26, 58, 46, 0.08) 0%, rgba(26, 58, 46, 0) 24%),
+    radial-gradient(circle at top left, rgba(46, 84, 58, 0.08) 0%, rgba(46, 84, 58, 0) 24%),
     linear-gradient(140deg, #f3f1ea 0%, #efefe8 42%, #ecece6 100%);
 }
 
@@ -3160,7 +3162,7 @@ button {
   height: 320px;
   left: -110px;
   top: -140px;
-  background: radial-gradient(circle, rgba(26, 58, 46, 0.12) 0%, rgba(26, 58, 46, 0) 70%);
+  background: radial-gradient(circle, rgba(46, 84, 58, 0.12) 0%, rgba(46, 84, 58, 0) 70%);
 }
 
 .admin-layout.logged-out .admin-main::after {
@@ -3168,7 +3170,7 @@ button {
   height: 280px;
   right: -90px;
   bottom: -120px;
-  background: radial-gradient(circle, rgba(212, 168, 67, 0.12) 0%, rgba(212, 168, 67, 0) 70%);
+  background: radial-gradient(circle, rgba(217, 185, 94, 0.12) 0%, rgba(217, 185, 94, 0) 70%);
 }
 
 .admin-layout.logged-out .login-card {
@@ -3201,7 +3203,7 @@ button {
   padding: 0;
   overflow: hidden;
   border-radius: 30px;
-  border-color: rgba(26, 58, 46, 0.14);
+  border-color: rgba(46, 84, 58, 0.14);
   background: #ffffff;
   box-shadow: 0 24px 64px rgba(15, 23, 42, 0.12);
   backdrop-filter: none;
@@ -3225,9 +3227,9 @@ button {
   gap: 28px;
   color: #f4f1e8;
   background:
-    radial-gradient(circle at 84% 8%, rgba(76, 112, 95, 0.44) 0%, rgba(76, 112, 95, 0) 34%),
+    radial-gradient(circle at 84% 8%, rgba(47, 84, 58, 0.44) 0%, rgba(47, 84, 58, 0) 34%),
     radial-gradient(circle at 0% 92%, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 22%),
-    #1a3a2e;
+    var(--admin-sidebar-bg);
   box-shadow: none;
 }
 
@@ -3244,7 +3246,7 @@ button {
   height: 320px;
   right: -110px;
   top: -70px;
-  background: radial-gradient(circle, rgba(76, 112, 95, 0.42) 0%, rgba(76, 112, 95, 0) 72%);
+  background: radial-gradient(circle, rgba(47, 84, 58, 0.42) 0%, rgba(47, 84, 58, 0) 72%);
 }
 
 .admin-auth-hero::after {
@@ -3308,7 +3310,7 @@ button {
 }
 
 .admin-auth-overline {
-  color: #d4a843;
+  color: var(--admin-gold);
 }
 
 .admin-auth-overline::before,
@@ -3363,7 +3365,7 @@ button {
   height: 12px;
   border-radius: 999px;
   flex: 0 0 12px;
-  background: #d4a843;
+  background: var(--admin-gold);
 }
 
 .admin-auth-panel {
@@ -3383,7 +3385,7 @@ button {
 }
 
 .admin-auth-panel-kicker {
-  color: #1a3a2e;
+  color: var(--admin-sidebar-bg);
 }
 
 .admin-auth-panel h3 {
@@ -3420,7 +3422,7 @@ button {
 .admin-auth-form input {
   width: 100%;
   border-radius: 16px;
-  border: 1px solid rgba(26, 58, 46, 0.12);
+  border: 1px solid rgba(46, 84, 58, 0.12);
   background: #f4f4ef;
   min-height: 70px;
   padding: 18px 20px;
@@ -3435,8 +3437,8 @@ button {
 }
 
 .admin-auth-form input:focus {
-  border-color: rgba(26, 58, 46, 0.38);
-  box-shadow: 0 0 0 4px rgba(26, 58, 46, 0.08);
+  border-color: rgba(46, 84, 58, 0.38);
+  box-shadow: 0 0 0 4px rgba(46, 84, 58, 0.08);
   background: #ffffff;
 }
 
@@ -3450,7 +3452,7 @@ button {
   height: 54px;
   min-height: 54px;
   border-radius: 18px;
-  border: 1px solid rgba(26, 58, 46, 0.14);
+  border: 1px solid rgba(46, 84, 58, 0.14);
   background: #ffffff;
   color: #556056;
   box-shadow: none;
@@ -3462,8 +3464,8 @@ button {
 }
 
 .admin-auth-form .password-toggle-btn.is-visible {
-  color: #1a3a2e;
-  border-color: rgba(26, 58, 46, 0.24);
+  color: var(--admin-sidebar-bg);
+  border-color: rgba(46, 84, 58, 0.24);
   background: #edf2ee;
 }
 
@@ -3491,7 +3493,7 @@ button {
   min-height: 18px;
   padding: 0;
   margin: 0;
-  accent-color: #1a3a2e;
+  accent-color: var(--admin-sidebar-bg);
   transform: none;
   box-shadow: none;
 }
@@ -3505,7 +3507,7 @@ button {
   width: 100%;
   min-height: 62px;
   border-radius: 21px;
-  background: #1a3a2e;
+  background: var(--admin-sidebar-bg);
   color: #ffffff;
   font-size: 1.08rem;
   font-weight: 600;
@@ -3514,7 +3516,7 @@ button {
 }
 
 .admin-auth-submit:hover {
-  background: #143126;
+  background: var(--admin-sidebar-bg-soft);
   color: #ffffff;
 }
 
