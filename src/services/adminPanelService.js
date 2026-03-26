@@ -347,10 +347,39 @@ function toValidDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-function diffDaysFromNow(value, now = new Date()) {
+function getDatePartsInTimeZone(value, timeZone = STORE_OPERATION_TIMEZONE) {
   const parsed = toValidDate(value)
   if (!parsed) return null
-  const diffMs = now.getTime() - parsed.getTime()
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+
+  const parts = formatter.formatToParts(parsed)
+  const partMap = parts.reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value
+    return acc
+  }, {})
+
+  const year = Number(partMap.year)
+  const month = Number(partMap.month)
+  const day = Number(partMap.day)
+  if (!year || !month || !day) return null
+
+  return { year, month, day }
+}
+
+function diffDaysFromNow(value, now = new Date(), timeZone = STORE_OPERATION_TIMEZONE) {
+  const nowParts = getDatePartsInTimeZone(now, timeZone)
+  const valueParts = getDatePartsInTimeZone(value, timeZone)
+  if (!nowParts || !valueParts) return null
+
+  const currentDayUtc = Date.UTC(nowParts.year, nowParts.month - 1, nowParts.day)
+  const valueDayUtc = Date.UTC(valueParts.year, valueParts.month - 1, valueParts.day)
+  const diffMs = currentDayUtc - valueDayUtc
   if (!Number.isFinite(diffMs)) return null
   return Math.max(0, Math.floor(diffMs / 86400000))
 }
@@ -823,6 +852,7 @@ function adminPanelService(prisma, deps = {}) {
   const whatsappTransport = deps.whatsappTransport || null
   const orderAudit = deps.orderAudit || createOrderAuditService(prisma)
   const assertSafeTargetUrl = deps.assertSafeTargetUrl || assertSafeExternalUrl
+  const nowProvider = typeof deps.nowProvider === 'function' ? deps.nowProvider : () => new Date()
 
   async function getStoreSettingsConfig() {
     const config = await prisma.configuracoes_loja.findFirst({
@@ -1075,7 +1105,8 @@ function adminPanelService(prisma, deps = {}) {
         })
       }
 
-      const summarizedCustomers = rawCustomers.map((customer) => summarizeCustomer(customer))
+      const now = nowProvider()
+      const summarizedCustomers = rawCustomers.map((customer) => summarizeCustomer(customer, { now }))
       const filteredBySegment = summarizedCustomers.filter((customer) => matchesCustomerSegment(customer, segment))
       const filteredCustomers = search
         ? rankSearchMatches(
@@ -1119,7 +1150,7 @@ function adminPanelService(prisma, deps = {}) {
         throw new AppError(404, 'Cliente nao encontrado.')
       }
 
-      const summary = summarizeCustomer(customer, { includeOrders: true })
+      const summary = summarizeCustomer(customer, { includeOrders: true, now: nowProvider() })
 
       return {
         id: customer.id,

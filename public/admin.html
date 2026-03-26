@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
-  <link rel="stylesheet" href="/styles.css?v=20260316d" />
+  <link rel="stylesheet" href="/styles.css?v=20260325k" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -318,78 +318,118 @@
         </article>
 
         <article id="clientes" class="card admin-card admin-panel-view hidden" data-admin-view="clientes">
-          <header class="section-head section-head-with-actions">
-            <div class="section-copy">
-              <h2>Clientes</h2>
-              <p id="customersMeta" class="muted">Faça login para carregar a carteira de clientes.</p>
-            </div>
-            <div class="section-actions section-actions-wrap">
-              <input id="customersSearchInput" list="customersSearchSuggestions" autocomplete="off" placeholder="Nome, WhatsApp ou #pedido" />
-              <datalist id="customersSearchSuggestions"></datalist>
-              <select id="customersSegmentFilter">
+          <section class="customers-admin-shell">
+            <section class="customers-admin-top-card">
+              <div class="customers-admin-top-copy">
+                <h2>Clientes</h2>
+                <p class="muted">Acompanhe carteira, recorrência e histórico em um fluxo mais claro para relacionamento e operação.</p>
+                <p id="customersMeta" class="muted">Faça login para carregar a carteira de clientes.</p>
+              </div>
+
+              <div class="customers-admin-overview-grid">
+                <article class="customers-admin-overview-card">
+                  <small>Carteira</small>
+                  <strong id="crmTotalCustomers">--</strong>
+                  <span class="muted">Base total cadastrada para relacionamento.</span>
+                </article>
+
+                <article class="customers-admin-overview-card">
+                  <small>Ativos 30d</small>
+                  <strong id="crmActiveCustomers">--</strong>
+                  <span class="muted">Clientes com atividade recente na loja.</span>
+                </article>
+
+                <article class="customers-admin-overview-card">
+                  <small>Recorrentes</small>
+                  <strong id="crmRecurringCustomers">--</strong>
+                  <span class="muted">Quem já compra com frequência da Donilla.</span>
+                </article>
+
+                <article class="customers-admin-overview-card">
+                  <small>Leads</small>
+                  <strong id="crmLeadCustomers">--</strong>
+                  <span class="muted">Contatos que ainda precisam virar venda.</span>
+                </article>
+
+                <article class="customers-admin-overview-card">
+                  <small>Receita</small>
+                  <strong id="crmRevenueTotal">--</strong>
+                  <span class="muted">Faturamento acumulado da carteira filtrada.</span>
+                </article>
+              </div>
+
+              <nav class="customers-admin-tabs" aria-label="Segmentos da carteira">
+                <button type="button" class="customers-admin-tab active" data-customers-segment-tab="all">Todos</button>
+                <button type="button" class="customers-admin-tab" data-customers-segment-tab="lead">Leads</button>
+                <button type="button" class="customers-admin-tab" data-customers-segment-tab="novo">Novos</button>
+                <button type="button" class="customers-admin-tab" data-customers-segment-tab="recorrente">Recorrentes</button>
+                <button type="button" class="customers-admin-tab" data-customers-segment-tab="inativo">Inativos</button>
+              </nav>
+
+              <select id="customersSegmentFilter" hidden>
                 <option value="all">Todos os segmentos</option>
                 <option value="lead">Leads</option>
                 <option value="novo">Novos</option>
                 <option value="recorrente">Recorrentes</option>
                 <option value="inativo">Inativos</option>
               </select>
-              <select id="customersSortInput">
-                <option value="recent_desc">Ordenar por último pedido</option>
-                <option value="total_spent_desc">Ordenar por valor acumulado</option>
-                <option value="orders_desc">Ordenar por quantidade de pedidos</option>
-                <option value="name_asc">Ordenar por nome</option>
-              </select>
-              <select id="customersRangePreset">
-                <option value="all" selected>Toda a carteira</option>
-                <option value="7d">Atividade últimos 7 dias</option>
-                <option value="30d">Atividade últimos 30 dias</option>
-                <option value="month">Atividade neste mês</option>
-                <option value="custom">Atividade personalizada</option>
-              </select>
-              <input id="customersFromDate" type="date" aria-label="Data inicial dos clientes" />
-              <input id="customersToDate" type="date" aria-label="Data final dos clientes" />
-              <select id="customersPageSizeInput">
-                <option value="8">8 por página</option>
-                <option value="12" selected>12 por página</option>
-                <option value="20">20 por página</option>
-              </select>
-              <button id="applyCustomersFiltersBtn" class="ghost-btn" type="button">Aplicar</button>
-              <button id="refreshCustomersBtn" class="ghost-btn" type="button">Atualizar</button>
-            </div>
-          </header>
-          <p id="customersStatus" class="status-text muted"></p>
+            </section>
 
-          <div class="kpi-grid crm-kpi-grid">
-            <article class="kpi-card">
-              <small>Clientes na carteira</small>
-              <strong id="crmTotalCustomers">--</strong>
-            </article>
-            <article class="kpi-card">
-              <small>Ativos até 30 dias</small>
-              <strong id="crmActiveCustomers">--</strong>
-            </article>
-            <article class="kpi-card">
-              <small>Recorrentes</small>
-              <strong id="crmRecurringCustomers">--</strong>
-            </article>
-            <article class="kpi-card">
-              <small>Leads</small>
-              <strong id="crmLeadCustomers">--</strong>
-            </article>
-            <article class="kpi-card highlight">
-              <small>Receita da carteira</small>
-              <strong id="crmRevenueTotal">--</strong>
-            </article>
-          </div>
+            <section class="menu-admin-card customers-admin-filter-card">
+              <div class="customers-admin-filter-head">
+                <div class="catalog-section-copy">
+                  <h3>Filtro da carteira</h3>
+                  <p class="muted">Busque por nome, WhatsApp ou pedido e combine atividade, ordenação e paginação.</p>
+                </div>
+              </div>
 
-          <div class="crm-layout">
-            <section class="crm-list-panel">
-              <header class="section-head crm-subhead">
-                <div>
+              <div class="customers-admin-toolbar">
+                <div class="search-box">
+                  <span class="search-icon" aria-hidden="true">&#128269;</span>
+                  <input id="customersSearchInput" list="customersSearchSuggestions" autocomplete="off" placeholder="Nome, WhatsApp ou #pedido" />
+                </div>
+                <datalist id="customersSearchSuggestions"></datalist>
+
+                <select id="customersSortInput">
+                  <option value="recent_desc">Ordenar por último pedido</option>
+                  <option value="total_spent_desc">Ordenar por valor acumulado</option>
+                  <option value="orders_desc">Ordenar por quantidade de pedidos</option>
+                  <option value="name_asc">Ordenar por nome</option>
+                </select>
+
+                <select id="customersRangePreset">
+                  <option value="all" selected>Toda a carteira</option>
+                  <option value="7d">Atividade últimos 7 dias</option>
+                  <option value="30d">Atividade últimos 30 dias</option>
+                  <option value="month">Atividade neste mês</option>
+                  <option value="custom">Atividade personalizada</option>
+                </select>
+
+                <input id="customersFromDate" type="date" aria-label="Data inicial dos clientes" />
+                <input id="customersToDate" type="date" aria-label="Data final dos clientes" />
+
+                <select id="customersPageSizeInput">
+                  <option value="8">8 por página</option>
+                  <option value="12" selected>12 por página</option>
+                  <option value="20">20 por página</option>
+                </select>
+
+                <div class="customers-admin-toolbar-actions">
+                  <button id="applyCustomersFiltersBtn" class="ghost-btn" type="button">Aplicar</button>
+                  <button id="refreshCustomersBtn" class="primary-btn" type="button">Atualizar</button>
+                </div>
+              </div>
+
+              <p id="customersStatus" class="status-text muted"></p>
+            </section>
+
+            <section class="menu-admin-card customers-admin-list-card">
+              <div class="customers-admin-list-head">
+                <div class="catalog-section-copy">
                   <h3>Carteira de clientes</h3>
                   <p id="customersListMeta" class="muted">Faça login para carregar clientes.</p>
                 </div>
-              </header>
+              </div>
 
               <div id="customersList" class="crm-customer-list">
                 <p class="muted">Nenhum dado carregado.</p>
@@ -404,12 +444,19 @@
               </div>
             </section>
 
-            <section class="crm-detail-panel">
+            <section id="customerDetailCard" class="menu-admin-card customers-admin-detail-card">
+              <div class="customers-admin-detail-head">
+                <div class="catalog-section-copy">
+                  <h3>Perfil do cliente</h3>
+                  <p class="muted">Abra endereços, favoritos e histórico completo sem sair da carteira.</p>
+                </div>
+              </div>
+
               <div id="customerDetail" class="crm-detail-empty">
                 <p class="muted">Selecione um cliente para ver perfil, endereços e histórico.</p>
               </div>
             </section>
-          </div>
+          </section>
         </article>
 
         <article id="cardapio" class="card admin-card admin-panel-view hidden" data-admin-view="cardapio">
@@ -1154,6 +1201,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325j"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260325k"></script>
 </body>
 </html>

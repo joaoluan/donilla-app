@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325j'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325j'
-import { bindCustomersSection } from './modules/customers.js?v=20260325j'
-import { bindOrdersSection } from './modules/orders.js?v=20260325j'
-import { bindSettingsSection } from './modules/settings.js?v=20260325j'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325j'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325k'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325k'
+import { bindCustomersSection } from './modules/customers.js?v=20260325k'
+import { bindOrdersSection } from './modules/orders.js?v=20260325k'
+import { bindSettingsSection } from './modules/settings.js?v=20260325k'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325k'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -737,8 +737,11 @@ function syncOrdersStateFromControls() {
 }
 
 function scrollCustomerDetailIntoView() {
-  const detailPanel = customerDetailEl?.closest('.crm-detail-panel');
-  if (!detailPanel || window.innerWidth >= 881) return;
+  const detailPanel = customerDetailEl?.closest('.customers-admin-detail-card') || customerDetailEl?.closest('.crm-detail-panel');
+  if (!detailPanel) return;
+  const rect = detailPanel.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  if (rect.top >= 0 && rect.top <= Math.max(viewportHeight * 0.35, 180)) return;
   detailPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -1351,8 +1354,18 @@ function customerCard(customer) {
         <span class="crm-customer-caption">${escapeHtml(customer.segment_reason || 'Sem observações no momento.')}</span>
         <span class="crm-customer-location">${escapeHtml(addressLabel)}</span>
       </span>
+
+      <span class="crm-customer-cta">Abrir perfil completo</span>
     </button>
   `;
+}
+
+function syncCustomerSegmentTabs(segment = 'all') {
+  document.querySelectorAll('[data-customers-segment-tab]').forEach((button) => {
+    const isActive = (button.dataset.customersSegmentTab || 'all') === (segment || 'all');
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
+  });
 }
 
 function customerDetailOrderCard(order) {
@@ -1531,13 +1544,14 @@ function renderCustomerDetail(detail = customerDetail, { scroll = false } = {}) 
 
 function renderCustomers() {
   if (!accessToken) {
-    customersListEl.innerHTML = '<p class="muted">Faça login para visualizar clientes.</p>';
+    customersListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para visualizar clientes.</p></div>';
     customersMetaEl.textContent = 'Faça login para carregar a carteira de clientes.';
     customersListMetaEl.textContent = 'Faça login para carregar clientes.';
     customersPrevBtnEl.disabled = true;
     customersNextBtnEl.disabled = true;
     updateDatalistOptions(customersSearchSuggestionsEl, []);
     renderCustomersSummary();
+    syncCustomerSegmentTabs(customersState.segment || 'all');
     return;
   }
 
@@ -1557,6 +1571,7 @@ function renderCustomers() {
   customersListMetaEl.textContent = `${start}-${end} de ${total} · ${pageSize} por visualização · ${segmentLabel} · ${sortLabel}`;
   customersPrevBtnEl.disabled = page <= 1;
   customersNextBtnEl.disabled = page >= totalPages;
+  syncCustomerSegmentTabs(filters?.segment || customersState.segment || 'all');
   updateDatalistOptions(
     customersSearchSuggestionsEl,
     crmCustomers.map((customer) => ({
@@ -1566,7 +1581,7 @@ function renderCustomers() {
   );
 
   if (crmCustomers.length === 0) {
-    customersListEl.innerHTML = '<p class="muted">Nenhum cliente encontrado para este filtro.</p>';
+    customersListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Nenhum cliente encontrado para este filtro.</p></div>';
     return;
   }
 

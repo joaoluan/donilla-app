@@ -2644,6 +2644,157 @@ button {
   gap: 14px;
 }
 
+.customers-admin-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customers-admin-top-card {
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 24px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(244, 234, 219, 0.68), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 248, 0.98) 100%);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+}
+
+.customers-admin-top-copy h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 1.9rem);
+}
+
+.customers-admin-top-copy p {
+  margin: 8px 0 0;
+  max-width: 760px;
+}
+
+.customers-admin-overview-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.customers-admin-overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.customers-admin-overview-card small {
+  color: var(--slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.73rem;
+}
+
+.customers-admin-overview-card strong {
+  font-size: 1.32rem;
+  color: #0f172a;
+}
+
+.customers-admin-tabs {
+  margin-top: 22px;
+  display: flex;
+  gap: 22px;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+  scrollbar-width: none;
+}
+
+.customers-admin-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.customers-admin-tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.98rem;
+  font-weight: 700;
+  min-height: auto;
+  padding: 0 0 12px;
+  white-space: nowrap;
+}
+
+.customers-admin-tab:hover {
+  color: #111827;
+}
+
+.customers-admin-tab.active {
+  color: #111827;
+  border-color: #111827;
+}
+
+.customers-admin-filter-card,
+.customers-admin-list-card,
+.customers-admin-detail-card {
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 20px;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.customers-admin-filter-head,
+.customers-admin-list-head,
+.customers-admin-detail-head,
+.crm-subhead {
+  margin-bottom: 12px;
+}
+
+.customers-admin-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  align-items: center;
+}
+
+.customers-admin-toolbar .search-box {
+  grid-column: 1 / -1;
+}
+
+.customers-admin-toolbar .search-box input {
+  min-height: 52px;
+  border-radius: 18px;
+  padding: 14px 16px 14px 42px;
+}
+
+.customers-admin-toolbar select,
+.customers-admin-toolbar input[type="date"] {
+  min-height: 52px;
+  border: 1px solid var(--slate-300);
+  border-radius: 18px;
+  padding: 0 14px;
+  outline: none;
+  background: #ffffff;
+}
+
+.customers-admin-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  grid-column: 1 / -1;
+}
+
+.customers-admin-toolbar-actions .ghost-btn,
+.customers-admin-toolbar-actions .primary-btn {
+  flex: 1 1 180px;
+}
+
+.customers-admin-detail-card #customerDetail {
+  min-height: 280px;
+}
+
 .crm-kpi-grid {
   margin-top: 12px;
 }
@@ -2661,10 +2812,6 @@ button {
   padding: 12px;
   background: #fff;
   box-shadow: var(--shadow-thin);
-}
-
-.crm-subhead {
-  margin-bottom: 10px;
 }
 
 .crm-subhead h3 {
@@ -2898,6 +3045,15 @@ button {
 .crm-customer-location {
   color: var(--slate-500);
   line-height: 1.4;
+}
+
+.crm-customer-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #14532d;
+  font-size: 0.84rem;
+  font-weight: 800;
 }
 
 .crm-detail-empty {

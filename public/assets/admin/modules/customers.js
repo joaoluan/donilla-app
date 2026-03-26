@@ -1,5 +1,6 @@
 export function bindCustomersSection(ctx) {
   const { dom, state, helpers, api } = ctx;
+  const customerSegmentTabs = Array.from(document.querySelectorAll('[data-customers-segment-tab]'));
 
   const debouncedLoadCustomersSearch = helpers.createDebounce(220, () => {
     if (!state.accessToken) return;
@@ -14,6 +15,26 @@ export function bindCustomersSection(ctx) {
     } catch (error) {
       helpers.setStatus(dom.customersStatusEl, error.message, 'err');
     }
+  });
+
+  customerSegmentTabs.forEach((button) => {
+    button.addEventListener('click', async () => {
+      const nextSegment = button.dataset.customersSegmentTab || 'all';
+      state.customersState.segment = nextSegment;
+      state.customersState.page = 1;
+
+      if (dom.customersSegmentFilterEl) {
+        dom.customersSegmentFilterEl.value = nextSegment;
+      }
+
+      if (!state.accessToken) return;
+
+      try {
+        await api.loadCustomers();
+      } catch (error) {
+        helpers.setStatus(dom.customersStatusEl, error.message, 'err');
+      }
+    });
   });
 
   dom.applyCustomersFiltersBtnEl.addEventListener('click', async () => {

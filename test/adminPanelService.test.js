@@ -276,6 +276,47 @@ test('listCustomers filtra por segmento recorrente e resume a carteira CRM', asy
   assert.equal(result.meta.summary.revenue_total, 310)
 })
 
+test('recencia do cliente considera a virada do dia no fuso da loja', async () => {
+  const customer = {
+    id: 7,
+    nome: 'João Moura',
+    telefone_whatsapp: '5551985711759',
+    whatsapp_lid: null,
+    criado_em: '2026-03-06T12:00:00.000Z',
+    enderecos: [{ id: 1, rua: 'Rua A', numero: '10', bairro: 'Centro', cidade: 'Porto Alegre' }],
+    pedidos: [
+      {
+        id: 38,
+        valor_total: '26.90',
+        metodo_pagamento: 'pix',
+        status_entrega: 'cancelado',
+        criado_em: '2026-03-25T01:48:15.000Z',
+      },
+    ],
+  }
+
+  const prisma = {
+    clientes: {
+      findMany() {
+        return Promise.resolve([customer])
+      },
+      findUnique() {
+        return Promise.resolve(customer)
+      },
+    },
+  }
+  const service = adminPanelService(prisma, {
+    nowProvider: () => new Date('2026-03-25T15:00:00.000Z'),
+  })
+
+  const list = await service.listCustomers({ period: 'all' })
+  const detail = await service.getCustomer(7)
+
+  assert.equal(list.items[0].days_since_last_order, 1)
+  assert.equal(detail.days_since_last_order, 1)
+  assert.equal(detail.last_order_at, '2026-03-25T01:48:15.000Z')
+})
+
 test('getOrderAudit devolve historico ordenado do pedido', async () => {
   const { prisma, calls } = createPrismaMock()
   prisma.pedidos_auditoria.findMany = (args) => {
