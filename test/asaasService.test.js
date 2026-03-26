@@ -184,3 +184,59 @@ test('createCheckout sanitiza detalhes de erro retornados pelo Asaas', async () 
     global.fetch = originalFetch
   }
 })
+
+test('createCheckout limita nomes longos dos itens ao maximo aceito pelo Asaas', async () => {
+  const originalFetch = global.fetch
+  let capturedBody = null
+  global.fetch = async (_url, options) => {
+    capturedBody = JSON.parse(options?.body || '{}')
+    return {
+      ok: true,
+      status: 200,
+      async text() {
+        return JSON.stringify({
+          id: 'chk_long_name',
+          link: 'https://sandbox.asaas.com/checkoutSession/show?id=chk_long_name',
+        })
+      },
+    }
+  }
+
+  const service = createAsaasService({
+    environment: 'sandbox',
+    apiBaseUrl: 'https://api-sandbox.asaas.com/v3',
+    checkoutBaseUrl: 'https://sandbox.asaas.com/checkoutSession/show',
+    apiKey: '$aact_hmlg_teste',
+    webhookAuthToken: 'whsec_teste',
+    checkoutMinutesToExpire: 60,
+    requestTimeoutMs: 15000,
+    appBaseUrl: 'https://www.donilla.com.br',
+    successUrl: '',
+    cancelUrl: '',
+    expiredUrl: '',
+  })
+
+  try {
+    const result = await service.createCheckout({
+      orderId: 34,
+      amount: 26.9,
+      paymentMethod: 'asaas_checkout',
+      items: [
+        {
+          name: 'Bolo de Pote Ninho com Nutella Crocante Especial',
+          description: 'Compra de teste',
+          quantity: 1,
+          value: 26.9,
+        },
+      ],
+    })
+
+    assert.equal(result.id, 'chk_long_name')
+    assert.ok(capturedBody)
+    assert.equal(capturedBody.items[0].name.length <= 30, true)
+    assert.match(capturedBody.items[0].name, /^Bolo de Pote Ninho/)
+    assert.match(capturedBody.items[0].name, /\.\.\.$/)
+  } finally {
+    global.fetch = originalFetch
+  }
+})

@@ -10,6 +10,7 @@ const ASAAS_ENVIRONMENTS = Object.freeze({
     checkoutBaseUrl: 'https://sandbox.asaas.com/checkoutSession/show',
   },
 })
+const ASAAS_CHECKOUT_ITEM_NAME_MAX_LENGTH = 30
 
 function normalizeEnvironment(value) {
   const normalized = String(value || '')
@@ -92,6 +93,19 @@ function extractHostLabel(rawUrl) {
 function buildDefaultUserAgent(environment, appBaseUrl) {
   const hostLabel = extractHostLabel(appBaseUrl)
   return `DonillaAsaasCheckout/1 (${environment}${hostLabel ? `; ${hostLabel}` : ''})`
+}
+
+function normalizeCheckoutItemName(value, fallback = 'Item do pedido') {
+  const normalized = String(value || fallback)
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const safeValue = normalized || fallback
+  if (safeValue.length <= ASAAS_CHECKOUT_ITEM_NAME_MAX_LENGTH) {
+    return safeValue
+  }
+
+  return `${safeValue.slice(0, ASAAS_CHECKOUT_ITEM_NAME_MAX_LENGTH - 3).trimEnd()}...`
 }
 
 function getAsaasConfig(env = process.env) {
@@ -380,7 +394,7 @@ function createAsaasService(rawConfig = getAsaasConfig()) {
           minutesToExpire: config.checkoutMinutesToExpire,
           callback,
           items: items.map((item) => ({
-            name: item.name,
+            name: normalizeCheckoutItemName(item.name),
             description: item.description,
             quantity: item.quantity,
             value: item.value,

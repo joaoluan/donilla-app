@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
-  <link rel="stylesheet" href="/styles.css?v=20260325k" />
+  <link rel="stylesheet" href="/styles.css?v=20260325o" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -752,6 +752,23 @@
               </nav>
             </section>
 
+            <section id="ordersArrivalNotice" class="orders-arrival-notice hidden" aria-live="polite">
+              <div class="orders-arrival-notice-copy">
+                <small class="orders-arrival-kicker">Tempo real</small>
+                <strong id="ordersArrivalTitle">Novo pedido na fila</strong>
+                <p id="ordersArrivalText">A lista foi atualizada sem mover a sua tela.</p>
+              </div>
+              <div id="ordersArrivalSummary" class="orders-arrival-summary hidden">
+                <strong id="ordersArrivalOrderId">Pedido</strong>
+                <span id="ordersArrivalCustomer">Cliente</span>
+                <small id="ordersArrivalOrderMeta">Resumo do pedido</small>
+              </div>
+              <div class="orders-arrival-notice-actions">
+                <button id="ordersArrivalJumpBtn" class="primary-btn" type="button">Abrir pedido</button>
+                <button id="ordersArrivalDismissBtn" class="ghost-btn" type="button">Agora não</button>
+              </div>
+            </section>
+
             <section class="orders-admin-panel">
               <div class="orders-admin-toolbar">
                 <div class="search-box">
@@ -1201,6 +1218,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325l"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260325o"></script>
 </body>
 </html>

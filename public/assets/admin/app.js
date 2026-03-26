@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325l'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325l'
-import { bindCustomersSection } from './modules/customers.js?v=20260325l'
-import { bindOrdersSection } from './modules/orders.js?v=20260325l'
-import { bindSettingsSection } from './modules/settings.js?v=20260325l'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325l'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325o'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325o'
+import { bindCustomersSection } from './modules/customers.js?v=20260325o'
+import { bindOrdersSection } from './modules/orders.js?v=20260325o'
+import { bindSettingsSection } from './modules/settings.js?v=20260325o'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -78,6 +78,15 @@ const ordersStatusEl = document.getElementById('ordersStatus');
 const ordersListEl = document.getElementById('ordersList');
 const ordersPrevBtnEl = document.getElementById('ordersPrevBtn');
 const ordersNextBtnEl = document.getElementById('ordersNextBtn');
+const ordersArrivalNoticeEl = document.getElementById('ordersArrivalNotice');
+const ordersArrivalTitleEl = document.getElementById('ordersArrivalTitle');
+const ordersArrivalTextEl = document.getElementById('ordersArrivalText');
+const ordersArrivalSummaryEl = document.getElementById('ordersArrivalSummary');
+const ordersArrivalOrderIdEl = document.getElementById('ordersArrivalOrderId');
+const ordersArrivalCustomerEl = document.getElementById('ordersArrivalCustomer');
+const ordersArrivalOrderMetaEl = document.getElementById('ordersArrivalOrderMeta');
+const ordersArrivalJumpBtnEl = document.getElementById('ordersArrivalJumpBtn');
+const ordersArrivalDismissBtnEl = document.getElementById('ordersArrivalDismissBtn');
 const ordersOverviewTotalEl = document.getElementById('ordersOverviewTotal');
 const ordersOverviewTotalMetaEl = document.getElementById('ordersOverviewTotalMeta');
 const ordersOverviewPageEl = document.getElementById('ordersOverviewPage');
@@ -1745,7 +1754,7 @@ function orderCard(order) {
     .join('');
 
   return `
-    <article class="order-card">
+    <article class="order-card" data-order-card-id="${order.id}">
       <header class="order-card-head">
         <div class="order-card-head-copy">
           <div class="order-card-title-row">
@@ -1941,6 +1950,12 @@ async function loadOrders() {
 
   clearStatus(ordersStatusEl);
   renderOrders();
+  document.dispatchEvent(new CustomEvent('admin:orders-loaded', {
+    detail: {
+      orders: allOrders,
+      meta: ordersPaginationMeta,
+    },
+  }));
 }
 
 function renderSettingsOverview() {
@@ -3017,6 +3032,15 @@ const dom = {
   ordersListEl,
   ordersPrevBtnEl,
   ordersNextBtnEl,
+  ordersArrivalNoticeEl,
+  ordersArrivalTitleEl,
+  ordersArrivalTextEl,
+  ordersArrivalSummaryEl,
+  ordersArrivalOrderIdEl,
+  ordersArrivalCustomerEl,
+  ordersArrivalOrderMetaEl,
+  ordersArrivalJumpBtnEl,
+  ordersArrivalDismissBtnEl,
   customersMetaEl,
   customersListMetaEl,
   customersSearchInputEl,
