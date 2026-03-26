@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
-  <link rel="stylesheet" href="/styles.css?v=20260325q" />
+  <link rel="stylesheet" href="/styles.css?v=20260326a" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -261,14 +261,126 @@
         </div>
       </header>
 
-      <section id="loginCard" class="card admin-card login-card">
-        <h2>Login do administrador</h2>
-        <form id="loginForm" class="form-grid">
-          <input name="username" autocomplete="username" placeholder="Usuário admin" required />
-          <input name="password" type="password" autocomplete="current-password" placeholder="Senha" required />
-          <button class="primary-btn" type="submit">Entrar</button>
-        </form>
-        <p id="loginStatus" class="status-text muted"></p>
+      <section id="loginCard" class="card admin-card login-card admin-auth-card">
+        <div class="admin-auth-shell">
+          <section class="admin-auth-hero" aria-label="Resumo do portal administrativo">
+            <div class="admin-auth-hero-top">
+              <span class="admin-auth-kicker">Portal admin</span>
+              <span class="admin-auth-kicker admin-auth-kicker-secondary">Fluxo mais fluido</span>
+            </div>
+
+            <div class="admin-auth-logo-wrap">
+              <img class="admin-auth-logo" src="/logo-donilla.png" alt="Logo Donilla" />
+            </div>
+
+            <div class="admin-auth-hero-copy">
+              <span class="admin-auth-overline">Operação diária em um único ponto</span>
+              <h2>Entre e retome pedidos, clientes, cardápio e WhatsApp sem atrito.</h2>
+              <p>Reestruturei o acesso do painel para ficar mais orgânico no uso diário: leitura rápida, menos fricção e estados mais claros para a equipe.</p>
+            </div>
+
+            <div class="admin-auth-feature-list">
+              <article class="admin-auth-feature-card">
+                <strong>Sessão previsível</strong>
+                <span>Mantenha o acesso neste dispositivo e reduza relogins desnecessários.</span>
+              </article>
+              <article class="admin-auth-feature-card">
+                <strong>Conferência segura</strong>
+                <span>Senha visível sob demanda, com ocultação automática para evitar descuidos.</span>
+              </article>
+              <article class="admin-auth-feature-card">
+                <strong>Sinalização útil</strong>
+                <span>Aviso de Caps Lock, feedback de carregamento e dados salvos mais fáceis de entender.</span>
+              </article>
+            </div>
+
+            <div class="admin-auth-capability-row" aria-label="Áreas cobertas pelo portal">
+              <span>Pedidos em tempo real</span>
+              <span>Clientes</span>
+              <span>Cardápio</span>
+              <span>Configurações</span>
+            </div>
+          </section>
+
+          <div class="admin-auth-panel">
+            <div class="admin-auth-panel-head">
+              <span class="admin-auth-panel-kicker">Acesso seguro</span>
+              <h3>Login do administrador</h3>
+              <p class="muted">Use sua conta administrativa para abrir o painel operacional da Donilla.</p>
+            </div>
+
+            <div id="loginMemoryNote" class="admin-auth-memory hidden" aria-live="polite">
+              <span class="admin-auth-memory-label">Último usuário salvo neste dispositivo</span>
+              <strong id="loginMemoryUsername">admin</strong>
+            </div>
+
+            <form id="loginForm" class="form-grid admin-auth-form" novalidate>
+              <label class="admin-auth-field">
+                <span>Usuário</span>
+                <input
+                  id="loginUsername"
+                  name="username"
+                  autocomplete="username"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  placeholder="Seu usuário administrativo"
+                  required
+                />
+              </label>
+
+              <label class="admin-auth-field">
+                <div class="admin-auth-label-row">
+                  <span>Senha</span>
+                  <small>Visualização temporária</small>
+                </div>
+
+                <div class="password-field">
+                  <input
+                    id="loginPassword"
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Digite sua senha"
+                    required
+                  />
+                  <button
+                    id="loginPasswordToggle"
+                    class="password-toggle-btn"
+                    type="button"
+                    data-password-toggle="loginPassword"
+                    data-password-autohide="true"
+                    aria-label="Mostrar senha"
+                    aria-pressed="false"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"></circle>
+                    </svg>
+                  </button>
+                </div>
+
+                <small id="loginPasswordAssist" class="field-status muted">A senha pode ser exibida por alguns segundos para conferência.</small>
+              </label>
+
+              <div class="admin-auth-row">
+                <label class="admin-auth-check">
+                  <input id="loginRemember" name="rememberSession" type="checkbox" />
+                  <span>Manter sessão neste dispositivo</span>
+                </label>
+
+                <button id="clearRememberedLoginBtn" class="admin-auth-link-btn hidden" type="button">Limpar dados salvos</button>
+              </div>
+
+              <button id="loginSubmitBtn" class="primary-btn admin-auth-submit" type="submit">Entrar no painel</button>
+              <p id="loginStatus" class="status-text muted" aria-live="polite"></p>
+            </form>
+
+            <div class="admin-auth-inline-note">
+              <strong>Acesso contínuo.</strong>
+              <span>Se você mantiver a sessão neste dispositivo, o painel reutiliza seu login até a sessão expirar ou você sair manualmente.</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section id="adminViews" class="admin-views">
@@ -1218,6 +1330,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260325o"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260326a"></script>
 </body>
 </html>

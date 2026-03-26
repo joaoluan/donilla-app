@@ -44,6 +44,15 @@ const adminLayoutEl = document.getElementById('adminLayout');
 const loginCardEl = document.getElementById('loginCard');
 const loginFormEl = document.getElementById('loginForm');
 const loginStatusEl = document.getElementById('loginStatus');
+const loginUsernameEl = document.getElementById('loginUsername');
+const loginPasswordEl = document.getElementById('loginPassword');
+const loginPasswordAssistEl = document.getElementById('loginPasswordAssist');
+const loginRememberEl = document.getElementById('loginRemember');
+const loginMemoryNoteEl = document.getElementById('loginMemoryNote');
+const loginMemoryUsernameEl = document.getElementById('loginMemoryUsername');
+const clearRememberedLoginBtnEl = document.getElementById('clearRememberedLoginBtn');
+const loginSubmitBtnEl = document.getElementById('loginSubmitBtn');
+const passwordToggleEls = Array.from(document.querySelectorAll('[data-password-toggle]'));
 const adminTopbarDescriptionEl = document.getElementById('adminTopbarDescription');
 
 const sessionLabelEl = document.getElementById('sessionLabel');
@@ -222,7 +231,21 @@ const produtoMetaEl = document.getElementById('produtoMeta');
 const produtoPrevBtnEl = document.getElementById('produtoPrevBtn');
 const produtoNextBtnEl = document.getElementById('produtoNextBtn');
 
-let accessToken = localStorage.getItem('donilla_access_token') || '';
+const STORAGE_KEYS = {
+  accessToken: 'donilla_access_token',
+  refreshToken: 'donilla_refresh_token',
+  rememberedUsername: 'donilla_admin_last_username',
+  rememberSession: 'donilla_admin_remember_session',
+};
+const PASSWORD_AUTO_HIDE_DELAY_MS = 30000;
+const LOGIN_PASSWORD_ASSIST_DEFAULT = 'A senha pode ser exibida por alguns segundos para conferência.';
+
+function readStoredValue(key) {
+  return sessionStorage.getItem(key) || localStorage.getItem(key) || '';
+}
+
+let accessToken = readStoredValue(STORAGE_KEYS.accessToken);
+let refreshToken = readStoredValue(STORAGE_KEYS.refreshToken);
 let currentUser = null;
 let allOrders = [];
 let crmCustomers = [];
@@ -242,6 +265,8 @@ let categoryPaginationMeta = null;
 let produtoPaginationMeta = null;
 const orderAuditCache = new Map();
 const expandedOrderAuditIds = new Set();
+const passwordToggleTimeouts = new Map();
+let refreshSessionPromise = null;
 
 const dashboardFilters = {
   period: dashboardRangePresetEl?.value || '7d',
@@ -754,6 +779,165 @@ function scrollCustomerDetailIntoView() {
   detailPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function clearStoredSessionTokens() {
+  [localStorage, sessionStorage].forEach((storage) => {
+    storage.removeItem(STORAGE_KEYS.accessToken);
+    storage.removeItem(STORAGE_KEYS.refreshToken);
+  });
+}
+
+function hasRememberedSessionPreference() {
+  return localStorage.getItem(STORAGE_KEYS.rememberSession) === 'true';
+}
+
+function getRememberedUsername() {
+  return localStorage.getItem(STORAGE_KEYS.rememberedUsername) || '';
+}
+
+function setLoginPasswordAssist(message, type = 'muted') {
+  if (!loginPasswordAssistEl) return;
+  loginPasswordAssistEl.textContent = message;
+  loginPasswordAssistEl.className = `field-status ${type}`;
+}
+
+function updateRememberedLoginUi() {
+  const rememberedUsername = getRememberedUsername();
+  const hasSavedData = Boolean(
+    rememberedUsername ||
+    localStorage.getItem(STORAGE_KEYS.accessToken) ||
+    localStorage.getItem(STORAGE_KEYS.refreshToken),
+  );
+
+  if (loginRememberEl) {
+    loginRememberEl.checked = hasRememberedSessionPreference() || hasSavedData;
+  }
+
+  if (loginMemoryNoteEl) {
+    loginMemoryNoteEl.classList.toggle('hidden', !rememberedUsername);
+  }
+
+  if (loginMemoryUsernameEl) {
+    loginMemoryUsernameEl.textContent = rememberedUsername || '';
+  }
+
+  if (clearRememberedLoginBtnEl) {
+    clearRememberedLoginBtnEl.classList.toggle('hidden', !hasSavedData);
+  }
+
+  if (loginUsernameEl && rememberedUsername && !loginUsernameEl.value) {
+    loginUsernameEl.value = rememberedUsername;
+  }
+}
+
+function storeRememberedUsername(username, rememberSession) {
+  if (rememberSession && username) {
+    localStorage.setItem(STORAGE_KEYS.rememberedUsername, username);
+    localStorage.setItem(STORAGE_KEYS.rememberSession, 'true');
+  } else if (!rememberSession) {
+    localStorage.removeItem(STORAGE_KEYS.rememberedUsername);
+    localStorage.removeItem(STORAGE_KEYS.rememberSession);
+  }
+
+  updateRememberedLoginUi();
+}
+
+function persistSessionTokens(session, rememberSession) {
+  clearStoredSessionTokens();
+
+  accessToken = session?.accessToken || '';
+  refreshToken = session?.refreshToken || '';
+
+  const storage = rememberSession ? localStorage : sessionStorage;
+  if (accessToken) storage.setItem(STORAGE_KEYS.accessToken, accessToken);
+  if (refreshToken) storage.setItem(STORAGE_KEYS.refreshToken, refreshToken);
+
+  if (rememberSession) {
+    localStorage.setItem(STORAGE_KEYS.rememberSession, 'true');
+  }
+
+  updateRememberedLoginUi();
+}
+
+function setLoginBusy(isBusy, busyLabel = 'Validando acesso...') {
+  if (loginSubmitBtnEl) {
+    loginSubmitBtnEl.disabled = isBusy;
+    loginSubmitBtnEl.textContent = isBusy ? busyLabel : 'Entrar no painel';
+  }
+
+  [loginUsernameEl, loginPasswordEl, loginRememberEl].forEach((field) => {
+    if (field) field.disabled = isBusy;
+  });
+}
+
+function applyPasswordToggleState(button, input, isVisible) {
+  if (!button || !input) return;
+  input.type = isVisible ? 'text' : 'password';
+  button.setAttribute('aria-pressed', String(isVisible));
+  button.setAttribute('aria-label', isVisible ? 'Ocultar senha' : 'Mostrar senha');
+  button.classList.toggle('is-visible', isVisible);
+}
+
+function hidePasswordForButton(button) {
+  const inputId = button?.dataset?.passwordToggle;
+  if (!inputId) return;
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  applyPasswordToggleState(button, input, false);
+  const currentTimeout = passwordToggleTimeouts.get(button);
+  if (currentTimeout) {
+    window.clearTimeout(currentTimeout);
+    passwordToggleTimeouts.delete(button);
+  }
+}
+
+function togglePasswordVisibility(button) {
+  const inputId = button?.dataset?.passwordToggle;
+  if (!inputId) return;
+
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  const nextIsVisible = input.type === 'password';
+  applyPasswordToggleState(button, input, nextIsVisible);
+
+  const currentTimeout = passwordToggleTimeouts.get(button);
+  if (currentTimeout) {
+    window.clearTimeout(currentTimeout);
+    passwordToggleTimeouts.delete(button);
+  }
+
+  if (!nextIsVisible) {
+    setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
+    return;
+  }
+
+  if (button.dataset.passwordAutohide === 'true') {
+    setLoginPasswordAssist('Senha visível por 30 segundos neste dispositivo.');
+    const timeoutId = window.setTimeout(() => {
+      hidePasswordForButton(button);
+      setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
+    }, PASSWORD_AUTO_HIDE_DELAY_MS);
+    passwordToggleTimeouts.set(button, timeoutId);
+  }
+}
+
+function handlePasswordCapsLock(event) {
+  const capsLockEnabled = Boolean(event?.getModifierState && event.getModifierState('CapsLock'));
+  if (capsLockEnabled) {
+    setLoginPasswordAssist('Caps Lock ligado. Confira a senha antes de entrar.', 'err');
+    return;
+  }
+
+  const hasVisiblePassword = passwordToggleEls.some((button) => {
+    const inputId = button?.dataset?.passwordToggle;
+    const input = inputId ? document.getElementById(inputId) : null;
+    return Boolean(input && input.type === 'text');
+  });
+  setLoginPasswordAssist(
+    hasVisiblePassword ? 'Senha visível por 30 segundos neste dispositivo.' : LOGIN_PASSWORD_ASSIST_DEFAULT,
+  );
+}
+
 function authHeaders(extra = {}) {
   return {
     Authorization: `Bearer ${accessToken}`,
@@ -782,6 +966,49 @@ async function parseEnvelope(response) {
 async function parseResponse(response) {
   const payload = await parseEnvelope(response);
   return payload?.data;
+}
+
+async function refreshAdminSession() {
+  if (!refreshToken) {
+    const error = new Error('Sessão expirada. Faça login novamente.');
+    error.status = 401;
+    throw error;
+  }
+
+  if (refreshSessionPromise) return refreshSessionPromise;
+
+  refreshSessionPromise = (async () => {
+    const response = await fetch('/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    const data = await parseResponse(response);
+    currentUser = data.user;
+    persistSessionTokens(data, hasRememberedSessionPreference());
+    return data;
+  })();
+
+  try {
+    return await refreshSessionPromise;
+  } finally {
+    refreshSessionPromise = null;
+  }
+}
+
+async function revokeAdminSession() {
+  if (!refreshToken) return;
+
+  try {
+    await fetch('/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Best-effort revocation only.
+  }
 }
 
 function normalizeEstoque(value) {
@@ -1132,12 +1359,17 @@ function applySessionUi() {
   sessionLabelEl.textContent = hasSession
     ? `Logado como ${currentUser.username} (${currentUser.role})`
     : 'Sem sessão ativa';
+
+  if (!hasSession) {
+    updateRememberedLoginUi();
+  }
 }
 
 function clearSession() {
   accessToken = '';
+  refreshToken = '';
   currentUser = null;
-  localStorage.removeItem('donilla_access_token');
+  clearStoredSessionTokens();
   allOrders = [];
   crmCustomers = [];
   customerDetail = null;
@@ -1192,6 +1424,10 @@ function clearSession() {
   renderCatalogOverview();
   renderCatalogPortal();
   renderSettingsOverview();
+  setLoginBusy(false);
+  passwordToggleEls.forEach((button) => hidePasswordForButton(button));
+  setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
+  updateRememberedLoginUi();
   if (customersSearchInputEl) {
     customersSearchInputEl.value = '';
   }
@@ -2826,10 +3062,15 @@ async function removeProduto(produtoId) {
   }
 }
 
-async function loadAdminData() {
-  if (!accessToken) return;
+async function loadAdminData(options = {}) {
+  const { allowRefresh = true } = options;
+  if (!accessToken && !refreshToken) return;
 
   try {
+    if (!accessToken && refreshToken) {
+      await refreshAdminSession();
+    }
+
     await loadCurrentUser();
     await Promise.all([
       loadDashboard(),
@@ -2843,24 +3084,51 @@ async function loadAdminData() {
       }),
     ]);
   } catch (error) {
+    if (allowRefresh && error.status === 401 && refreshToken) {
+      try {
+        await refreshAdminSession();
+        await loadAdminData({ allowRefresh: false });
+        return;
+      } catch {
+        clearSession();
+        setStatus(loginStatusEl, 'Sessão expirada. Faça login novamente.', 'err');
+        return;
+      }
+    }
+
     if (error.status === 401 || error.status === 403) {
       clearSession();
       setStatus(loginStatusEl, 'Sessão expirada. Faça login novamente.', 'err');
       return;
     }
+
     setStatus(loginStatusEl, error.message, 'err');
   }
 }
 
 loginFormEl.addEventListener('submit', async (event) => {
   event.preventDefault();
-  setStatus(loginStatusEl, 'Entrando...', 'muted');
 
-  const fd = new FormData(loginFormEl);
   const payload = {
-    username: String(fd.get('username') || '').trim(),
-    password: String(fd.get('password') || ''),
+    username: String(loginUsernameEl?.value || '').trim(),
+    password: String(loginPasswordEl?.value || ''),
   };
+  const rememberSession = Boolean(loginRememberEl?.checked);
+
+  if (!payload.username) {
+    setStatus(loginStatusEl, 'Informe o usuário administrativo.', 'err');
+    loginUsernameEl?.focus();
+    return;
+  }
+
+  if (!payload.password) {
+    setStatus(loginStatusEl, 'Informe sua senha.', 'err');
+    loginPasswordEl?.focus();
+    return;
+  }
+
+  setLoginBusy(true);
+  setStatus(loginStatusEl, 'Validando acesso...', 'muted');
 
   try {
     const response = await fetch('/auth/login', {
@@ -2870,15 +3138,26 @@ loginFormEl.addEventListener('submit', async (event) => {
     });
 
     const data = await parseResponse(response);
-    accessToken = data.accessToken;
     currentUser = data.user;
-    localStorage.setItem('donilla_access_token', accessToken);
-
+    persistSessionTokens(data, rememberSession);
+    storeRememberedUsername(payload.username, rememberSession);
     applySessionUi();
-    setStatus(loginStatusEl, 'Login realizado com sucesso.', 'ok');
-    await loadAdminData();
+    setStatus(
+      loginStatusEl,
+      rememberSession
+        ? 'Login realizado. Sessão mantida neste dispositivo.'
+        : 'Login realizado com sucesso.',
+      'ok',
+    );
+    if (loginPasswordEl) loginPasswordEl.value = '';
+    await loadAdminData({ allowRefresh: false });
   } catch (error) {
+    if (loginPasswordEl) {
+      loginPasswordEl.select();
+    }
     setStatus(loginStatusEl, error.message, 'err');
+  } finally {
+    setLoginBusy(false);
   }
 });
 
@@ -3254,12 +3533,45 @@ window.addEventListener('hashchange', () => {
   syncAdminViewFromLocation();
 });
 
-logoutBtnEl.addEventListener('click', () => {
+passwordToggleEls.forEach((button) => {
+  button.addEventListener('click', () => {
+    togglePasswordVisibility(button);
+  });
+});
+
+if (loginPasswordEl) {
+  ['keydown', 'keyup'].forEach((eventName) => {
+    loginPasswordEl.addEventListener(eventName, handlePasswordCapsLock);
+  });
+  loginPasswordEl.addEventListener('blur', () => {
+    handlePasswordCapsLock();
+  });
+}
+
+if (clearRememberedLoginBtnEl) {
+  clearRememberedLoginBtnEl.addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEYS.accessToken);
+    localStorage.removeItem(STORAGE_KEYS.refreshToken);
+    localStorage.removeItem(STORAGE_KEYS.rememberedUsername);
+    localStorage.removeItem(STORAGE_KEYS.rememberSession);
+    updateRememberedLoginUi();
+    if (!accessToken && loginUsernameEl) {
+      loginUsernameEl.value = '';
+      loginUsernameEl.focus();
+    }
+    setStatus(loginStatusEl, 'Dados salvos deste dispositivo foram removidos.', 'muted');
+  });
+}
+
+logoutBtnEl.addEventListener('click', async () => {
+  await revokeAdminSession();
   clearSession();
   setStatus(loginStatusEl, 'Você saiu da sessão.', 'muted');
 });
 
 syncAdminViewFromLocation({ replace: true });
+updateRememberedLoginUi();
+setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
 applySessionUi();
 syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
 syncRangeInputs(customersRangePresetEl, customersFromDateEl, customersToDateEl, customersState);
@@ -3278,7 +3590,7 @@ renderCatalogPortal();
 renderDeliveryFeeList();
 renderSettingsOverview();
 syncStoreHoursInputsState();
-if (accessToken) {
+if (accessToken || refreshToken) {
   loadAdminData();
 } else {
   clearSession();
