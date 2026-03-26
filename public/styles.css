@@ -2591,14 +2591,20 @@ button {
 }
 
 .orders-admin-toolbar {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   padding: 10px;
   border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.orders-admin-toolbar .search-box {
+  flex: 1 1 220px;
+  min-width: 0;
 }
 
 .orders-admin-toolbar .search-box input {
@@ -2608,6 +2614,8 @@ button {
 
 .orders-admin-toolbar select,
 .orders-admin-toolbar input[type="date"] {
+  flex: 1 1 160px;
+  min-width: 150px;
   min-height: 48px;
   border: 1px solid var(--slate-300);
   border-radius: 16px;
@@ -2623,14 +2631,20 @@ button {
 .orders-admin-toolbar-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
   gap: 8px;
+  flex: 1 1 100%;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.orders-admin-toolbar-actions > * {
+  min-width: 0;
 }
 
 .orders-admin-toolbar-actions .ghost-btn,
 .orders-admin-toolbar-actions .primary-btn {
-  flex: 1 1 180px;
+  flex: 1 1 160px;
+  min-height: 48px;
 }
 
 .orders-arrival-notice {
@@ -4387,18 +4401,24 @@ button {
     padding: 20px;
   }
 
-  .orders-admin-toolbar {
-    grid-template-columns: minmax(0, 1.05fr) repeat(3, minmax(130px, 0.68fr)) auto;
-    align-items: center;
+  .orders-admin-toolbar .search-box {
+    flex-basis: 240px;
+  }
+
+  .orders-admin-toolbar select,
+  .orders-admin-toolbar input[type="date"] {
+    flex: 0 1 180px;
   }
 
   .orders-admin-toolbar-actions {
-    justify-content: flex-start;
+    flex: 0 0 auto;
+    margin-left: auto;
   }
 
   .orders-admin-toolbar-actions .ghost-btn,
   .orders-admin-toolbar-actions .primary-btn {
     flex: 0 0 auto;
+    min-width: 128px;
   }
 
   .customer-hero {
@@ -4472,14 +4492,13 @@ button {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .orders-admin-toolbar {
-    grid-template-columns: minmax(0, 1.15fr) repeat(3, minmax(150px, 0.72fr)) repeat(2, minmax(150px, 0.62fr)) auto;
-    align-items: center;
+  .orders-admin-toolbar .search-box {
+    flex-basis: 280px;
   }
 
-  .orders-admin-toolbar-actions .ghost-btn,
-  .orders-admin-toolbar-actions .primary-btn {
-    flex: 0 0 auto;
+  .orders-admin-toolbar select,
+  .orders-admin-toolbar input[type="date"] {
+    flex-basis: 190px;
   }
 }
 
@@ -4488,14 +4507,13 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .orders-admin-toolbar {
-    grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(170px, 0.7fr)) repeat(2, minmax(170px, 0.6fr)) auto;
-    align-items: center;
+  .orders-admin-toolbar .search-box {
+    flex-basis: 320px;
   }
 
-  .orders-admin-toolbar-actions .ghost-btn,
-  .orders-admin-toolbar-actions .primary-btn {
-    flex: 0 0 auto;
+  .orders-admin-toolbar select,
+  .orders-admin-toolbar input[type="date"] {
+    flex-basis: 200px;
   }
 
   .catalog-admin-toolbar {
