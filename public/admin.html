@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
-  <link rel="stylesheet" href="/styles.css?v=20260326b" />
+  <link rel="stylesheet" href="/styles.css?v=20260326d" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -360,54 +360,29 @@
       <section id="loginCard" class="card admin-card login-card admin-auth-card">
         <div class="admin-auth-shell">
           <section class="admin-auth-hero" aria-label="Resumo do portal administrativo">
-            <div class="admin-auth-hero-top">
-              <span class="admin-auth-kicker">Portal admin</span>
-              <span class="admin-auth-kicker admin-auth-kicker-secondary">Fluxo mais fluido</span>
-            </div>
-
-            <div class="admin-auth-logo-wrap">
-              <img class="admin-auth-logo" src="/logo-donilla.png" alt="Logo Donilla" />
+            <div class="admin-auth-brand" aria-label="Marca Donilla">
+              <span class="admin-auth-brand-mark" aria-hidden="true">D</span>
+              <span class="admin-auth-brand-name">Donilla</span>
             </div>
 
             <div class="admin-auth-hero-copy">
-              <span class="admin-auth-overline">Operação diária em um único ponto</span>
-              <h2>Entre e retome pedidos, clientes, cardápio e WhatsApp sem atrito.</h2>
-              <p>Reestruturei o acesso do painel para ficar mais orgânico no uso diário: leitura rápida, menos fricção e estados mais claros para a equipe.</p>
+              <span class="admin-auth-overline">Portal admin</span>
+              <h2>Pedidos, clientes e cardápio num só lugar.</h2>
+              <p>Acesse o painel e gerencie sua operação com agilidade.</p>
             </div>
 
-            <div class="admin-auth-feature-list">
-              <article class="admin-auth-feature-card">
-                <strong>Sessão previsível</strong>
-                <span>Mantenha o acesso neste dispositivo e reduza relogins desnecessários.</span>
-              </article>
-              <article class="admin-auth-feature-card">
-                <strong>Conferência segura</strong>
-                <span>Senha visível sob demanda, com ocultação automática para evitar descuidos.</span>
-              </article>
-              <article class="admin-auth-feature-card">
-                <strong>Sinalização útil</strong>
-                <span>Aviso de Caps Lock, feedback de carregamento e dados salvos mais fáceis de entender.</span>
-              </article>
-            </div>
-
-            <div class="admin-auth-capability-row" aria-label="Áreas cobertas pelo portal">
-              <span>Pedidos em tempo real</span>
-              <span>Clientes</span>
-              <span>Cardápio</span>
-              <span>Configurações</span>
-            </div>
+            <ul class="admin-auth-feature-list" aria-label="Benefícios do portal">
+              <li>Sessão persistente no dispositivo</li>
+              <li>Senha com conferência segura</li>
+              <li>WhatsApp e pedidos em tempo real</li>
+            </ul>
           </section>
 
           <div class="admin-auth-panel">
             <div class="admin-auth-panel-head">
               <span class="admin-auth-panel-kicker">Acesso seguro</span>
               <h3>Login do administrador</h3>
-              <p class="muted">Use sua conta administrativa para abrir o painel operacional da Donilla.</p>
-            </div>
-
-            <div id="loginMemoryNote" class="admin-auth-memory hidden" aria-live="polite">
-              <span class="admin-auth-memory-label">Último usuário salvo neste dispositivo</span>
-              <strong id="loginMemoryUsername">admin</strong>
+              <p class="muted">Use sua conta para acessar o painel da Donilla.</p>
             </div>
 
             <form id="loginForm" class="form-grid admin-auth-form" novalidate>
@@ -425,10 +400,7 @@
               </label>
 
               <label class="admin-auth-field">
-                <div class="admin-auth-label-row">
-                  <span>Senha</span>
-                  <small>Visualização temporária</small>
-                </div>
+                <span>Senha</span>
 
                 <div class="password-field">
                   <input
@@ -454,8 +426,6 @@
                     </svg>
                   </button>
                 </div>
-
-                <small id="loginPasswordAssist" class="field-status muted">A senha pode ser exibida por alguns segundos para conferência.</small>
               </label>
 
               <div class="admin-auth-row">
@@ -463,18 +433,12 @@
                   <input id="loginRemember" name="rememberSession" type="checkbox" />
                   <span>Manter sessão neste dispositivo</span>
                 </label>
-
-                <button id="clearRememberedLoginBtn" class="admin-auth-link-btn hidden" type="button">Limpar dados salvos</button>
               </div>
 
               <button id="loginSubmitBtn" class="primary-btn admin-auth-submit" type="submit">Entrar no painel</button>
               <p id="loginStatus" class="status-text muted" aria-live="polite"></p>
+              <p id="loginPasswordAssist" class="field-status muted admin-auth-footnote">A sessão fica ativa até expirar ou você sair manualmente.</p>
             </form>
-
-            <div class="admin-auth-inline-note">
-              <strong>Acesso contínuo.</strong>
-              <span>Se você mantiver a sessão neste dispositivo, o painel reutiliza seu login até a sessão expirar ou você sair manualmente.</span>
-            </div>
           </div>
         </div>
       </section>
@@ -603,7 +567,7 @@
             <section class="customers-admin-top-card">
               <div class="customers-admin-top-copy">
                 <h2>Clientes</h2>
-                <p id="customersMeta" class="muted">Faça login para carregar a carteira de clientes.</p>
+                <p id="customersMeta" class="muted">Carteira ativa, recorrencia e historico em uma leitura continua.</p>
               </div>
 
               <div class="customers-admin-overview-grid">
@@ -741,7 +705,8 @@
           <section class="catalog-admin-shell">
             <section class="catalog-admin-top-card">
               <div class="catalog-admin-top-copy">
-                <h3>Cardápio</h3>
+                <h2>Cardápio</h2>
+                <p class="muted">Produtos, categorias e disponibilidade no mesmo fluxo de operacao.</p>
               </div>
 
               <div class="catalog-admin-overview-grid">
@@ -976,6 +941,7 @@
             <section class="orders-admin-top-card">
               <div class="orders-admin-top-copy">
                 <h2>Gestão de pedidos</h2>
+                <p class="muted">Fila em tempo real, filtros operacionais e acoes rapidas sem trocar de tela.</p>
               </div>
 
               <div class="orders-admin-overview-grid">
@@ -1095,7 +1061,8 @@
           <section class="admin-settings-shell">
             <section class="admin-settings-top-card">
               <div class="admin-settings-top-copy">
-                <h3>Configurações</h3>
+                <h2>Configurações</h2>
+                <p class="muted">Operacao, horarios, WhatsApp e taxas com a mesma linguagem do portal.</p>
               </div>
 
               <div class="admin-settings-overview-grid">
@@ -1462,6 +1429,6 @@
     </main>
   </div>
 
-  <script type="module" src="/assets/admin/app.js?v=20260326a"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260326b"></script>
 </body>
 </html>

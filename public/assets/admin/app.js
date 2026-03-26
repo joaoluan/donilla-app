@@ -257,7 +257,7 @@ const STORAGE_KEYS = {
   rememberSession: 'donilla_admin_remember_session',
 };
 const PASSWORD_AUTO_HIDE_DELAY_MS = 30000;
-const LOGIN_PASSWORD_ASSIST_DEFAULT = 'A senha pode ser exibida por alguns segundos para conferência.';
+const LOGIN_PASSWORD_ASSIST_DEFAULT = 'A sessão fica ativa até expirar ou você sair manualmente.';
 
 function readStoredValue(key) {
   return sessionStorage.getItem(key) || localStorage.getItem(key) || '';
@@ -846,7 +846,7 @@ function getRememberedUsername() {
 function setLoginPasswordAssist(message, type = 'muted') {
   if (!loginPasswordAssistEl) return;
   loginPasswordAssistEl.textContent = message;
-  loginPasswordAssistEl.className = `field-status ${type}`;
+  loginPasswordAssistEl.className = `field-status admin-auth-footnote ${type}`;
 }
 
 function updateRememberedLoginUi() {
