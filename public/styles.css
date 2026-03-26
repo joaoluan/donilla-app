@@ -117,17 +117,22 @@
 }
 
 .page-admin .admin-portal-logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--admin-gold);
-  color: var(--admin-sidebar-bg);
-  font-size: 0.9rem;
-  font-weight: 700;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
   box-shadow: none;
+}
+
+.page-admin .admin-portal-logo img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
 }
 
 .page-admin .admin-portal-brand-copy {
@@ -3262,15 +3267,17 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
-  flex: 0 0 72px;
-  border-radius: 999px;
-  border: 2px solid rgba(212, 168, 67, 0.72);
-  color: #d4a843;
-  font-size: 1.8rem;
-  font-weight: 700;
-  line-height: 1;
+  width: 88px;
+  height: 88px;
+  flex: 0 0 88px;
+  overflow: hidden;
+}
+
+.admin-auth-brand-mark img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
 }
 
 .admin-auth-brand-name {
@@ -3614,10 +3621,9 @@ button {
   }
 
   .admin-auth-brand-mark {
-    width: 58px;
-    height: 58px;
-    flex-basis: 58px;
-    font-size: 1.45rem;
+    width: 68px;
+    height: 68px;
+    flex-basis: 68px;
   }
 
   .admin-auth-brand-name {
