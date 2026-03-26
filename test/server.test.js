@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
+const { Prisma } = require('@prisma/client')
 
 const { createApp } = require('../src/server')
 const { signToken } = require('../src/utils/jwt')
@@ -92,13 +93,21 @@ test('assets do admin modularizado devem ser servidos como javascript', async ()
   assert.equal(appModuleResponse.statusCode, 200)
   assert.equal(appModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
   assert.equal(appModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
-  assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=20260325k)?'/)
+  assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=20260325l)?'/)
 
   const nestedModuleResponse = await requestApp(app, { url: '/assets/admin/modules/navigation.js' })
   assert.equal(nestedModuleResponse.statusCode, 200)
   assert.equal(nestedModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
   assert.equal(nestedModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
   assert.match(nestedModuleResponse.body, /export function bindNavigationSection/)
+})
+
+test('client Prisma gerado deve incluir campos de horario automatico da loja', () => {
+  const model = Prisma.dmmf.datamodel.models.find((entry) => entry.name === 'configuracoes_loja')
+  assert.ok(model)
+  const fieldNames = model.fields.map((field) => field.name)
+  assert.ok(fieldNames.includes('horario_automatico_ativo'))
+  assert.ok(fieldNames.includes('horario_funcionamento'))
 })
 
 test('aliases legados devem redirecionar para a loja principal', async () => {

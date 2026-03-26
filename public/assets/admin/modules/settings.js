@@ -2,9 +2,45 @@ export function bindSettingsSection(ctx) {
   const { dom, state, helpers, api } = ctx;
   const settingsTabButtons = Array.from(document.querySelectorAll('[data-settings-tab]'));
   const settingsPanels = Array.from(document.querySelectorAll('[data-settings-panel]'));
+  let activeSettingsTab = 'operacao';
+
+  function parseOptionalInteger(value) {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) return undefined;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  function buildSettingsPayload(formData) {
+    if (activeSettingsTab === 'horarios') {
+      return {
+        horario_automatico_ativo: formData.get('horario_automatico_ativo') === 'on',
+        horario_funcionamento: api.readStoreHoursScheduleFromForm(),
+      };
+    }
+
+    if (activeSettingsTab === 'whatsapp') {
+      return {
+        whatsapp_ativo: formData.get('whatsapp_ativo') === 'on',
+        whatsapp_bot_pausado: dom.settingsFormEl.elements.whatsapp_bot_pausado.checked,
+        whatsapp_webhook_url: String(formData.get('whatsapp_webhook_url') || '').trim() || null,
+        whatsapp_webhook_secret: String(formData.get('whatsapp_webhook_secret') || '').trim() || null,
+        whatsapp_mensagem_novo_pedido: String(formData.get('whatsapp_mensagem_novo_pedido') || '').trim() || null,
+        whatsapp_mensagem_status: String(formData.get('whatsapp_mensagem_status') || '').trim() || null,
+      };
+    }
+
+    return {
+      loja_aberta: formData.get('loja_aberta') === 'on',
+      tempo_entrega_minutos: parseOptionalInteger(formData.get('tempo_entrega_minutos')),
+      tempo_entrega_max_minutos: parseOptionalInteger(formData.get('tempo_entrega_max_minutos')),
+      mensagem_aviso: String(formData.get('mensagem_aviso') || '').trim() || null,
+    };
+  }
 
   function setActiveSettingsTab(nextTab = 'operacao') {
     const activeTab = ['operacao', 'horarios', 'whatsapp', 'taxas'].includes(nextTab) ? nextTab : 'operacao';
+    activeSettingsTab = activeTab;
     const showFeesOnly = activeTab === 'taxas';
 
     settingsTabButtons.forEach((button) => {
@@ -50,20 +86,7 @@ export function bindSettingsSection(ctx) {
     helpers.setStatus(dom.settingsStatusEl, 'Salvando configuração...', 'muted');
 
     const fd = new FormData(dom.settingsFormEl);
-    const payload = {
-      loja_aberta: fd.get('loja_aberta') === 'on',
-      horario_automatico_ativo: fd.get('horario_automatico_ativo') === 'on',
-      horario_funcionamento: api.readStoreHoursScheduleFromForm(),
-      tempo_entrega_minutos: Number(fd.get('tempo_entrega_minutos')),
-      tempo_entrega_max_minutos: Number(fd.get('tempo_entrega_max_minutos')),
-      mensagem_aviso: String(fd.get('mensagem_aviso') || '').trim() || null,
-      whatsapp_ativo: fd.get('whatsapp_ativo') === 'on',
-      whatsapp_bot_pausado: dom.settingsFormEl.elements.whatsapp_bot_pausado.checked,
-      whatsapp_webhook_url: String(fd.get('whatsapp_webhook_url') || '').trim() || null,
-      whatsapp_webhook_secret: String(fd.get('whatsapp_webhook_secret') || '').trim() || null,
-      whatsapp_mensagem_novo_pedido: String(fd.get('whatsapp_mensagem_novo_pedido') || '').trim() || null,
-      whatsapp_mensagem_status: String(fd.get('whatsapp_mensagem_status') || '').trim() || null,
-    };
+    const payload = buildSettingsPayload(fd);
 
     try {
       const response = await fetch('/admin/store-settings', {

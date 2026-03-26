@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325k'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325k'
-import { bindCustomersSection } from './modules/customers.js?v=20260325k'
-import { bindOrdersSection } from './modules/orders.js?v=20260325k'
-import { bindSettingsSection } from './modules/settings.js?v=20260325k'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325k'
+import { bindNavigationSection } from './modules/navigation.js?v=20260325l'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260325l'
+import { bindCustomersSection } from './modules/customers.js?v=20260325l'
+import { bindOrdersSection } from './modules/orders.js?v=20260325l'
+import { bindSettingsSection } from './modules/settings.js?v=20260325l'
+import { bindCatalogSection } from './modules/catalog.js?v=20260325l'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
