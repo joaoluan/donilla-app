@@ -244,23 +244,12 @@
         <a href="/admin/pedidos" data-admin-view-link="pedidos">Pedidos</a>
         <a href="/admin/configuracoes" data-admin-view-link="config">Configurações</a>
         <a href="/">Ir para loja</a>
+        <button id="logoutBtn" class="sidebar-nav-action sidebar-logout-btn" type="button">Sair</button>
       </nav>
 
     </aside>
 
     <main class="admin-main">
-      <header class="admin-topbar">
-        <div>
-          <h1>Painel de Controle</h1>
-          <p id="adminTopbarDescription">Indicadores e fotografia rápida da operação da loja.</p>
-        </div>
-
-        <div class="session-box">
-          <span id="sessionLabel" class="muted">Sem sessão ativa</span>
-          <button id="logoutBtn" class="ghost-btn" type="button">Sair</button>
-        </div>
-      </header>
-
       <section id="loginCard" class="card admin-card login-card admin-auth-card">
         <div class="admin-auth-shell">
           <section class="admin-auth-hero" aria-label="Resumo do portal administrativo">
@@ -434,7 +423,6 @@
             <section class="customers-admin-top-card">
               <div class="customers-admin-top-copy">
                 <h2>Clientes</h2>
-                <p class="muted">Acompanhe carteira, recorrência e histórico em um fluxo mais claro para relacionamento e operação.</p>
                 <p id="customersMeta" class="muted">Faça login para carregar a carteira de clientes.</p>
               </div>
 
@@ -491,7 +479,6 @@
               <div class="customers-admin-filter-head">
                 <div class="catalog-section-copy">
                   <h3>Filtro da carteira</h3>
-                  <p class="muted">Busque por nome, WhatsApp ou pedido e combine atividade, ordenação e paginação.</p>
                 </div>
               </div>
 
@@ -560,7 +547,6 @@
               <div class="customers-admin-detail-head">
                 <div class="catalog-section-copy">
                   <h3>Perfil do cliente</h3>
-                  <p class="muted">Abra endereços, favoritos e histórico completo sem sair da carteira.</p>
                 </div>
               </div>
 
@@ -572,18 +558,10 @@
         </article>
 
         <article id="cardapio" class="card admin-card admin-panel-view hidden" data-admin-view="cardapio">
-          <header class="section-head">
-            <div>
-              <h2>Cardápio</h2>
-              <p class="muted">Defina quais itens seus clientes podem pedir e organize a gestão do menu por etapas.</p>
-            </div>
-          </header>
-
           <section class="catalog-admin-shell">
             <section class="catalog-admin-top-card">
               <div class="catalog-admin-top-copy">
-                <h3>Portal do cardápio</h3>
-                <p class="muted">Separei vitrine, categorias e produtos em etapas menores para deixar a operação mais próxima do fluxo de portais como o iFood.</p>
+                <h3>Cardápio</h3>
               </div>
 
               <div class="catalog-admin-overview-grid">
@@ -648,7 +626,6 @@
                   <div class="catalog-categories-filter-head">
                     <div class="catalog-section-copy">
                       <h3>Lista de categorias</h3>
-                      <p class="muted">Filtre, ordene e reorganize rapidamente os grupos do menu.</p>
                     </div>
                     <button id="categoryOpenFormBtn" class="primary-btn" type="button">Cadastrar categoria</button>
                   </div>
@@ -673,7 +650,6 @@
                   <div class="catalog-categories-list-head">
                     <div class="catalog-section-copy">
                       <h3>Categorias cadastradas</h3>
-                      <p class="muted">Os grupos aparecem em cards para facilitar revisão, ordem e edição rápida.</p>
                     </div>
                   </div>
 
@@ -690,7 +666,6 @@
                 <section id="categoryEditorCard" class="menu-admin-card catalog-categories-editor-card">
                   <div class="catalog-section-copy">
                     <h3>Cadastro e edição</h3>
-                    <p class="muted">Crie e reorganize os grupos do cardápio.</p>
                   </div>
 
                   <form id="categoryForm" class="menu-admin-form">
@@ -714,7 +689,6 @@
                   <div class="catalog-products-filter-head">
                     <div class="catalog-section-copy">
                       <h3>Lista de produtos</h3>
-                      <p class="muted">Filtre por disponibilidade, categoria e estoque para agir rápido.</p>
                     </div>
                     <button id="produtoOpenFormBtn" class="primary-btn" type="button">Cadastrar item</button>
                   </div>
@@ -749,7 +723,6 @@
                   <div class="catalog-products-list-head">
                     <div class="catalog-section-copy">
                       <h3>Produtos cadastrados</h3>
-                      <p class="muted">Os itens aparecem em cards padronizados para facilitar leitura e edição rápida.</p>
                     </div>
                   </div>
 
@@ -766,7 +739,6 @@
                 <section id="produtoEditorCard" class="menu-admin-card catalog-products-editor-card">
                   <div class="catalog-section-copy">
                     <h3>Cadastro e edição</h3>
-                    <p class="muted">Cadastre preço, descrição, imagem e disponibilidade do item.</p>
                   </div>
 
                   <form id="produtoForm" class="menu-admin-form">
@@ -813,8 +785,7 @@
             <section class="catalog-admin-panel hidden" data-catalog-tab-panel="complementos">
               <div class="catalog-empty-state">
                 <h3>Complementos</h3>
-                <p class="muted">Deixei essa etapa reservada para a próxima evolução do cardápio. O desenho já está pronto para entrar com grupos de complemento, limites e regras por produto.</p>
-                <p class="muted">Por enquanto, a operação principal segue nas abas Cardápio, Categorias e Produtos.</p>
+                <p class="muted">Área reservada para a próxima evolução do cardápio.</p>
               </div>
             </section>
           </section>
@@ -825,7 +796,6 @@
             <section class="orders-admin-top-card">
               <div class="orders-admin-top-copy">
                 <h2>Gestão de pedidos</h2>
-                <p class="muted">Acompanhe entradas, priorize o que exige ação e atualize os pedidos em tempo real sem sair da operação.</p>
               </div>
 
               <div class="orders-admin-overview-grid">
@@ -942,17 +912,10 @@
         </article>
 
         <article id="config" class="card admin-card admin-panel-view hidden" data-admin-view="config">
-          <header class="section-head">
-            <div>
-              <h2>Configuração da loja</h2>
-              <p class="muted">Organize operação, horários, WhatsApp e taxas em blocos separados para não concentrar tudo em uma tela só.</p>
-            </div>
-          </header>
           <section class="admin-settings-shell">
             <section class="admin-settings-top-card">
               <div class="admin-settings-top-copy">
-                <h3>Portal de configurações</h3>
-                <p class="muted">Separei a operação em áreas menores para ficar mais próximo da experiência de portais como o iFood e evitar uma tela única muito pesada.</p>
+                <h3>Configurações</h3>
               </div>
 
               <div class="admin-settings-overview-grid">
@@ -995,7 +958,6 @@
                   <header class="section-head stacked-section-head">
                     <div>
                       <h3>Operação da loja</h3>
-                      <p class="muted">Controle disponibilidade manual, prazo de entrega e avisos mostrados para os clientes.</p>
                     </div>
                   </header>
 
@@ -1017,7 +979,7 @@
                     <div class="store-hours-admin-head">
                       <div>
                         <h3>Horario de funcionamento automatico</h3>
-                        <p class="muted">A Donilla pode abrir e fechar a loja sozinha conforme a agenda abaixo. Se voce fechar manualmente na aba Operação, o fechamento manual continua tendo prioridade.</p>
+                        <p class="muted">Agenda automatica da loja. O fechamento manual continua com prioridade.</p>
                       </div>
                       <div class="store-hours-admin-live">
                         <strong id="storeHoursStatusMeta">Status ainda nao consultado.</strong>
@@ -1139,7 +1101,7 @@
                       </div>
                     </div>
 
-                    <p class="muted">Se o horario de fechamento for menor que o de abertura, a Donilla entende que o atendimento vira a madrugada. Ex.: abre 18:00 e fecha 00:30.</p>
+                    <p class="muted">Se o fechamento for menor que a abertura, a agenda vira a madrugada.</p>
                   </section>
                 </section>
 
@@ -1148,7 +1110,6 @@
                     <header class="section-head stacked-section-head">
                       <div>
                         <h3>WhatsApp da loja</h3>
-                        <p class="muted">Use esta área para conectar o número da loja ao WPPConnect, enviar mensagens automáticas e responder consultas simples de pedido no WhatsApp.</p>
                       </div>
                     </header>
 
@@ -1187,8 +1148,6 @@
                         <span id="whatsappBotPauseMeta" class="muted">Bot em funcionamento normal.</span>
                       </div>
 
-                      <p class="muted">Use este botão para pausar o bot inteiro no WhatsApp sem desligar container. Enquanto estiver pausado, a Donilla não responde mensagens recebidas nem dispara automações de pedido/status.</p>
-
                       <div class="split-2">
                         <button id="whatsappBotPauseBtn" class="ghost-btn" type="button">Pausar bot</button>
                         <p id="whatsappBotPauseStatus" class="status-text muted" style="margin: 0;">O teste manual continua disponível para validar a integração.</p>
@@ -1201,8 +1160,6 @@
                           <strong>Conexão do número</strong>
                           <span id="whatsappSessionMeta" class="muted">Sessão ainda não consultada.</span>
                         </div>
-
-                        <p class="muted">Primeiro consulte a sessão. Se o número ainda não estiver conectado, inicie a sessão e depois busque o QR Code para parear o aparelho.</p>
 
                         <div class="split-2">
                           <button id="whatsappSessionStatusBtn" class="ghost-btn" type="button">Consultar sessão</button>
@@ -1223,15 +1180,13 @@
                           <span class="muted">Leia com o celular da loja</span>
                         </div>
 
-                        <p class="muted">Quando o QR estiver visível, abra o WhatsApp do número da loja, entre em aparelhos conectados e escaneie o código para concluir a conexão.</p>
                         <img id="whatsappQrPreview" class="hidden" alt="QR Code do WhatsApp" style="max-width: 260px; border-radius: 1rem; border: 1px solid rgba(15, 23, 42, 0.12);" />
                       </article>
                     </div>
 
                     <details>
                       <summary>Integração externa opcional</summary>
-                      <p class="muted" style="margin-top: 0.75rem;">Use esta opção apenas se você <b>não</b> quiser usar o WPPConnect interno da Donilla. Nesse modo, a Donilla só repassa os dados do pedido para outro sistema seu, e esse sistema externo assume o envio das mensagens.</p>
-                      <p class="muted">Exemplo: você já tem outro bot, outro servidor ou outra automação e quer que a Donilla envie um webhook para ele sempre que um pedido for criado ou atualizado.</p>
+                      <p class="muted" style="margin-top: 0.75rem;">Use apenas se o envio das mensagens ficar em outro bot ou servidor seu.</p>
                       <div class="settings-form" style="margin-top: 0.75rem;">
                         <input name="whatsapp_webhook_url" type="url" placeholder="URL do webhook externo que vai receber os eventos da Donilla" />
                         <input name="whatsapp_webhook_secret" placeholder="Secret opcional enviado no header x-donilla-bot-secret" />
@@ -1270,8 +1225,6 @@
                         <span class="muted">Valide o envio manualmente</span>
                       </div>
 
-                      <p class="muted">Use este teste para confirmar se o número está conectado, se o envio está funcionando e se o texto chega como esperado.</p>
-
                       <div class="split-2">
                         <input id="whatsappTestPhone" type="tel" placeholder="Telefone para teste, de preferência com DDI. Ex.: 5551999999999" />
                         <button id="whatsappTestBtn" class="ghost-btn" type="button">Enviar teste</button>
@@ -1293,7 +1246,6 @@
                 <header class="section-head stacked-section-head">
                   <div>
                     <h3>Taxas por local</h3>
-                    <p class="muted">Cadastre por bairro, por cidade inteira, ou pelos dois juntos. Para cidade inteira, deixe o bairro vazio.</p>
                   </div>
                 </header>
 

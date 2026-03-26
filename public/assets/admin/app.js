@@ -1355,10 +1355,14 @@ function applySessionUi() {
   const hasSession = Boolean(accessToken && currentUser);
   adminLayoutEl.classList.toggle('logged-out', !hasSession);
   loginCardEl.classList.toggle('hidden', hasSession);
-  logoutBtnEl.disabled = !hasSession;
-  sessionLabelEl.textContent = hasSession
-    ? `Logado como ${currentUser.username} (${currentUser.role})`
-    : 'Sem sessão ativa';
+  if (logoutBtnEl) {
+    logoutBtnEl.disabled = !hasSession;
+  }
+  if (sessionLabelEl) {
+    sessionLabelEl.textContent = hasSession
+      ? `Logado como ${currentUser.username} (${currentUser.role})`
+      : 'Sem sessão ativa';
+  }
 
   if (!hasSession) {
     updateRememberedLoginUi();
@@ -3563,11 +3567,13 @@ if (clearRememberedLoginBtnEl) {
   });
 }
 
-logoutBtnEl.addEventListener('click', async () => {
-  await revokeAdminSession();
-  clearSession();
-  setStatus(loginStatusEl, 'Você saiu da sessão.', 'muted');
-});
+if (logoutBtnEl) {
+  logoutBtnEl.addEventListener('click', async () => {
+    await revokeAdminSession();
+    clearSession();
+    setStatus(loginStatusEl, 'Você saiu da sessão.', 'muted');
+  });
+}
 
 syncAdminViewFromLocation({ replace: true });
 updateRememberedLoginUi();
