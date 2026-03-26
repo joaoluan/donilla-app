@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
-  <link rel="stylesheet" href="/styles.css?v=20260326a" />
+  <link rel="stylesheet" href="/styles.css?v=20260326b" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -229,24 +229,131 @@
 <body class="page-admin">
   <div id="adminLayout" class="admin-layout logged-out">
     <aside class="admin-sidebar">
-      <div class="sidebar-brand">
-        <span class="brand-dot"></span>
-        <div>
-          <strong>Donilla Portal</strong>
-          <small>Operação da loja</small>
+      <div class="admin-sidebar-header">
+        <div class="sidebar-brand admin-portal-brand">
+          <div class="admin-portal-logo" aria-hidden="true">D</div>
+          <div class="admin-portal-brand-copy">
+            <strong>DONILLA</strong>
+            <small>Portal da loja</small>
+          </div>
+        </div>
+
+        <div id="sidebarStoreStatus" class="admin-store-status-card is-closed" role="status" aria-live="polite">
+          <span class="admin-store-status-indicator" aria-hidden="true"></span>
+          <div class="admin-store-status-copy">
+            <strong id="sidebarStoreStatusText">Status da loja</strong>
+            <small id="sidebarStoreStatusMeta">Faça login para carregar a operação.</small>
+          </div>
         </div>
       </div>
 
-      <nav class="sidebar-nav admin-sidebar-nav">
-        <a href="/admin/resumo" data-admin-view-link="dashboard" class="active">Resumo</a>
-        <a href="/admin/clientes" data-admin-view-link="clientes">Clientes</a>
-        <a href="/admin/cardapio" data-admin-view-link="cardapio">Cardápio</a>
-        <a href="/admin/pedidos" data-admin-view-link="pedidos">Pedidos</a>
-        <a href="/admin/configuracoes" data-admin-view-link="config">Configurações</a>
-        <a href="/">Ir para loja</a>
-        <button id="logoutBtn" class="sidebar-nav-action sidebar-logout-btn" type="button">Sair</button>
-      </nav>
+      <nav class="sidebar-nav admin-sidebar-nav" aria-label="Navegação do portal administrativo">
+        <section class="admin-nav-group" aria-label="Seção principal">
+          <span class="admin-nav-group-label">Principal</span>
 
+          <a href="/admin/resumo" data-admin-view-link="dashboard" class="admin-nav-link active">
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M4 6.5h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M4 17.5h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label">Resumo</span>
+              <small>Visão do dia</small>
+            </span>
+          </a>
+
+          <a href="/admin/pedidos" data-admin-view-link="pedidos" class="admin-nav-link">
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 7h12l-1 10H7L6 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                <path d="M9 7a3 3 0 1 1 6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label">Pedidos</span>
+              <small>Fila e operação</small>
+            </span>
+            <span id="navOrdersBadge" class="admin-nav-badge hidden">0</span>
+          </a>
+
+          <a href="/admin/cardapio" data-admin-view-link="cardapio" class="admin-nav-link">
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 4h12v4H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                <path d="M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M8 17h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label">Cardápio</span>
+              <small>Itens, estoque e destaques</small>
+            </span>
+            <span id="navCatalogBadge" class="admin-nav-badge hidden">0</span>
+          </a>
+
+          <a href="/admin/clientes" data-admin-view-link="clientes" class="admin-nav-link">
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5Z" stroke="currentColor" stroke-width="1.8"></path>
+                <path d="M4 21c1.8-3.4 4.5-5 8-5s6.2 1.6 8 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label">Clientes</span>
+              <small>Carteira e histórico</small>
+            </span>
+          </a>
+        </section>
+
+        <section class="admin-nav-group" aria-label="Seção de gerenciamento">
+          <span class="admin-nav-group-label">Gerenciar</span>
+
+          <a href="/admin/configuracoes" data-admin-view-link="config" class="admin-nav-link">
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 1 0 12 8.5Z" stroke="currentColor" stroke-width="1.8"></path>
+                <path d="M4.5 12h2.1m10.8 0h2.1M12 4.5v2.1m0 10.8v2.1m-5.3-9.5 1.5 1.5m7.6 7.6 1.5 1.5m0-10.6-1.5 1.5m-7.6 7.6-1.5 1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label">Configurações</span>
+              <small>Horários, taxas e bot</small>
+            </span>
+          </a>
+        </section>
+
+        <section class="admin-nav-group admin-nav-group-secondary" aria-label="Atalhos da loja">
+          <a href="/" class="admin-nav-link admin-nav-link-secondary">
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M19 12H5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label">Ir para loja</span>
+              <small>Voltar para a vitrine</small>
+            </span>
+          </a>
+
+          <button id="logoutBtn" class="sidebar-nav-action sidebar-logout-btn admin-nav-link admin-nav-link-secondary admin-nav-link-danger" type="button">
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M14 8l5 4-5 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M19 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label">Sair</span>
+              <small>Encerrar a sessão</small>
+            </span>
+          </button>
+        </section>
+      </nav>
     </aside>
 
     <main class="admin-main">
@@ -374,47 +481,120 @@
 
       <section id="adminViews" class="admin-views">
         <article id="dashboard" class="card admin-card dashboard-panel admin-panel-view" data-admin-view="dashboard" aria-label="Resumo do dia">
-          <header class="section-head section-head-with-actions">
-            <div class="section-copy">
-              <h2>Resumo operacional</h2>
-              <p id="dashboardRangeMeta" class="muted">Faça login para carregar indicadores.</p>
-            </div>
-            <div class="section-actions section-actions-wrap">
-              <select id="dashboardRangePreset">
-                <option value="7d">Últimos 7 dias</option>
-                <option value="30d">Últimos 30 dias</option>
-                <option value="month">Este mês</option>
-                <option value="all">Todo o período</option>
-                <option value="custom">Período personalizado</option>
-              </select>
-              <input id="dashboardFromDate" type="date" aria-label="Data inicial do resumo" />
-              <input id="dashboardToDate" type="date" aria-label="Data final do resumo" />
-              <button id="dashboardApplyBtn" class="ghost-btn" type="button">Aplicar</button>
-            </div>
-          </header>
-          <p id="dashboardStatus" class="status-text muted"></p>
+          <div class="dashboard-portal-shell">
+            <header class="dashboard-portal-head">
+              <div class="dashboard-portal-copy">
+                <span class="dashboard-portal-kicker">Portal da loja</span>
+                <h2>Resumo do dia</h2>
+                <p id="dashboardDateLabel" class="dashboard-portal-date">Carregando data...</p>
+                <p id="dashboardRangeMeta" class="muted dashboard-portal-meta">Faça login para carregar indicadores.</p>
+              </div>
 
-          <div class="kpi-grid">
-            <article class="kpi-card">
-              <small>Total de pedidos</small>
-              <strong id="kpiTotalPedidos">--</strong>
-            </article>
-            <article class="kpi-card">
-              <small>Pendentes</small>
-              <strong id="kpiPendentes">--</strong>
-            </article>
-            <article class="kpi-card">
-              <small>Em preparo</small>
-              <strong id="kpiPreparando">--</strong>
-            </article>
-            <article class="kpi-card">
-              <small>Entregues</small>
-              <strong id="kpiEntregues">--</strong>
-            </article>
-            <article class="kpi-card highlight">
-              <small>Faturamento</small>
-              <strong id="kpiFaturamento">--</strong>
-            </article>
+              <div class="dashboard-portal-actions">
+                <button id="dashboardRefreshBtn" class="ghost-btn dashboard-action-btn" type="button">Atualizar</button>
+                <button id="dashboardOpenOrdersBtn" class="primary-btn dashboard-action-btn" type="button">Ver pedidos</button>
+              </div>
+            </header>
+
+            <p id="dashboardStatus" class="status-text muted dashboard-status-line"></p>
+
+            <section class="dashboard-metric-grid" aria-label="Métricas do dia">
+              <article class="dashboard-metric-card dashboard-metric-card-highlight">
+                <span class="dashboard-metric-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 16h4l2-5 3 7 2-4h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </span>
+                <div class="dashboard-metric-copy">
+                  <small>Faturamento</small>
+                  <strong id="kpiFaturamento">--</strong>
+                  <span class="dashboard-metric-meta">Receita no período selecionado.</span>
+                </div>
+              </article>
+
+              <article class="dashboard-metric-card">
+                <span class="dashboard-metric-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M7 7h10l-1 10H8L7 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                    <path d="M9.5 7a2.5 2.5 0 1 1 5 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  </svg>
+                </span>
+                <div class="dashboard-metric-copy">
+                  <small>Pedidos</small>
+                  <strong id="kpiTotalPedidos">--</strong>
+                  <span class="dashboard-metric-meta">Volume bruto do recorte atual.</span>
+                </div>
+              </article>
+
+              <article class="dashboard-metric-card dashboard-metric-card-neutral">
+                <span class="dashboard-metric-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 4v16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                    <path d="M16 7.5c0-1.93-1.79-3.5-4-3.5s-4 1.57-4 3.5 1.79 3.5 4 3.5 4 1.57 4 3.5-1.79 3.5-4 3.5-4-1.57-4-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  </svg>
+                </span>
+                <div class="dashboard-metric-copy">
+                  <small>Ticket médio</small>
+                  <strong id="kpiTicketMedio">--</strong>
+                  <span class="dashboard-metric-meta">Média por pedido no período.</span>
+                </div>
+              </article>
+            </section>
+
+            <section class="dashboard-status-strip" aria-label="Status dos pedidos">
+              <article class="dashboard-status-card dashboard-status-card-new">
+                <small>Novo</small>
+                <strong id="kpiPendentes">--</strong>
+                <span>Pedidos que entraram e aguardam ação.</span>
+              </article>
+
+              <article class="dashboard-status-card dashboard-status-card-preparing">
+                <small>Preparando</small>
+                <strong id="kpiPreparando">--</strong>
+                <span>Pedidos que já estão em produção.</span>
+              </article>
+
+              <article class="dashboard-status-card dashboard-status-card-complete">
+                <small>Concluídos</small>
+                <strong id="kpiEntregues">--</strong>
+                <span>Pedidos fechados dentro do recorte.</span>
+              </article>
+            </section>
+
+            <section class="dashboard-queue-panel" aria-label="Pedidos em andamento">
+              <header class="dashboard-queue-head">
+                <div>
+                  <h3>Pedidos em andamento</h3>
+                  <p id="dashboardQueueMeta" class="muted">Faça login para acompanhar a fila.</p>
+                </div>
+              </header>
+
+              <div id="dashboardQueueList" class="dashboard-queue-list">
+                <article class="dashboard-queue-empty">
+                  <p class="muted">Faça login para carregar a fila operacional.</p>
+                </article>
+              </div>
+            </section>
+
+            <section class="dashboard-filter-bar" aria-label="Filtro do resumo">
+              <div class="dashboard-filter-copy">
+                <span class="dashboard-filter-label">Período do resumo</span>
+                <p class="muted">Ajuste o recorte sem sair da visão principal.</p>
+              </div>
+
+              <div class="dashboard-filter-controls">
+                <select id="dashboardRangePreset">
+                  <option value="7d">Últimos 7 dias</option>
+                  <option value="30d">Últimos 30 dias</option>
+                  <option value="month">Este mês</option>
+                  <option value="all">Todo o período</option>
+                  <option value="custom">Período personalizado</option>
+                </select>
+                <input id="dashboardFromDate" type="date" aria-label="Data inicial do resumo" />
+                <input id="dashboardToDate" type="date" aria-label="Data final do resumo" />
+                <button id="dashboardApplyBtn" class="ghost-btn" type="button">Aplicar</button>
+              </div>
+            </section>
           </div>
         </article>
 

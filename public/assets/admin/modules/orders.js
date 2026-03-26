@@ -442,7 +442,7 @@ export function bindOrdersSection(ctx) {
       await helpers.parseResponse(response);
       state.orderAuditCache.delete(orderId);
       resetArrivalTracking();
-      await Promise.all([api.loadDashboard(), api.loadOrders()]);
+      await Promise.all([api.loadDashboard(), api.loadDashboardQueue(), api.loadOrders()]);
     } catch (error) {
       helpers.setStatus(dom.ordersStatusEl, error.message, 'err');
     } finally {

@@ -39,6 +39,14 @@ const ORDER_AUDIT_ORIGIN_LABELS = {
   system: 'Sistema',
 };
 const STORE_HOURS_DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const DASHBOARD_QUEUE_ACTIVE_STATUSES = ['pendente', 'preparando', 'saiu_para_entrega'];
+const DASHBOARD_QUEUE_STATUS_LABELS = {
+  pendente: 'Novo',
+  preparando: 'Preparando',
+  saiu_para_entrega: 'Em rota',
+  entregue: 'Concluido',
+  cancelado: 'Cancelado',
+};
 
 const adminLayoutEl = document.getElementById('adminLayout');
 const loginCardEl = document.getElementById('loginCard');
@@ -66,11 +74,22 @@ const dashboardRangePresetEl = document.getElementById('dashboardRangePreset');
 const dashboardFromDateEl = document.getElementById('dashboardFromDate');
 const dashboardToDateEl = document.getElementById('dashboardToDate');
 const dashboardApplyBtnEl = document.getElementById('dashboardApplyBtn');
+const dashboardDateLabelEl = document.getElementById('dashboardDateLabel');
+const dashboardRefreshBtnEl = document.getElementById('dashboardRefreshBtn');
+const dashboardOpenOrdersBtnEl = document.getElementById('dashboardOpenOrdersBtn');
+const dashboardQueueMetaEl = document.getElementById('dashboardQueueMeta');
+const dashboardQueueListEl = document.getElementById('dashboardQueueList');
 const kpiTotalPedidosEl = document.getElementById('kpiTotalPedidos');
 const kpiPendentesEl = document.getElementById('kpiPendentes');
 const kpiPreparandoEl = document.getElementById('kpiPreparando');
 const kpiEntreguesEl = document.getElementById('kpiEntregues');
 const kpiFaturamentoEl = document.getElementById('kpiFaturamento');
+const kpiTicketMedioEl = document.getElementById('kpiTicketMedio');
+const sidebarStoreStatusCardEl = document.getElementById('sidebarStoreStatus');
+const sidebarStoreStatusTextEl = document.getElementById('sidebarStoreStatusText');
+const sidebarStoreStatusMetaEl = document.getElementById('sidebarStoreStatusMeta');
+const navOrdersBadgeEl = document.getElementById('navOrdersBadge');
+const navCatalogBadgeEl = document.getElementById('navCatalogBadge');
 
 const ordersMetaEl = document.getElementById('ordersMeta');
 const ordersSearchInputEl = document.getElementById('ordersSearchInput');
@@ -248,6 +267,7 @@ let accessToken = readStoredValue(STORAGE_KEYS.accessToken);
 let refreshToken = readStoredValue(STORAGE_KEYS.refreshToken);
 let currentUser = null;
 let allOrders = [];
+let dashboardQueueOrders = [];
 let crmCustomers = [];
 let customerDetail = null;
 let menuCategorias = [];
@@ -263,6 +283,7 @@ let customerPaginationMeta = null;
 let ordersPaginationMeta = null;
 let categoryPaginationMeta = null;
 let produtoPaginationMeta = null;
+let dashboardQueueLoaded = false;
 const orderAuditCache = new Map();
 const expandedOrderAuditIds = new Set();
 const passwordToggleTimeouts = new Map();
@@ -397,6 +418,34 @@ function formatDaysSinceLastOrderCompact(days) {
   if (days === 0) return 'Hoje';
   if (days === 1) return 'Ontem';
   return `${days} dias`;
+}
+
+function formatPortalDateLabel(value = new Date()) {
+  const label = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(value);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function formatCompactTime(value) {
+  if (!value) return '--';
+  return new Date(value).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function customerInitials(value) {
+  const parts = String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return 'DN';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
 }
 
 function formatAddress(endereco) {
@@ -1358,11 +1407,20 @@ function applySessionUi() {
   if (logoutBtnEl) {
     logoutBtnEl.disabled = !hasSession;
   }
+  if (dashboardRefreshBtnEl) {
+    dashboardRefreshBtnEl.disabled = !hasSession;
+  }
+  if (dashboardOpenOrdersBtnEl) {
+    dashboardOpenOrdersBtnEl.disabled = !hasSession;
+  }
   if (sessionLabelEl) {
     sessionLabelEl.textContent = hasSession
       ? `Logado como ${currentUser.username} (${currentUser.role})`
       : 'Sem sessão ativa';
   }
+
+  renderDashboardQueue();
+  renderSidebarStoreStatus();
 
   if (!hasSession) {
     updateRememberedLoginUi();
@@ -1375,6 +1433,7 @@ function clearSession() {
   currentUser = null;
   clearStoredSessionTokens();
   allOrders = [];
+  dashboardQueueOrders = [];
   crmCustomers = [];
   customerDetail = null;
   menuCategorias = [];
@@ -1388,6 +1447,7 @@ function clearSession() {
   ordersPaginationMeta = null;
   categoryPaginationMeta = null;
   produtoPaginationMeta = null;
+  dashboardQueueLoaded = false;
   orderAuditCache.clear();
   expandedOrderAuditIds.clear();
   customersState.page = 1;
@@ -1527,25 +1587,189 @@ function clearSession() {
 }
 
 function renderDashboard(dashboard, meta = null) {
+  if (dashboardDateLabelEl) {
+    dashboardDateLabelEl.textContent = formatPortalDateLabel(new Date());
+  }
+
   if (!dashboard) {
     kpiTotalPedidosEl.textContent = '--';
     kpiPendentesEl.textContent = '--';
     kpiPreparandoEl.textContent = '--';
     kpiEntreguesEl.textContent = '--';
     kpiFaturamentoEl.textContent = '--';
+    if (kpiTicketMedioEl) {
+      kpiTicketMedioEl.textContent = '--';
+    }
     dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
     return;
   }
 
-  kpiTotalPedidosEl.textContent = String(dashboard.totalPedidos ?? 0);
+  const totalPedidos = Number(dashboard.totalPedidos ?? 0);
+  const faturamento = Number(dashboard.faturamento || 0);
+
+  kpiTotalPedidosEl.textContent = String(totalPedidos);
   kpiPendentesEl.textContent = String(dashboard.status?.pendentes ?? 0);
   kpiPreparandoEl.textContent = String(dashboard.status?.preparando ?? 0);
   kpiEntreguesEl.textContent = String(dashboard.status?.entregues ?? 0);
-  kpiFaturamentoEl.textContent = brl(dashboard.faturamento || 0);
+  kpiFaturamentoEl.textContent = brl(faturamento);
+  if (kpiTicketMedioEl) {
+    kpiTicketMedioEl.textContent = brl(totalPedidos ? faturamento / totalPedidos : 0);
+  }
 
   const filters = meta?.filters || null;
   dashboardRangeMetaEl.textContent = filters ? formatRangeMeta(filters) : 'Todo o período';
   updateDashboardControlsFromMeta(filters || dashboardFilters);
+}
+
+function renderNavBadge(element, count = 0) {
+  if (!element) return;
+  const safeCount = Math.max(Number(count || 0), 0);
+  element.textContent = safeCount > 99 ? '99+' : String(safeCount);
+  element.classList.toggle('hidden', safeCount === 0);
+}
+
+function renderAdminNavBadges() {
+  const hasSession = Boolean(accessToken && currentUser);
+  if (!hasSession) {
+    renderNavBadge(navOrdersBadgeEl, 0);
+    renderNavBadge(navCatalogBadgeEl, 0);
+    return;
+  }
+
+  const activeOrders = dashboardQueueOrders.filter((order) => DASHBOARD_QUEUE_ACTIVE_STATUSES.includes(order?.status_entrega || 'pendente')).length;
+  const semEstoque = allMenuProdutos.filter((produto) => {
+    const estoque = normalizeEstoque(produto.estoque_disponivel);
+    return estoque !== null && estoque <= 0;
+  }).length;
+
+  renderNavBadge(navOrdersBadgeEl, activeOrders);
+  renderNavBadge(navCatalogBadgeEl, semEstoque);
+}
+
+function dashboardQueueItemsSummary(order) {
+  const items = Array.isArray(order?.itens_pedido) ? order.itens_pedido : [];
+  if (items.length === 0) {
+    return 'Sem itens detalhados';
+  }
+
+  const preview = items
+    .slice(0, 2)
+    .map((item) => `${Number(item.quantidade || 0)}x ${item.produtos?.nome_doce || `Produto ${item.produto_id}`}`)
+    .join(' • ');
+
+  return items.length > 2
+    ? `${preview} +${items.length - 2}`
+    : preview;
+}
+
+function dashboardQueueCard(order) {
+  const status = order.status_entrega || 'pendente';
+  const customerName = order.clientes?.nome || 'Cliente sem nome';
+
+  return `
+    <button type="button" class="dashboard-queue-card" data-open-dashboard-order="${order.id}">
+      <span class="dashboard-queue-avatar" aria-hidden="true">${escapeHtml(customerInitials(customerName))}</span>
+
+      <div class="dashboard-queue-main">
+        <div class="dashboard-queue-title-row">
+          <strong>${escapeHtml(`#${order.id} - ${customerName}`)}</strong>
+          <span class="dashboard-queue-time">${escapeHtml(formatCompactTime(order.criado_em))}</span>
+        </div>
+
+        <p class="dashboard-queue-summary">${escapeHtml(dashboardQueueItemsSummary(order))}</p>
+      </div>
+
+      <div class="dashboard-queue-side">
+        <span class="status-chip status-${status}">${escapeHtml(DASHBOARD_QUEUE_STATUS_LABELS[status] || STATUS_LABELS[status] || status)}</span>
+      </div>
+    </button>
+  `;
+}
+
+function renderDashboardQueue() {
+  if (!dashboardQueueListEl || !dashboardQueueMetaEl) return;
+
+  const hasSession = Boolean(accessToken && currentUser);
+  if (!hasSession) {
+    dashboardQueueMetaEl.textContent = 'Faça login para acompanhar a fila.';
+    dashboardQueueListEl.innerHTML = '<article class="dashboard-queue-empty"><p class="muted">Faça login para carregar a fila operacional.</p></article>';
+    renderAdminNavBadges();
+    return;
+  }
+
+  if (!dashboardQueueLoaded && dashboardQueueOrders.length === 0) {
+    dashboardQueueMetaEl.textContent = 'Carregando fila operacional.';
+    dashboardQueueListEl.innerHTML = '<article class="dashboard-queue-empty"><p class="muted">Carregando pedidos em andamento...</p></article>';
+    renderAdminNavBadges();
+    return;
+  }
+
+  const activeOrders = dashboardQueueOrders
+    .filter((order) => DASHBOARD_QUEUE_ACTIVE_STATUSES.includes(order?.status_entrega || 'pendente'))
+    .sort((left, right) => new Date(right?.criado_em || 0).getTime() - new Date(left?.criado_em || 0).getTime());
+  const compactVisibleOrders = activeOrders.slice(0, 3);
+
+  dashboardQueueMetaEl.textContent = activeOrders.length
+    ? `${activeOrders.length} pedido(s) exigem atenção agora.`
+    : 'Nenhum pedido em andamento no momento.';
+  dashboardQueueListEl.innerHTML = compactVisibleOrders.length
+    ? compactVisibleOrders.map(dashboardQueueCard).join('')
+    : '<article class="dashboard-queue-empty"><p class="muted">Nenhum pedido em andamento no momento.</p></article>';
+  renderAdminNavBadges();
+}
+
+function dashboardQueueQueryString() {
+  return buildQueryString({
+    page: 1,
+    pageSize: 20,
+    status: 'all',
+    ...buildPeriodParams({ period: 'today' }, 'today'),
+  });
+}
+
+async function loadDashboardQueue() {
+  if (!accessToken) {
+    dashboardQueueLoaded = false;
+    dashboardQueueOrders = [];
+    renderDashboardQueue();
+    return [];
+  }
+
+  const query = dashboardQueueQueryString();
+  const response = await fetch(`/admin/orders${query ? `?${query}` : ''}`, { headers: authHeaders() });
+  const payload = await parseEnvelope(response);
+  dashboardQueueOrders = Array.isArray(payload.data) ? payload.data : [];
+  dashboardQueueLoaded = true;
+  renderDashboardQueue();
+  return dashboardQueueOrders;
+}
+
+function renderSidebarStoreStatus(config = currentStoreSettings) {
+  if (!sidebarStoreStatusCardEl || !sidebarStoreStatusTextEl || !sidebarStoreStatusMetaEl) return;
+
+  const hasSession = Boolean(accessToken && currentUser);
+  if (!hasSession) {
+    sidebarStoreStatusCardEl.classList.remove('is-open');
+    sidebarStoreStatusCardEl.classList.add('is-closed');
+    sidebarStoreStatusTextEl.textContent = 'Status da loja';
+    sidebarStoreStatusMetaEl.textContent = 'Faça login para carregar a operação.';
+    return;
+  }
+
+  if (!config) {
+    sidebarStoreStatusCardEl.classList.remove('is-open');
+    sidebarStoreStatusCardEl.classList.add('is-closed');
+    sidebarStoreStatusTextEl.textContent = 'Consultando status';
+    sidebarStoreStatusMetaEl.textContent = 'Carregando horário e operação da loja.';
+    return;
+  }
+
+  const openNow = Boolean(config.loja_aberta_agora);
+  sidebarStoreStatusCardEl.classList.toggle('is-open', openNow);
+  sidebarStoreStatusCardEl.classList.toggle('is-closed', !openNow);
+  sidebarStoreStatusTextEl.textContent = openNow ? 'Loja aberta' : 'Loja fechada';
+  sidebarStoreStatusMetaEl.textContent = config.loja_status_descricao
+    || (openNow ? 'Recebendo pedidos neste momento.' : 'Fora do horário de atendimento.');
 }
 
 function renderCustomersSummary(summary = null) {
@@ -2253,6 +2477,8 @@ function renderSettingsOverview() {
   if (settingsOverviewFeesMetaEl) {
     settingsOverviewFeesMetaEl.textContent = `${activeFees.length} ativa(s) para cálculo da entrega.`;
   }
+
+  renderSidebarStoreStatus(config);
 }
 
 function defaultStoreHoursSchedule() {
@@ -2647,6 +2873,8 @@ function renderCatalogOverview() {
       ? (semEstoque === 0 ? 'Nenhum item com estoque zerado.' : 'Itens sem saldo ou que precisam de revisão.')
       : 'Itens que exigem reposição ou revisão.';
   }
+
+  renderAdminNavBadges();
 }
 
 function renderCatalogPortal() {
@@ -3078,6 +3306,7 @@ async function loadAdminData(options = {}) {
     await loadCurrentUser();
     await Promise.all([
       loadDashboard(),
+      loadDashboardQueue(),
       loadCustomers(),
       loadOrders(),
       loadStoreSettings(),
@@ -3295,11 +3524,22 @@ const dom = {
   dashboardFromDateEl,
   dashboardToDateEl,
   dashboardApplyBtnEl,
+  dashboardDateLabelEl,
+  dashboardRefreshBtnEl,
+  dashboardOpenOrdersBtnEl,
+  dashboardQueueMetaEl,
+  dashboardQueueListEl,
   kpiTotalPedidosEl,
   kpiPendentesEl,
   kpiPreparandoEl,
   kpiEntreguesEl,
   kpiFaturamentoEl,
+  kpiTicketMedioEl,
+  sidebarStoreStatusCardEl,
+  sidebarStoreStatusTextEl,
+  sidebarStoreStatusMetaEl,
+  navOrdersBadgeEl,
+  navCatalogBadgeEl,
   ordersMetaEl,
   ordersSearchInputEl,
   ordersSearchSuggestionsEl,
@@ -3478,6 +3718,8 @@ const api = {
   loadCurrentUser,
   loadDashboard,
   renderDashboard,
+  loadDashboardQueue,
+  renderDashboardQueue,
   loadCustomers,
   renderCustomersSummary,
   renderCustomerDetail,

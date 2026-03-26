@@ -12,6 +12,12 @@ export function bindNavigationSection(ctx) {
 
       event.preventDefault();
       api.navigateToAdminView(targetView);
+
+      if (targetView === 'dashboard' && state.accessToken) {
+        api.loadDashboard().catch((error) => helpers.setStatus(dom.dashboardStatusEl, error.message, 'err'));
+        api.loadDashboardQueue().catch((error) => helpers.setStatus(dom.dashboardStatusEl, error.message, 'err'));
+        api.loadStoreSettings().catch((error) => helpers.setStatus(dom.settingsStatusEl, error.message, 'err'));
+      }
     });
   });
 }
