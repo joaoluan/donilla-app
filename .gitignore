@@ -23,3 +23,10 @@ pnpm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+docker-compose.yml
+docker-compose.override.yml
+docker-compose.*.yml
+*.local
+*.swp
+*.swo
+*.bak

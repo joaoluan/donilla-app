@@ -212,7 +212,7 @@
     renderOptions(instance);
   }
 
-  function syncPosition(instance) {
+  function syncPosition(instance, { revealSelection = false } = {}) {
     if (!instance.root.classList.contains('is-open')) return;
     const rect = instance.shell.getBoundingClientRect();
     const dropdownHeight = Math.min(instance.list.scrollHeight + 16, 280);
@@ -220,7 +220,9 @@
     const openUp = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
     instance.root.classList.toggle('is-open-up', openUp);
 
-    const selectedEl = instance.list.querySelector('.custom-select-option.is-selected');
+    const selectedEl = revealSelection
+      ? instance.list.querySelector('.custom-select-option.is-selected')
+      : null;
     if (selectedEl) {
       selectedEl.scrollIntoView({ block: 'nearest' });
     }
@@ -234,7 +236,7 @@
     instance.root.classList.add('is-open');
     instance.trigger.setAttribute('aria-expanded', 'true');
     activeInstance = instance;
-    syncPosition(instance);
+    syncPosition(instance, { revealSelection: true });
   }
 
   function close(instance) {
@@ -359,8 +361,10 @@
     if (activeInstance) syncPosition(activeInstance);
   });
 
-  window.addEventListener('scroll', () => {
-    if (activeInstance) syncPosition(activeInstance);
+  window.addEventListener('scroll', (event) => {
+    if (!activeInstance) return;
+    if (event.target instanceof Node && activeInstance.dropdown.contains(event.target)) return;
+    syncPosition(activeInstance);
   }, true);
 
   patchSelectProperty('value');
