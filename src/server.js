@@ -7,9 +7,11 @@ const { AppError } = require('./utils/errors')
 const { sendError, sendRaw, sendSuccess } = require('./utils/http')
 const {
   createRateLimitGuard,
+  getCorsHeaders,
   getNoStoreHeaders,
   getSecurityHeaders,
   getServerTimeoutConfig,
+  isCorsPreflightRequest,
   shouldExposeErrorDetails,
 } = require('./utils/security')
 
@@ -37,7 +39,27 @@ const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
   '.png': 'image/png',
+  '.svg': 'image/svg+xml; charset=utf-8',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.map': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+}
+
+function resolveStaticContentType(filePath) {
+  const ext = pathLib.extname(String(filePath || '')).toLowerCase()
+  return MIME_TYPES[ext] || 'application/octet-stream'
 }
 
 function resolvePublicAssetPath(routePath) {
@@ -52,12 +74,13 @@ function resolvePublicAssetPath(routePath) {
   return filePath
 }
 
-function buildStaticHeaders(contentType, size) {
+function buildStaticHeaders(contentType, size, extraHeaders = {}) {
   return {
     ...getSecurityHeaders(),
     ...getNoStoreHeaders(),
     'Content-Type': contentType,
     'Content-Length': String(size),
+    ...extraHeaders,
   }
 }
 
@@ -96,11 +119,11 @@ async function openStaticFile(filePath) {
   }
 }
 
-async function streamStaticFile(res, filePath, contentType) {
+async function streamStaticFile(res, filePath, contentType, headers = {}) {
   const file = await openStaticFile(filePath)
   if (!file) return false
 
-  res.writeHead(200, buildStaticHeaders(contentType, file.size))
+  res.writeHead(200, buildStaticHeaders(contentType, file.size, headers))
   try {
     await pipeline(file.stream, res)
   } catch (error) {
@@ -125,11 +148,11 @@ async function streamStaticFile(res, filePath, contentType) {
 async function serveStatic(req, res, routePath) {
   if (req.method !== 'GET') return false
 
+  const corsHeaders = getCorsHeaders(req)
+
   const assetPath = resolvePublicAssetPath(routePath)
   if (assetPath) {
-    const ext = pathLib.extname(assetPath)
-    const mime = MIME_TYPES[ext] || 'application/octet-stream'
-    return streamStaticFile(res, assetPath, mime)
+    return streamStaticFile(res, assetPath, resolveStaticContentType(assetPath), corsHeaders)
   }
 
   const route = STATIC_ROUTES[routePath]
@@ -138,18 +161,31 @@ async function serveStatic(req, res, routePath) {
   if (route.type === 'redirect') {
     sendRaw(res, route.statusCode || 302, '', 'text/plain; charset=utf-8', {
       Location: route.location,
+      ...corsHeaders,
     })
     return true
   }
 
   const fileName = route.fileName
   const filePath = pathLib.join(PUBLIC_DIR, fileName)
-  const ext = pathLib.extname(fileName)
-  const mime = MIME_TYPES[ext] || 'text/plain; charset=utf-8'
-  return streamStaticFile(res, filePath, mime)
+  return streamStaticFile(res, filePath, resolveStaticContentType(fileName), corsHeaders)
 }
 
-function handleError(res, error) {
+function handleError(req, res, error) {
+  const corsHeaders = getCorsHeaders(req)
+
+  function isSensitivePersistenceError(value) {
+    const code = String(value?.code || '').trim()
+    const name = String(value?.name || '').trim()
+
+    return (
+      /^P\d{4}$/i.test(code) ||
+      /^\d{5}$/.test(code) ||
+      name.startsWith('Prisma') ||
+      Boolean(value?.clientVersion)
+    )
+  }
+
   if (error instanceof AppError) {
     if (error.statusCode >= 500) {
       console.error('Erro interno da aplicacao:', error)
@@ -160,17 +196,18 @@ function handleError(res, error) {
       error.statusCode,
       error.message,
       shouldExposeErrorDetails(error.statusCode) ? error.details : undefined,
+      corsHeaders,
     )
     return
   }
 
   if (error?.code === 'P2025') {
-    sendError(res, 404, 'Registro nao encontrado.')
+    sendError(res, 404, 'Registro nao encontrado.', undefined, corsHeaders)
     return
   }
 
   if (error?.code === 'P2002') {
-    sendError(res, 409, 'Registro duplicado para campo unico.')
+    sendError(res, 409, 'Registro duplicado para campo unico.', undefined, corsHeaders)
     return
   }
 
@@ -179,7 +216,10 @@ function handleError(res, error) {
       res,
       409,
       'Nao foi possivel excluir este registro porque ele esta vinculado a outros dados.',
-      error?.message || 'Restricao de chave estrangeira.',
+      shouldExposeErrorDetails(409, { sensitive: true })
+        ? (error?.message || 'Restricao de chave estrangeira.')
+        : undefined,
+      corsHeaders,
     )
     return
   }
@@ -189,18 +229,27 @@ function handleError(res, error) {
       res,
       500,
       'Schema do banco desatualizado. Aplique as atualizacoes SQL pendentes no banco de dados.',
-      error?.message || 'Coluna ou tabela ausente no banco.',
+      shouldExposeErrorDetails(500, { sensitive: true })
+        ? (error?.message || 'Coluna ou tabela ausente no banco.')
+        : undefined,
+      corsHeaders,
     )
     return
   }
 
   if (error?.name === 'PrismaClientValidationError') {
-    sendError(res, 400, 'Dados invalidos.', shouldExposeErrorDetails(400) ? error.message : undefined)
+    sendError(
+      res,
+      400,
+      'Dados invalidos.',
+      shouldExposeErrorDetails(400, { sensitive: true }) ? error.message : undefined,
+      corsHeaders,
+    )
     return
   }
 
   if (error?.code === '22001') {
-    sendError(res, 400, 'Imagem fora do tamanho permitido para o banco de dados.')
+    sendError(res, 400, 'Imagem fora do tamanho permitido para o banco de dados.', undefined, corsHeaders)
     return
   }
 
@@ -209,7 +258,10 @@ function handleError(res, error) {
     res,
     500,
     'Erro interno no servidor.',
-    shouldExposeErrorDetails(500) ? error?.message || String(error) : undefined,
+    shouldExposeErrorDetails(500, { sensitive: isSensitivePersistenceError(error) })
+      ? error?.message || String(error)
+      : undefined,
+    corsHeaders,
   )
 }
 
@@ -221,8 +273,20 @@ function createApp(prisma, deps = {}) {
     const url = new URL(req.url || '/', 'http://localhost')
     const path = url.pathname
     const normalizedPath = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
+    const corsHeaders = getCorsHeaders(req)
+    const preflightCorsHeaders = getCorsHeaders(req, { includePreflight: true })
 
     try {
+      if (isCorsPreflightRequest(req)) {
+        if (!preflightCorsHeaders['Access-Control-Allow-Origin']) {
+          sendError(res, 403, 'Origem CORS nao permitida.')
+          return
+        }
+
+        sendRaw(res, 204, '', 'text/plain; charset=utf-8', preflightCorsHeaders)
+        return
+      }
+
       const served = await serveStatic(req, res, normalizedPath)
       if (served) return
 
@@ -234,6 +298,7 @@ function createApp(prisma, deps = {}) {
           rateLimit.message || 'Muitas requisicoes. Tente novamente em instantes.',
           undefined,
           {
+            ...corsHeaders,
             'Retry-After': String(rateLimit.retryAfterSeconds),
             'RateLimit-Limit': String(rateLimit.limit),
             'RateLimit-Remaining': String(rateLimit.remaining),
@@ -251,7 +316,7 @@ function createApp(prisma, deps = {}) {
       }
 
       if (response === null) {
-        sendError(res, 404, 'Rota nao encontrada.')
+        sendError(res, 404, 'Rota nao encontrada.', undefined, corsHeaders)
         return
       }
 
@@ -261,7 +326,10 @@ function createApp(prisma, deps = {}) {
           response?.statusCode || 200,
           response.rawBody,
           response?.contentType || 'text/plain; charset=utf-8',
-          response?.headers || {},
+          {
+            ...corsHeaders,
+            ...(response?.headers || {}),
+          },
         )
         return
       }
@@ -269,9 +337,12 @@ function createApp(prisma, deps = {}) {
       const statusCode = response?.statusCode || 200
       const data = Object.prototype.hasOwnProperty.call(response || {}, 'data') ? response.data : response
       const meta = response?.meta
-      sendSuccess(res, statusCode, data, meta, response?.headers || {})
+      sendSuccess(res, statusCode, data, meta, {
+        ...corsHeaders,
+        ...(response?.headers || {}),
+      })
     } catch (error) {
-      handleError(res, error)
+      handleError(req, res, error)
     }
   })
 
@@ -284,4 +355,4 @@ function createApp(prisma, deps = {}) {
   return server
 }
 
-module.exports = { createApp }
+module.exports = { createApp, resolveStaticContentType }

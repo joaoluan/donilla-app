@@ -7,6 +7,24 @@ const DEFAULT_HEADERS_TIMEOUT_MS = 15_000
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 const DEFAULT_KEEP_ALIVE_TIMEOUT_MS = 5_000
 const DEFAULT_MAX_REQUESTS_PER_SOCKET = 100
+const DEFAULT_CORS_MAX_AGE_SECONDS = 600
+const DEFAULT_CORS_ALLOWED_METHODS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+const DEFAULT_CORS_ALLOWED_HEADERS = Object.freeze([
+  'Authorization',
+  'Content-Type',
+  'Accept',
+  'X-Customer-Session-Token',
+  'Last-Event-ID',
+])
+const DEFAULT_CORS_EXPOSE_HEADERS = Object.freeze([
+  'Content-Length',
+  'Content-Type',
+  'RateLimit-Limit',
+  'RateLimit-Remaining',
+  'RateLimit-Reset',
+  'RateLimit-Policy',
+  'Retry-After',
+])
 
 const STATIC_SECURITY_HEADERS = Object.freeze({
   'X-Content-Type-Options': 'nosniff',
@@ -127,6 +145,145 @@ function getNoStoreHeaders(extraHeaders = {}) {
   }
 }
 
+function parseCommaSeparatedValues(value) {
+  return Array.from(
+    new Set(
+      String(value || '')
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  )
+}
+
+function appendVaryHeader(headers, ...values) {
+  const existing = parseCommaSeparatedValues(headers?.Vary || headers?.vary || '')
+  const next = Array.from(new Set([...existing, ...values.filter(Boolean)]))
+  if (next.length === 0) return headers
+  return {
+    ...headers,
+    Vary: next.join(', '),
+  }
+}
+
+function getAllowedCorsOriginPatterns() {
+  return parseCommaSeparatedValues(process.env.CORS_ALLOWED_ORIGINS)
+}
+
+function matchesCorsOrigin(origin, pattern) {
+  if (pattern === '*') return true
+  if (origin === pattern) return true
+
+  const wildcardMatch = String(pattern || '').match(/^([a-z]+:\/\/)\*\.(.+)$/i)
+  if (!wildcardMatch) return false
+
+  let parsedOrigin
+  try {
+    parsedOrigin = new URL(origin)
+  } catch {
+    return false
+  }
+
+  const protocolPrefix = `${parsedOrigin.protocol}//`.toLowerCase()
+  const expectedProtocolPrefix = wildcardMatch[1].toLowerCase()
+  const expectedHost = wildcardMatch[2].toLowerCase()
+  const actualHost = String(parsedOrigin.hostname || '').toLowerCase()
+
+  return (
+    protocolPrefix === expectedProtocolPrefix &&
+    actualHost !== expectedHost &&
+    actualHost.endsWith(`.${expectedHost}`)
+  )
+}
+
+function resolveAllowedCorsOrigin(origin) {
+  const normalizedOrigin = String(origin || '').trim()
+  if (!normalizedOrigin) return null
+
+  let parsedOrigin
+  try {
+    parsedOrigin = new URL(normalizedOrigin)
+  } catch {
+    return null
+  }
+
+  if (!['http:', 'https:'].includes(parsedOrigin.protocol)) {
+    return null
+  }
+
+  const allowedPatterns = getAllowedCorsOriginPatterns()
+  if (allowedPatterns.length === 0) {
+    return null
+  }
+
+  if (allowedPatterns.includes('*')) {
+    return '*'
+  }
+
+  return allowedPatterns.some((pattern) => matchesCorsOrigin(normalizedOrigin, pattern))
+    ? normalizedOrigin
+    : null
+}
+
+function getCorsAllowedMethods() {
+  const configured = parseCommaSeparatedValues(process.env.CORS_ALLOWED_METHODS)
+  return configured.length > 0 ? configured : [...DEFAULT_CORS_ALLOWED_METHODS]
+}
+
+function getCorsDefaultAllowedHeaders() {
+  const configured = parseCommaSeparatedValues(process.env.CORS_ALLOWED_HEADERS)
+  return configured.length > 0 ? configured : [...DEFAULT_CORS_ALLOWED_HEADERS]
+}
+
+function getCorsExposeHeaders() {
+  const configured = parseCommaSeparatedValues(process.env.CORS_EXPOSE_HEADERS)
+  return configured.length > 0 ? configured : [...DEFAULT_CORS_EXPOSE_HEADERS]
+}
+
+function getCorsMaxAgeSeconds() {
+  return parsePositiveInt(process.env.CORS_MAX_AGE_SECONDS, DEFAULT_CORS_MAX_AGE_SECONDS)
+}
+
+function getCorsHeaders(req, { includePreflight = false } = {}) {
+  const origin = req?.headers?.origin || req?.headers?.Origin || ''
+  const allowedOrigin = resolveAllowedCorsOrigin(origin)
+  if (!allowedOrigin) return {}
+
+  let headers = {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Expose-Headers': getCorsExposeHeaders().join(', '),
+  }
+
+  if (allowedOrigin !== '*') {
+    headers = appendVaryHeader(headers, 'Origin')
+  }
+
+  if (String(process.env.CORS_ALLOW_CREDENTIALS || '').trim() === '1' && allowedOrigin !== '*') {
+    headers['Access-Control-Allow-Credentials'] = 'true'
+  }
+
+  if (includePreflight) {
+    const requestedHeaders = String(req?.headers?.['access-control-request-headers'] || '').trim()
+    headers['Access-Control-Allow-Methods'] = getCorsAllowedMethods().join(', ')
+    headers['Access-Control-Allow-Headers'] = requestedHeaders || getCorsDefaultAllowedHeaders().join(', ')
+    headers['Access-Control-Max-Age'] = String(getCorsMaxAgeSeconds())
+    headers = appendVaryHeader(headers, 'Access-Control-Request-Method')
+    if (requestedHeaders) {
+      headers = appendVaryHeader(headers, 'Access-Control-Request-Headers')
+    }
+  }
+
+  return headers
+}
+
+function isCorsPreflightRequest(req) {
+  return (
+    String(req?.method || '').toUpperCase() === 'OPTIONS' &&
+    Boolean(req?.headers?.origin || req?.headers?.Origin) &&
+    Boolean(req?.headers?.['access-control-request-method'])
+  )
+}
+
 function normalizeIp(value) {
   const raw = String(value || '').trim()
   if (!raw) return ''
@@ -239,10 +396,12 @@ function createRateLimitGuard() {
   }
 }
 
-function shouldExposeErrorDetails(statusCode = 500) {
+function shouldExposeErrorDetails(statusCode = 500, { sensitive = false } = {}) {
+  const isProduction = process.env.NODE_ENV === 'production'
   const expose = String(process.env.EXPOSE_ERROR_DETAILS || '').trim() === '1'
+  if (sensitive && isProduction) return false
   if (expose) return true
-  return process.env.NODE_ENV !== 'production' && statusCode < 500
+  return !isProduction && statusCode < 500
 }
 
 function isLocalHostname(hostname) {
@@ -312,10 +471,12 @@ async function assertSafeExternalUrl(rawUrl, { lookupImpl = dns.lookup } = {}) {
 module.exports = {
   assertSafeExternalUrl,
   createRateLimitGuard,
+  getCorsHeaders,
   getClientIp,
   getMaxJsonBodyBytes,
   getNoStoreHeaders,
   getSecurityHeaders,
   getServerTimeoutConfig,
+  isCorsPreflightRequest,
   shouldExposeErrorDetails,
 }

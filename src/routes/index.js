@@ -18,6 +18,45 @@ const { createWhatsAppBotService } = require('../services/whatsappBotService')
 const { createAsaasService } = require('../services/asaasService')
 const { createAdminEventsBroker } = require('../services/adminEventsBroker')
 
+function escapeRegexSegment(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function compileRoutePattern(pattern) {
+  const segments = String(pattern)
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => {
+      if (segment.startsWith(':')) {
+        return `(?<${segment.slice(1)}>[^/]+)`
+      }
+
+      return escapeRegexSegment(segment)
+    })
+
+  return new RegExp(`^/${segments.join('/')}$`)
+}
+
+function matchRoute(path, pattern) {
+  return pattern.exec(String(path || ''))?.groups || null
+}
+
+const ROUTE_PATTERNS = {
+  publicCustomerOrder: compileRoutePattern('/public/customer/orders/:id'),
+  publicOrderStatus: compileRoutePattern('/public/orders/:id'),
+  apiOrderStatus: compileRoutePattern('/api/orders/:id/status'),
+  apiOrderDetail: compileRoutePattern('/api/orders/:id'),
+  apiCheckoutRetry: compileRoutePattern('/api/checkout/:id/retry'),
+  categoriaById: compileRoutePattern('/categorias/:id'),
+  produtoById: compileRoutePattern('/produtos/:id'),
+  usuarioResetPassword: compileRoutePattern('/usuarios/:id/reset-password'),
+  usuarioById: compileRoutePattern('/usuarios/:id'),
+  adminCustomerById: compileRoutePattern('/admin/customers/:id'),
+  adminOrderAudit: compileRoutePattern('/admin/orders/:id/audit'),
+  adminOrderStatus: compileRoutePattern('/admin/orders/:id/status'),
+  adminDeliveryFeeById: compileRoutePattern('/admin/delivery-fees/:id'),
+}
+
 function createRouter(prisma, deps = {}) {
   const whatsappTransport = deps.whatsappTransport || createWppConnectService()
   const whatsappNotifier = deps.whatsappNotifier || createWhatsAppNotificationService({ transportService: whatsappTransport })
@@ -83,9 +122,9 @@ function createRouter(prisma, deps = {}) {
       return pub.customerOrders(req)
     }
 
-    if (path.startsWith('/public/customer/orders/')) {
-      const id = path.replace('/public/customer/orders/', '')
-      if (method === 'GET') return pub.customerOrder(req, id)
+    const publicCustomerOrderMatch = matchRoute(path, ROUTE_PATTERNS.publicCustomerOrder)
+    if (publicCustomerOrderMatch) {
+      if (method === 'GET') return pub.customerOrder(req, publicCustomerOrderMatch.id)
     }
 
     if (method === 'POST' && path === '/public/orders') {
@@ -104,28 +143,29 @@ function createRouter(prisma, deps = {}) {
       return payments.asaasWebhook(req)
     }
 
-    if (path.startsWith('/public/orders/')) {
-      const id = path.replace('/public/orders/', '')
-      if (method === 'GET') return pub.orderStatus(id, req)
+    const publicOrderStatusMatch = matchRoute(path, ROUTE_PATTERNS.publicOrderStatus)
+    if (publicOrderStatusMatch) {
+      if (method === 'GET') return pub.orderStatus(publicOrderStatusMatch.id, req)
     }
 
-    if (path.startsWith('/api/orders/')) {
-      const rest = path.replace('/api/orders/', '')
-      if (rest.endsWith('/status') && method === 'GET') {
-        const id = rest.replace('/status', '')
-        return pub.orderStatusSummary(req, id)
-      }
-
+    const apiOrderStatusMatch = matchRoute(path, ROUTE_PATTERNS.apiOrderStatus)
+    if (apiOrderStatusMatch) {
       if (method === 'GET') {
-        return pub.customerOrder(req, rest)
+        return pub.orderStatusSummary(req, apiOrderStatusMatch.id)
       }
     }
 
-    if (path.startsWith('/api/checkout/')) {
-      const rest = path.replace('/api/checkout/', '')
-      if (rest.endsWith('/retry') && method === 'POST') {
-        const id = rest.replace('/retry', '')
-        return pub.retryCheckout(req, id)
+    const apiOrderDetailMatch = matchRoute(path, ROUTE_PATTERNS.apiOrderDetail)
+    if (apiOrderDetailMatch) {
+      if (method === 'GET') {
+        return pub.customerOrder(req, apiOrderDetailMatch.id)
+      }
+    }
+
+    const apiCheckoutRetryMatch = matchRoute(path, ROUTE_PATTERNS.apiCheckoutRetry)
+    if (apiCheckoutRetryMatch) {
+      if (method === 'POST') {
+        return pub.retryCheckout(req, apiCheckoutRetryMatch.id)
       }
     }
 
@@ -164,16 +204,16 @@ function createRouter(prisma, deps = {}) {
       return categorias.create(req)
     }
 
-    if (path.startsWith('/categorias/')) {
-      const id = path.replace('/categorias/', '')
-      if (method === 'GET') return categorias.getById(id)
+    const categoriaByIdMatch = matchRoute(path, ROUTE_PATTERNS.categoriaById)
+    if (categoriaByIdMatch) {
+      if (method === 'GET') return categorias.getById(categoriaByIdMatch.id)
       if (method === 'PUT') {
         requireRole(req, 'admin')
-        return categorias.update(req, id)
+        return categorias.update(req, categoriaByIdMatch.id)
       }
       if (method === 'DELETE') {
         requireRole(req, 'admin')
-        return categorias.remove(id)
+        return categorias.remove(categoriaByIdMatch.id)
       }
     }
 
@@ -186,16 +226,16 @@ function createRouter(prisma, deps = {}) {
       return produtos.create(req)
     }
 
-    if (path.startsWith('/produtos/')) {
-      const id = path.replace('/produtos/', '')
-      if (method === 'GET') return produtos.getById(id)
+    const produtoByIdMatch = matchRoute(path, ROUTE_PATTERNS.produtoById)
+    if (produtoByIdMatch) {
+      if (method === 'GET') return produtos.getById(produtoByIdMatch.id)
       if (method === 'PUT') {
         requireRole(req, 'admin')
-        return produtos.update(req, id)
+        return produtos.update(req, produtoByIdMatch.id)
       }
       if (method === 'DELETE') {
         requireRole(req, 'admin')
-        return produtos.remove(id)
+        return produtos.remove(produtoByIdMatch.id)
       }
     }
 
@@ -209,17 +249,17 @@ function createRouter(prisma, deps = {}) {
       return usuarios.create(req, Number.parseInt(auth.sub, 10))
     }
 
-    if (path.startsWith('/usuarios/')) {
-      const rest = path.replace('/usuarios/', '')
+    const usuarioResetPasswordMatch = matchRoute(path, ROUTE_PATTERNS.usuarioResetPassword)
+    if (usuarioResetPasswordMatch) {
       const auth = requireRole(req, 'admin')
+      if (method === 'POST') return usuarios.resetPassword(req, usuarioResetPasswordMatch.id, Number.parseInt(auth.sub, 10))
+    }
 
-      if (rest.endsWith('/reset-password')) {
-        const id = rest.replace('/reset-password', '')
-        if (method === 'POST') return usuarios.resetPassword(req, id, Number.parseInt(auth.sub, 10))
-      } else {
-        if (method === 'PUT') return usuarios.update(req, rest, Number.parseInt(auth.sub, 10))
-        if (method === 'DELETE') return usuarios.remove(rest, Number.parseInt(auth.sub, 10))
-      }
+    const usuarioByIdMatch = matchRoute(path, ROUTE_PATTERNS.usuarioById)
+    if (usuarioByIdMatch) {
+      const auth = requireRole(req, 'admin')
+      if (method === 'PUT') return usuarios.update(req, usuarioByIdMatch.id, Number.parseInt(auth.sub, 10))
+      if (method === 'DELETE') return usuarios.remove(usuarioByIdMatch.id, Number.parseInt(auth.sub, 10))
     }
 
     if (method === 'GET' && path === '/admin/dashboard') {
@@ -237,11 +277,11 @@ function createRouter(prisma, deps = {}) {
       return admin.customers(url)
     }
 
-    if (path.startsWith('/admin/customers/')) {
-      const id = path.replace('/admin/customers/', '')
+    const adminCustomerByIdMatch = matchRoute(path, ROUTE_PATTERNS.adminCustomerById)
+    if (adminCustomerByIdMatch) {
       if (method === 'GET') {
         requireRole(req, 'admin')
-        return admin.customer(id)
+        return admin.customer(adminCustomerByIdMatch.id)
       }
     }
 
@@ -250,18 +290,19 @@ function createRouter(prisma, deps = {}) {
       return admin.orders(url)
     }
 
-    if (path.startsWith('/admin/orders/')) {
-      const rest = path.replace('/admin/orders/', '')
-      if (rest.endsWith('/audit') && method === 'GET') {
+    const adminOrderAuditMatch = matchRoute(path, ROUTE_PATTERNS.adminOrderAudit)
+    if (adminOrderAuditMatch) {
+      if (method === 'GET') {
         requireRole(req, 'admin')
-        const id = rest.replace('/audit', '')
-        return admin.orderAudit(id)
+        return admin.orderAudit(adminOrderAuditMatch.id)
       }
+    }
 
-      if (rest.endsWith('/status') && method === 'PUT') {
+    const adminOrderStatusMatch = matchRoute(path, ROUTE_PATTERNS.adminOrderStatus)
+    if (adminOrderStatusMatch) {
+      if (method === 'PUT') {
         requireRole(req, 'admin')
-        const id = rest.replace('/status', '')
-        return admin.updateOrderStatus(req, id)
+        return admin.updateOrderStatus(req, adminOrderStatusMatch.id)
       }
     }
 
@@ -305,15 +346,15 @@ function createRouter(prisma, deps = {}) {
       return admin.createDeliveryFee(req)
     }
 
-    if (path.startsWith('/admin/delivery-fees/')) {
-      const id = path.replace('/admin/delivery-fees/', '')
+    const adminDeliveryFeeByIdMatch = matchRoute(path, ROUTE_PATTERNS.adminDeliveryFeeById)
+    if (adminDeliveryFeeByIdMatch) {
       if (method === 'PUT') {
         requireRole(req, 'admin')
-        return admin.updateDeliveryFee(req, id)
+        return admin.updateDeliveryFee(req, adminDeliveryFeeByIdMatch.id)
       }
       if (method === 'DELETE') {
         requireRole(req, 'admin')
-        return admin.removeDeliveryFee(id)
+        return admin.removeDeliveryFee(adminDeliveryFeeByIdMatch.id)
       }
     }
 

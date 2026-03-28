@@ -1,4 +1,4 @@
-const { getNoStoreHeaders, getSecurityHeaders } = require('../utils/security')
+const { getCorsHeaders, getNoStoreHeaders, getSecurityHeaders } = require('../utils/security')
 
 function formatSseChunk({ id = null, event = null, data = undefined, comment = null } = {}) {
   const lines = []
@@ -73,6 +73,7 @@ function createAdminEventsBroker({ heartbeatIntervalMs = 25_000 } = {}) {
   function subscribe(req, res, { auth = null } = {}) {
     const clientId = nextClientId++
     let closed = false
+    const corsHeaders = getCorsHeaders(req)
 
     req.setTimeout?.(0)
     res.setTimeout?.(0)
@@ -82,6 +83,7 @@ function createAdminEventsBroker({ heartbeatIntervalMs = 25_000 } = {}) {
     res.writeHead(200, {
       ...getSecurityHeaders(),
       ...getNoStoreHeaders(),
+      ...corsHeaders,
       'Content-Type': 'text/event-stream; charset=utf-8',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',

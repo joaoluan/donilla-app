@@ -27,6 +27,40 @@ Referencia de variaveis:
 - o Bitwarden e a fonte real dos valores de producao
 - `docker-compose.yml` exige `ASAAS_ENVIRONMENT` explicitamente; nao existe mais fallback implicito para `sandbox`
 
+Para novas configuracoes de ambiente, o fluxo continua o mesmo:
+
+- adicionar o nome da variavel em `docker-compose.yml`
+- registrar o nome em `.env.example` como referencia
+- salvar o valor real no Bitwarden usado por `secrets-vault/bitwarden`
+
+## CORS em producao
+
+O backend agora suporta CORS por allowlist para quando frontend e API ficam em origins diferentes.
+
+Exemplos:
+
+- frontend em `https://app.seudominio.com`
+- admin em `https://admin.seudominio.com`
+- backend em `https://api.seudominio.com`
+
+Nesses casos, salve no Bitwarden as variaveis abaixo, porque o `docker-compose.yml` ja encaminha todas elas para o container:
+
+- `CORS_ALLOWED_ORIGINS`
+- `CORS_ALLOW_CREDENTIALS`
+- `CORS_ALLOWED_METHODS`
+- `CORS_ALLOWED_HEADERS`
+- `CORS_EXPOSE_HEADERS`
+- `CORS_MAX_AGE_SECONDS`
+
+Configuracao minima recomendada:
+
+- `CORS_ALLOWED_ORIGINS=https://app.seudominio.com,https://admin.seudominio.com`
+- `CORS_ALLOW_CREDENTIALS` vazio quando o frontend usa token Bearer no header `Authorization`
+
+Use `CORS_ALLOW_CREDENTIALS=1` apenas se o navegador precisar enviar cookies cross-origin com `credentials: include`.
+
+Se frontend e backend estiverem no mesmo origin publico, pode deixar CORS vazio.
+
 ## Rotas web
 
 - `/`: loja principal para clientes

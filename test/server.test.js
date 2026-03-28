@@ -4,7 +4,7 @@ const { EventEmitter } = require('node:events')
 const { Writable } = require('node:stream')
 const { Prisma } = require('@prisma/client')
 
-const { createApp } = require('../src/server')
+const { createApp, resolveStaticContentType } = require('../src/server')
 const { createAdminEventsBroker } = require('../src/services/adminEventsBroker')
 const { signToken } = require('../src/utils/jwt')
 
@@ -157,6 +157,7 @@ test('assets do admin modularizado devem ser servidos como javascript', async ()
   assert.equal(appModuleResponse.statusCode, 200)
   assert.equal(appModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
   assert.equal(appModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
+  assert.equal(appModuleResponse.headers['X-Content-Type-Options'], 'nosniff')
   assert.ok(Number(appModuleResponse.headers['Content-Length']) > 0)
   assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=[0-9]{8}[a-z])?'/)
 
@@ -166,6 +167,77 @@ test('assets do admin modularizado devem ser servidos como javascript', async ()
   assert.equal(nestedModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
   assert.ok(Number(nestedModuleResponse.headers['Content-Length']) > 0)
   assert.match(nestedModuleResponse.body, /export function bindNavigationSection/)
+})
+
+test('resolveStaticContentType cobre extensoes comuns do frontend', () => {
+  assert.equal(resolveStaticContentType('/assets/icon.svg'), 'image/svg+xml; charset=utf-8')
+  assert.equal(resolveStaticContentType('/assets/banner.jpg'), 'image/jpeg')
+  assert.equal(resolveStaticContentType('/assets/banner.JPEG'), 'image/jpeg')
+  assert.equal(resolveStaticContentType('/assets/data.json'), 'application/json; charset=utf-8')
+  assert.equal(resolveStaticContentType('/assets/font.woff2'), 'font/woff2')
+  assert.equal(resolveStaticContentType('/assets/app.webmanifest'), 'application/manifest+json; charset=utf-8')
+  assert.equal(resolveStaticContentType('/assets/unknown.bin'), 'application/octet-stream')
+})
+
+test('servidor aplica CORS por allowlist e responde preflight', async () => {
+  const previousAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+  const previousAllowCredentials = process.env.CORS_ALLOW_CREDENTIALS
+  process.env.CORS_ALLOWED_ORIGINS = 'https://app.donilla.test,https://*.donilla.test'
+  process.env.CORS_ALLOW_CREDENTIALS = '1'
+
+  const app = createApp({})
+
+  try {
+    const preflightResponse = await requestApp(app, {
+      method: 'OPTIONS',
+      url: '/api/checkout/create',
+      headers: {
+        origin: 'https://painel.donilla.test',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'authorization,content-type',
+      },
+    })
+
+    assert.equal(preflightResponse.statusCode, 204)
+    assert.equal(preflightResponse.headers['Access-Control-Allow-Origin'], 'https://painel.donilla.test')
+    assert.equal(preflightResponse.headers['Access-Control-Allow-Credentials'], 'true')
+    assert.equal(preflightResponse.headers['Access-Control-Allow-Headers'], 'authorization,content-type')
+    assert.match(preflightResponse.headers['Access-Control-Allow-Methods'], /POST/)
+    assert.match(preflightResponse.headers.Vary, /Origin/)
+    assert.match(preflightResponse.headers.Vary, /Access-Control-Request-Method/)
+    assert.match(preflightResponse.headers.Vary, /Access-Control-Request-Headers/)
+
+    const allowedOriginResponse = await requestApp(app, {
+      url: '/assets/admin/app.js',
+      headers: {
+        origin: 'https://app.donilla.test',
+      },
+    })
+
+    assert.equal(allowedOriginResponse.statusCode, 200)
+    assert.equal(allowedOriginResponse.headers['Access-Control-Allow-Origin'], 'https://app.donilla.test')
+    assert.equal(allowedOriginResponse.headers['Access-Control-Allow-Credentials'], 'true')
+    assert.match(allowedOriginResponse.headers.Vary, /Origin/)
+    assert.equal(allowedOriginResponse.headers['X-Content-Type-Options'], 'nosniff')
+
+    const blockedPreflightResponse = await requestApp(app, {
+      method: 'OPTIONS',
+      url: '/api/checkout/create',
+      headers: {
+        origin: 'https://evil.example.com',
+        'access-control-request-method': 'POST',
+      },
+    })
+
+    assert.equal(blockedPreflightResponse.statusCode, 403)
+    assert.equal(blockedPreflightResponse.headers['Access-Control-Allow-Origin'], undefined)
+  } finally {
+    if (previousAllowedOrigins === undefined) delete process.env.CORS_ALLOWED_ORIGINS
+    else process.env.CORS_ALLOWED_ORIGINS = previousAllowedOrigins
+
+    if (previousAllowCredentials === undefined) delete process.env.CORS_ALLOW_CREDENTIALS
+    else process.env.CORS_ALLOW_CREDENTIALS = previousAllowCredentials
+  }
 })
 
 test('client Prisma gerado deve incluir campos de horario automatico da loja', () => {
@@ -310,6 +382,143 @@ test('rotas /api de checkout e pedidos expõem o contrato minimo', async () => {
   assert.equal(webhookResponse.statusCode, 200)
   assert.equal(calls.webhook.body.id, 'evt_001')
   assert.equal(calls.webhook.headers['asaas-access-token'], 'whsec')
+})
+
+test('rotas dinamicas fazem match estrito e rejeitam segmentos extras', async () => {
+  const previousSecret = process.env.JWT_SECRET
+  process.env.JWT_SECRET = 'test-secret'
+
+  const adminToken = signToken(
+    {
+      sub: '7',
+      username: 'admin',
+      role: 'admin',
+    },
+    process.env.JWT_SECRET,
+    3600,
+  )
+
+  const calls = {
+    orderDetail: [],
+    orderStatus: [],
+    retryCheckout: [],
+    orderAudit: [],
+  }
+
+  const app = createApp({
+    pedidos: {
+      findUnique({ where }) {
+        return Promise.resolve({ id: where.id })
+      },
+    },
+    pedidos_auditoria: {
+      findMany(args) {
+        calls.orderAudit.push(args.where.pedido_id)
+        return Promise.resolve([])
+      },
+    },
+  }, {
+    storeService: {
+      getCustomerOrder(token, id) {
+        calls.orderDetail.push({ token, id })
+        return Promise.resolve({ id, itens: [] })
+      },
+      getOrderStatusSummary(id, token) {
+        calls.orderStatus.push({ token, id })
+        return Promise.resolve({ id, status_pagamento: 'pendente', status_entrega: 'pendente' })
+      },
+      retryAsaasCheckout(token, id) {
+        calls.retryCheckout.push({ token, id })
+        return Promise.resolve({ id, checkout_url: 'https://sandbox.asaas.com/checkoutSession/show?id=chk_retry' })
+      },
+    },
+  })
+
+  try {
+    const validCustomerOrderResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/public/customer/orders/41',
+      headers: { authorization: 'Bearer sessao-cliente' },
+    })
+
+    assert.equal(validCustomerOrderResponse.statusCode, 200)
+    assert.deepEqual(calls.orderDetail, [{ token: 'sessao-cliente', id: 41 }])
+
+    const malformedCustomerOrderResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/public/customer/orders/41/extra',
+      headers: { authorization: 'Bearer sessao-cliente' },
+    })
+
+    assert.equal(malformedCustomerOrderResponse.statusCode, 404)
+    assert.deepEqual(calls.orderDetail, [{ token: 'sessao-cliente', id: 41 }])
+
+    const validOrderStatusResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/api/orders/41/status',
+      headers: { authorization: 'Bearer sessao-cliente' },
+    })
+
+    assert.equal(validOrderStatusResponse.statusCode, 200)
+    assert.deepEqual(calls.orderStatus, [{ token: 'sessao-cliente', id: 41 }])
+
+    const malformedOrderStatusResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/api/orders/41/status/extra',
+      headers: { authorization: 'Bearer sessao-cliente' },
+    })
+
+    assert.equal(malformedOrderStatusResponse.statusCode, 404)
+    assert.deepEqual(calls.orderStatus, [{ token: 'sessao-cliente', id: 41 }])
+
+    const duplicatedSlashOrderStatusResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/api/orders//status',
+      headers: { authorization: 'Bearer sessao-cliente' },
+    })
+
+    assert.equal(duplicatedSlashOrderStatusResponse.statusCode, 404)
+    assert.deepEqual(calls.orderStatus, [{ token: 'sessao-cliente', id: 41 }])
+
+    const validRetryResponse = await requestApp(app, {
+      method: 'POST',
+      url: '/api/checkout/41/retry',
+      headers: { authorization: 'Bearer sessao-cliente' },
+    })
+
+    assert.equal(validRetryResponse.statusCode, 200)
+    assert.deepEqual(calls.retryCheckout, [{ token: 'sessao-cliente', id: 41 }])
+
+    const malformedRetryResponse = await requestApp(app, {
+      method: 'POST',
+      url: '/api/checkout/41/retry/extra',
+      headers: { authorization: 'Bearer sessao-cliente' },
+    })
+
+    assert.equal(malformedRetryResponse.statusCode, 404)
+    assert.deepEqual(calls.retryCheckout, [{ token: 'sessao-cliente', id: 41 }])
+
+    const validAdminAuditResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/admin/orders/41/audit',
+      headers: { authorization: `Bearer ${adminToken}` },
+    })
+
+    assert.equal(validAdminAuditResponse.statusCode, 200)
+    assert.deepEqual(calls.orderAudit, [41])
+
+    const malformedAdminAuditResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/admin/orders/41/audit/extra',
+      headers: { authorization: `Bearer ${adminToken}` },
+    })
+
+    assert.equal(malformedAdminAuditResponse.statusCode, 404)
+    assert.deepEqual(calls.orderAudit, [41])
+  } finally {
+    if (previousSecret === undefined) delete process.env.JWT_SECRET
+    else process.env.JWT_SECRET = previousSecret
+  }
 })
 
 test('rota admin de auditoria do pedido exige admin e devolve historico', async () => {
@@ -592,5 +801,95 @@ test('payloads JSON acima do limite devem ser bloqueados', async () => {
   } finally {
     if (previousLimit === undefined) delete process.env.MAX_JSON_BODY_BYTES
     else process.env.MAX_JSON_BODY_BYTES = previousLimit
+  }
+})
+
+test('erros de banco nao vazam detalhes em producao mesmo com EXPOSE_ERROR_DETAILS ativo', async () => {
+  const previousNodeEnv = process.env.NODE_ENV
+  const previousExpose = process.env.EXPOSE_ERROR_DETAILS
+  process.env.NODE_ENV = 'production'
+  process.env.EXPOSE_ERROR_DETAILS = '1'
+
+  const app = createApp({}, {
+    storeService: {
+      createOrder() {
+        return Promise.reject({
+          code: 'P2003',
+          message: 'Foreign key constraint failed on the field: pedidos_cliente_id_fkey',
+        })
+      },
+    },
+  })
+
+  try {
+    const response = await requestApp(app, {
+      method: 'POST',
+      url: '/api/checkout/create',
+      headers: { 'content-length': '140' },
+      body: JSON.stringify({
+        cliente_session_token: '12345678901234567890',
+        metodo_pagamento: 'asaas_checkout',
+        itens: [{ produto_id: 1, quantidade: 1 }],
+      }),
+    })
+
+    const payload = JSON.parse(response.body)
+    assert.equal(response.statusCode, 409)
+    assert.equal(payload.success, false)
+    assert.equal(payload.error.message, 'Nao foi possivel excluir este registro porque ele esta vinculado a outros dados.')
+    assert.equal('details' in payload.error, false)
+    assert.doesNotMatch(response.body, /pedidos_cliente_id_fkey/i)
+    assert.doesNotMatch(response.body, /foreign key/i)
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV
+    else process.env.NODE_ENV = previousNodeEnv
+
+    if (previousExpose === undefined) delete process.env.EXPOSE_ERROR_DETAILS
+    else process.env.EXPOSE_ERROR_DETAILS = previousExpose
+  }
+})
+
+test('erros prisma nao tratados continuam sem detalhes em producao', async () => {
+  const previousNodeEnv = process.env.NODE_ENV
+  const previousExpose = process.env.EXPOSE_ERROR_DETAILS
+  process.env.NODE_ENV = 'production'
+  process.env.EXPOSE_ERROR_DETAILS = '1'
+
+  const app = createApp({}, {
+    storeService: {
+      createOrder() {
+        const error = new Error('relation "pedidos" does not exist')
+        error.name = 'PrismaClientUnknownRequestError'
+        error.code = 'P5000'
+        error.clientVersion = '6.0.0'
+        return Promise.reject(error)
+      },
+    },
+  })
+
+  try {
+    const response = await requestApp(app, {
+      method: 'POST',
+      url: '/api/checkout/create',
+      headers: { 'content-length': '140' },
+      body: JSON.stringify({
+        cliente_session_token: '12345678901234567890',
+        metodo_pagamento: 'asaas_checkout',
+        itens: [{ produto_id: 1, quantidade: 1 }],
+      }),
+    })
+
+    const payload = JSON.parse(response.body)
+    assert.equal(response.statusCode, 500)
+    assert.equal(payload.success, false)
+    assert.equal(payload.error.message, 'Erro interno no servidor.')
+    assert.equal('details' in payload.error, false)
+    assert.doesNotMatch(response.body, /relation "pedidos"/i)
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV
+    else process.env.NODE_ENV = previousNodeEnv
+
+    if (previousExpose === undefined) delete process.env.EXPOSE_ERROR_DETAILS
+    else process.env.EXPOSE_ERROR_DETAILS = previousExpose
   }
 })
