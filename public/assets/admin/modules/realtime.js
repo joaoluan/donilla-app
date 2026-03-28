@@ -42,6 +42,10 @@ export function bindRealtimeSection(ctx) {
     reconnectTimerId = null;
   }
 
+  function setRealtimeConnectionStatus(isConnected) {
+    state.adminRealtimeConnected = Boolean(isConnected);
+  }
+
   function shouldConnect() {
     return Boolean(state.accessToken || state.refreshToken);
   }
@@ -116,7 +120,13 @@ export function bindRealtimeSection(ctx) {
     }
 
     if (!payload?.orderId) return;
-    syncAdminFromRealtime();
+    state.orderAuditCache?.delete?.(payload.orderId);
+    syncAdminFromRealtime()
+      .then(() => {
+        if (!state.expandedOrderAuditIds?.has?.(payload.orderId)) return;
+        return api.ensureOrderAuditVisible(payload.orderId, { force: true });
+      })
+      .catch(() => {});
   }
 
   function processSseBlock(rawBlock) {
@@ -189,6 +199,7 @@ export function bindRealtimeSection(ctx) {
   function disconnectStream() {
     intentionallyClosed = true;
     clearReconnectTimer();
+    setRealtimeConnectionStatus(false);
 
     if (!streamAbortController) return;
     const activeController = streamAbortController;
@@ -250,6 +261,7 @@ export function bindRealtimeSection(ctx) {
       }
 
       reconnectAttempts = 0;
+      setRealtimeConnectionStatus(true);
       await consumeSseStream(response.body);
       shouldReconnect = !controller.signal.aborted;
     } catch (error) {
@@ -272,6 +284,10 @@ export function bindRealtimeSection(ctx) {
 
       shouldReconnect = true;
     } finally {
+      if (streamAbortController === controller || shouldReconnect || controller.signal.aborted) {
+        setRealtimeConnectionStatus(false);
+      }
+
       if (streamAbortController === controller) {
         streamAbortController = null;
       }

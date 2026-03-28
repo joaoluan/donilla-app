@@ -212,6 +212,7 @@ export function bindOrdersSection(ctx) {
 
   function shouldAutoRefreshOrders() {
     if (!state.accessToken) return false;
+    if (state.adminRealtimeConnected) return false;
     if (!dom.ordersPanelEl || dom.ordersPanelEl.classList.contains('hidden')) return false;
     if (document.hidden) return false;
     if (dom.ordersListEl.contains(document.activeElement)) return false;

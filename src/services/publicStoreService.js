@@ -441,6 +441,24 @@ function publicStoreService(prisma, deps = {}) {
     return response
   }
 
+  function publishAdminOrderEvent(eventName, order, { includePaymentMethod = false } = {}) {
+    if (!adminEvents?.publish || !order?.id) return
+
+    const payload = {
+      orderId: order.id,
+      createdAt: order.criado_em,
+      deliveryStatus: order.status_entrega,
+      paymentStatus: order.status_pagamento,
+      total: order.valor_total,
+    }
+
+    if (includePaymentMethod) {
+      payload.paymentMethod = order.metodo_pagamento
+    }
+
+    adminEvents.publish(eventName, payload)
+  }
+
   async function createPendingOrderRecord({
     session,
     sessionNome,
@@ -711,6 +729,9 @@ function publicStoreService(prisma, deps = {}) {
       where: { id_transacao_gateway: checkoutId },
       select: {
         id: true,
+        criado_em: true,
+        valor_total: true,
+        metodo_pagamento: true,
         status_pagamento: true,
         status_entrega: true,
         pago_em: true,
@@ -737,7 +758,7 @@ function publicStoreService(prisma, deps = {}) {
     }
 
     if (Object.keys(updateData).length > 0) {
-      await prisma.pedidos.update({
+      const updatedOrder = await prisma.pedidos.update({
         where: { id: pedido.id },
         data: updateData,
       })
@@ -757,6 +778,8 @@ function publicStoreService(prisma, deps = {}) {
           asaas_payment_id: asaasPaymentId,
         },
       })
+
+      publishAdminOrderEvent('order.updated', updatedOrder)
     }
 
     return {
@@ -1295,14 +1318,7 @@ function publicStoreService(prisma, deps = {}) {
         })
       }
 
-      adminEvents?.publish?.('order.created', {
-        orderId: response.id,
-        createdAt: response.criado_em,
-        paymentMethod: response.metodo_pagamento,
-        deliveryStatus: response.status_entrega,
-        paymentStatus: response.status_pagamento,
-        total: response.valor_total,
-      })
+      publishAdminOrderEvent('order.created', response, { includePaymentMethod: true })
 
       return response
     },
@@ -1516,6 +1532,8 @@ function publicStoreService(prisma, deps = {}) {
           expira_em: checkout.expires_at || null,
         },
       })
+
+      publishAdminOrderEvent('order.updated', updated)
 
       return {
         ...buildOrderStatusSummary(updated),

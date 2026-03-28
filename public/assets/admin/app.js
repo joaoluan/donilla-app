@@ -1,8 +1,8 @@
 import { bindNavigationSection } from './modules/navigation.js?v=20260328a'
 import { bindDashboardSection } from './modules/dashboard.js?v=20260328a'
-import { bindRealtimeSection } from './modules/realtime.js?v=20260328a'
+import { bindRealtimeSection } from './modules/realtime.js?v=20260328b'
 import { bindCustomersSection } from './modules/customers.js?v=20260325o'
-import { bindOrdersSection } from './modules/orders.js?v=20260325o'
+import { bindOrdersSection } from './modules/orders.js?v=20260328b'
 import { bindSettingsSection } from './modules/settings.js?v=20260325o'
 import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
 
@@ -291,11 +291,13 @@ let customerPaginationMeta = null;
 let ordersPaginationMeta = null;
 let categoryPaginationMeta = null;
 let produtoPaginationMeta = null;
+let ordersListRenderSignature = '';
 let dashboardQueueLoaded = false;
 const orderAuditCache = new Map();
 const expandedOrderAuditIds = new Set();
 const passwordToggleTimeouts = new Map();
 let refreshSessionPromise = null;
+let adminRealtimeConnected = false;
 
 const dashboardFilters = {
   period: 'today',
@@ -1486,6 +1488,7 @@ function clearSession() {
   accessToken = '';
   refreshToken = '';
   currentUser = null;
+  adminRealtimeConnected = false;
   clearStoredSessionTokens();
   allOrders = [];
   dashboardSnapshot = null;
@@ -2496,9 +2499,55 @@ function orderCard(order) {
   `;
 }
 
+function buildOrdersListRenderEntry(order) {
+  return {
+    id: Number(order?.id || 0),
+    criado_em: order?.criado_em || '',
+    status_entrega: order?.status_entrega || '',
+    status_pagamento: order?.status_pagamento || '',
+    valor_total: String(order?.valor_total ?? ''),
+    metodo_pagamento: order?.metodo_pagamento || '',
+    observacoes: order?.observacoes || '',
+    cliente: {
+      nome: order?.clientes?.nome || '',
+      telefone_whatsapp: order?.clientes?.telefone_whatsapp || '',
+    },
+    endereco: order?.enderecos ? {
+      rua: order.enderecos.rua || '',
+      numero: order.enderecos.numero || '',
+      bairro: order.enderecos.bairro || '',
+      cidade: order.enderecos.cidade || '',
+      complemento: order.enderecos.complemento || '',
+      referencia: order.enderecos.referencia || '',
+    } : null,
+    itens: Array.isArray(order?.itens_pedido)
+      ? order.itens_pedido.map((item) => ({
+        produto_id: Number(item?.produto_id || 0),
+        quantidade: Number(item?.quantidade || 0),
+        subtotal: String(item?.subtotal ?? ''),
+        nome_doce: item?.produtos?.nome_doce || '',
+      }))
+      : [],
+  };
+}
+
+function buildOrdersListRenderSignature() {
+  return JSON.stringify(allOrders.map(buildOrdersListRenderEntry));
+}
+
+function updateOrdersListMarkup(markup, signature) {
+  if (ordersListRenderSignature === signature) {
+    return false;
+  }
+
+  ordersListEl.innerHTML = markup;
+  ordersListRenderSignature = signature;
+  return true;
+}
+
 function renderOrders() {
   if (!accessToken) {
-    ordersListEl.innerHTML = '<p class="muted">Faça login para visualizar pedidos.</p>';
+    updateOrdersListMarkup('<p class="muted">Faça login para visualizar pedidos.</p>', 'signed-out');
     ordersMetaEl.textContent = 'Faça login para carregar pedidos.';
     renderOrdersOverview();
     updateDatalistOptions(ordersSearchSuggestionsEl, []);
@@ -2536,12 +2585,14 @@ function renderOrders() {
   });
 
   if (allOrders.length === 0) {
-    ordersListEl.innerHTML = '<p class="muted">Nenhum pedido encontrado para este filtro.</p>';
+    updateOrdersListMarkup('<p class="muted">Nenhum pedido encontrado para este filtro.</p>', 'empty');
     return;
   }
 
-  ordersListEl.innerHTML = allOrders.map(orderCard).join('');
-  hydrateExpandedOrderAudits();
+  const nextListSignature = `orders:${buildOrdersListRenderSignature()}`;
+  if (updateOrdersListMarkup(allOrders.map(orderCard).join(''), nextListSignature)) {
+    hydrateExpandedOrderAudits();
+  }
 }
 
 async function loadCurrentUser() {
@@ -3648,6 +3699,12 @@ const state = {
   },
   set currentUser(value) {
     currentUser = value;
+  },
+  get adminRealtimeConnected() {
+    return adminRealtimeConnected;
+  },
+  set adminRealtimeConnected(value) {
+    adminRealtimeConnected = Boolean(value);
   },
   get allOrders() {
     return allOrders;

@@ -937,9 +937,11 @@ test('retryAsaasCheckout deve gerar novo checkout para pedido do cliente', async
   process.env.JWT_SECRET = 'test-secret'
 
   const { prisma, orders, calls } = createOrderPrismaMock()
+  const events = []
   orders.set(41, {
     id: 41,
     cliente_id: 21,
+    criado_em: '2026-03-16T18:00:00.000Z',
     metodo_pagamento: 'asaas_checkout',
     status_pagamento: 'cancelado',
     status_entrega: 'cancelado',
@@ -962,6 +964,11 @@ test('retryAsaasCheckout deve gerar novo checkout para pedido do cliente', async
   })
 
   const service = publicStoreService(prisma, {
+    adminEvents: {
+      publish(eventName, payload) {
+        events.push({ eventName, payload })
+      },
+    },
     asaas: {
       isConfigured() {
         return true
@@ -999,6 +1006,13 @@ test('retryAsaasCheckout deve gerar novo checkout para pedido do cliente', async
     assert.equal(orders.get(41).status_pagamento, 'pendente')
     assert.equal(orders.get(41).status_entrega, 'pendente')
     assert.equal(result.checkout_url, 'https://sandbox.asaas.com/checkoutSession/show?id=chk_retry_456')
+    assert.equal(events.length, 1)
+    assert.equal(events[0].eventName, 'order.updated')
+    assert.equal(events[0].payload.orderId, 41)
+    assert.equal(events[0].payload.createdAt, '2026-03-16T18:00:00.000Z')
+    assert.equal(events[0].payload.paymentStatus, 'pendente')
+    assert.equal(events[0].payload.deliveryStatus, 'pendente')
+    assert.equal(events[0].payload.total, '32.00')
   } finally {
     process.env.JWT_SECRET = originalSecret
   }
@@ -1075,8 +1089,11 @@ test('retryAsaasCheckout deve reabrir pedido expirado com novo checkout', async 
 test('receiveAsaasWebhook deve registrar event.id e processar em segundo plano', async () => {
   const { prisma, orders, webhookEvents } = createOrderPrismaMock()
   const scheduledTasks = []
+  const events = []
   orders.set(41, {
     id: 41,
+    criado_em: '2026-03-16T18:00:00.000Z',
+    valor_total: '12.00',
     metodo_pagamento: 'asaas_checkout',
     status_pagamento: 'pendente',
     status_entrega: 'pendente',
@@ -1084,6 +1101,11 @@ test('receiveAsaasWebhook deve registrar event.id e processar em segundo plano',
   })
 
   const service = publicStoreService(prisma, {
+    adminEvents: {
+      publish(eventName, payload) {
+        events.push({ eventName, payload })
+      },
+    },
     scheduleTask(task) {
       scheduledTasks.push(task)
     },
@@ -1126,4 +1148,11 @@ test('receiveAsaasWebhook deve registrar event.id e processar em segundo plano',
   assert.equal(storedEvent.pedido_id, 41)
   assert.equal(storedEvent.status, 'processado')
   assert.equal(orders.get(41).status_pagamento, 'pago')
+  assert.equal(events.length, 1)
+  assert.equal(events[0].eventName, 'order.updated')
+  assert.equal(events[0].payload.orderId, 41)
+  assert.equal(events[0].payload.createdAt, '2026-03-16T18:00:00.000Z')
+  assert.equal(events[0].payload.paymentStatus, 'pago')
+  assert.equal(events[0].payload.deliveryStatus, 'pendente')
+  assert.equal(events[0].payload.total, '12.00')
 })
