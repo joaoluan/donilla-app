@@ -7,6 +7,7 @@ import { bindSettingsSection } from './modules/settings.js?v=20260325o'
 import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
 import { createAdminStore } from './store.js?v=20260328a'
 import { createAdminApiClient } from './api.js?v=20260328a'
+import { brl, dateTime, dateOnly, formatPhone, escapeHtml } from '../shared/utils.js?v=20260328b'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -337,38 +338,6 @@ const CRM_SEGMENT_LABELS = {
   inativo: 'Inativos',
 };
 
-function brl(value) {
-  return Number(value || 0).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
-}
-
-function dateTime(value) {
-  if (!value) return '--';
-  return new Date(value).toLocaleString('pt-BR');
-}
-
-function dateOnly(value) {
-  if (!value) return '--';
-  return new Date(value).toLocaleDateString('pt-BR');
-}
-
-function formatPhone(value) {
-  const digits = String(value || '').replace(/\D/g, '');
-  if (!digits) return '--';
-
-  if (digits.length === 13 && digits.startsWith('55')) {
-    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
-  }
-
-  if (digits.length === 11) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-  }
-
-  return digits;
-}
-
 function pluralize(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
@@ -451,15 +420,6 @@ function formatAddress(endereco) {
   const complemento = endereco.complemento ? `, ${escapeHtml(endereco.complemento)}` : '';
   const referencia = endereco.referencia ? ` (Ref: ${escapeHtml(endereco.referencia)})` : '';
   return `${rua}, ${numero} - ${bairro}${cidade}${complemento}${referencia}`;
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 function setStatus(target, message, type = 'muted') {
