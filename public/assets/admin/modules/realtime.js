@@ -20,7 +20,12 @@ async function buildStreamError(response) {
     try {
       const payload = await response.json();
       message = payload?.error?.message || message;
-    } catch {}
+    } catch (error) {
+      console.warn('Falha ao interpretar erro JSON do stream admin SSE.', {
+        status: response.status,
+        error,
+      });
+    }
   }
 
   const error = new Error(message);
@@ -115,7 +120,12 @@ export function bindRealtimeSection(ctx) {
     let payload = null;
     try {
       payload = rawData ? JSON.parse(rawData) : null;
-    } catch {
+    } catch (error) {
+      console.warn('Falha ao interpretar payload do evento SSE admin.', {
+        eventName,
+        rawData,
+        error,
+      });
       payload = null;
     }
 

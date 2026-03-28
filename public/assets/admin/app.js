@@ -270,7 +270,7 @@ function readStoredValue(key) {
   return sessionStorage.getItem(key) || localStorage.getItem(key) || '';
 }
 
-let accessToken = readStoredValue(STORAGE_KEYS.accessToken);
+let accessToken = '';
 let refreshToken = readStoredValue(STORAGE_KEYS.refreshToken);
 let currentUser = null;
 let allOrders = [];
@@ -894,6 +894,12 @@ function clearStoredSessionTokens() {
   });
 }
 
+function clearLegacyStoredAccessToken() {
+  [localStorage, sessionStorage].forEach((storage) => {
+    storage.removeItem(STORAGE_KEYS.accessToken);
+  });
+}
+
 function hasRememberedSessionPreference() {
   return localStorage.getItem(STORAGE_KEYS.rememberSession) === 'true';
 }
@@ -910,11 +916,7 @@ function setLoginPasswordAssist(message, type = 'muted') {
 
 function updateRememberedLoginUi() {
   const rememberedUsername = getRememberedUsername();
-  const hasSavedData = Boolean(
-    rememberedUsername ||
-    localStorage.getItem(STORAGE_KEYS.accessToken) ||
-    localStorage.getItem(STORAGE_KEYS.refreshToken),
-  );
+  const hasSavedData = Boolean(rememberedUsername || localStorage.getItem(STORAGE_KEYS.refreshToken));
 
   if (loginRememberEl) {
     loginRememberEl.checked = hasRememberedSessionPreference() || hasSavedData;
@@ -956,7 +958,6 @@ function persistSessionTokens(session, rememberSession) {
   refreshToken = session?.refreshToken || '';
 
   const storage = rememberSession ? localStorage : sessionStorage;
-  if (accessToken) storage.setItem(STORAGE_KEYS.accessToken, accessToken);
   if (refreshToken) storage.setItem(STORAGE_KEYS.refreshToken, refreshToken);
 
   if (rememberSession) {
@@ -4097,6 +4098,7 @@ if (logoutBtnEl) {
 }
 
 syncAdminViewFromLocation({ replace: true });
+clearLegacyStoredAccessToken();
 updateRememberedLoginUi();
 setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
 applySessionUi();
