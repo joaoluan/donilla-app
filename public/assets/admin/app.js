@@ -5,7 +5,7 @@ import { bindCustomersSection } from './modules/customers.js?v=20260325o'
 import { bindOrdersSection } from './modules/orders.js?v=20260328d'
 import { bindSettingsSection } from './modules/settings.js?v=20260325o'
 import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
-import { createAdminStore } from './store.js?v=20260328a'
+import { createAdminStore } from './store.js?v=20260328b'
 import { createAdminApiClient } from './api.js?v=20260328a'
 import { brl, dateTime, dateOnly, formatPhone, escapeHtml } from '../shared/utils.js?v=20260328b'
 

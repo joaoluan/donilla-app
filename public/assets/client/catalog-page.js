@@ -1,4 +1,6 @@
 import { brl, escapeHtml, normalizeLocationText, formatDeliveryWindow } from '../shared/utils.js?v=20260328b'
+import { initCart } from './cart-module.js?v=20260328a'
+import { initCatalog } from './catalog-module.js?v=20260328a'
 
 const menuSectionsEl = document.getElementById('menuSections');
 const categoryTabsEl = document.getElementById('categoryTabs');
@@ -36,11 +38,30 @@ const PAYMENT_STATUS_LABELS = {
   estornado: 'Estornado',
 };
 
-const carrinho = new Map();
 const CUSTOMER_SESSION_KEY = 'donilla_customer_session';
+const cartController = initCart({
+  cartItemsEl,
+  cartCountEl,
+  totalItensEl,
+  totalEntregaEl,
+  totalGeralEl,
+}, {
+  formatCurrency: brl,
+  escapeHtml,
+});
+const catalogController = initCatalog({
+  menuSectionsEl,
+  categoryTabsEl,
+  searchInputEl,
+}, {
+  escapeHtml,
+  formatCurrency: brl,
+  onAddItem(product) {
+    cartController.addItem(product);
+  },
+});
 
 let lojaAberta = true;
-let taxaEntrega = 0;
 let storeConfig = {
   loja_aberta: true,
   tempo_entrega_minutos: 40,
@@ -48,9 +69,6 @@ let storeConfig = {
   taxa_entrega_padrao: 0,
   taxas_entrega_locais: [],
 };
-let categorias = [];
-let activeCategory = 'all';
-let searchTerm = '';
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -100,9 +118,9 @@ function resolveDeliveryFee(endereco) {
 }
 
 function updateDeliveryFeeUi(session = loadCustomerSession()) {
-  taxaEntrega = resolveDeliveryFee(session?.endereco || null);
-  chipFeeEl.textContent = `Taxa ${brl(taxaEntrega)}`;
-  renderCart();
+  const deliveryFee = resolveDeliveryFee(session?.endereco || null);
+  cartController.setDeliveryFee(deliveryFee);
+  chipFeeEl.textContent = `Taxa ${brl(deliveryFee)}`;
 }
 
 function setStatus(target, message, type = 'muted') {
@@ -183,18 +201,6 @@ async function fetchCustomerOrderStatus(orderId) {
   });
 
   return parseResponse(response);
-}
-
-function formatAddress(endereco) {
-  if (!endereco) return 'Endereço não informado.';
-
-  const rua = endereco.rua || '--';
-  const numero = endereco.numero || '--';
-  const bairro = endereco.bairro || '--';
-  const cidade = endereco.cidade ? ` - ${endereco.cidade}` : '';
-  const complemento = endereco.complemento ? `, ${endereco.complemento}` : '';
-  const referencia = endereco.referencia ? ` (Ref: ${endereco.referencia})` : '';
-  return `${rua}, ${numero} - ${bairro}${cidade}${complemento}${referencia}`;
 }
 
 function syncCustomerSession() {
@@ -319,134 +325,6 @@ async function consumeCheckoutFeedback() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function filteredCategorias() {
-  const term = searchTerm.trim().toLowerCase();
-
-  return categorias
-    .filter((categoria) => activeCategory === 'all' || categoria.id === activeCategory)
-    .map((categoria) => {
-      const produtos = categoria.produtos.filter((produto) => {
-        if (!term) return true;
-        return (
-          produto.nome_doce.toLowerCase().includes(term) ||
-          String(produto.descricao || '').toLowerCase().includes(term) ||
-          categoria.nome.toLowerCase().includes(term)
-        );
-      });
-      return { ...categoria, produtos };
-    })
-    .filter((categoria) => categoria.produtos.length > 0 || !term);
-}
-
-function renderCategoryTabs() {
-  const tabs = [
-    `<button type="button" class="tab-btn ${activeCategory === 'all' ? 'active' : ''}" data-category="all">Tudo</button>`,
-    ...categorias.map((categoria) => {
-      const isActive = activeCategory === categoria.id;
-      return `<button type="button" class="tab-btn ${isActive ? 'active' : ''}" data-category="${categoria.id}">${escapeHtml(categoria.nome)}</button>`;
-    }),
-  ];
-
-  categoryTabsEl.innerHTML = tabs.join('');
-}
-
-function renderMenu() {
-  const categoriasFiltradas = filteredCategorias();
-
-  if (categoriasFiltradas.length === 0) {
-    menuSectionsEl.innerHTML = '<p class="muted">Nenhum produto encontrado com esse filtro.</p>';
-    return;
-  }
-
-  menuSectionsEl.innerHTML = categoriasFiltradas
-    .map((categoria) => {
-      const cards = categoria.produtos
-        .map((produto) => {
-          const initial = escapeHtml(produto.nome_doce.slice(0, 1).toUpperCase());
-          return `
-            <article class="product-card">
-              <div class="product-thumb">${initial}</div>
-              <div class="product-info">
-                <h4>${escapeHtml(produto.nome_doce)}</h4>
-                <p>${escapeHtml(produto.descricao || 'Doce artesanal Donilla')}</p>
-              </div>
-              <footer class="product-footer">
-                <strong>${brl(produto.preco)}</strong>
-                <button type="button" class="add-btn" data-add="${produto.id}">Adicionar</button>
-              </footer>
-            </article>
-          `;
-        })
-        .join('');
-
-      return `
-        <section class="category-block">
-          <header>
-            <h3>${escapeHtml(categoria.nome)}</h3>
-            <small>${categoria.produtos.length} itens</small>
-          </header>
-          <div class="product-grid">${cards}</div>
-        </section>
-      `;
-    })
-    .join('');
-}
-
-function totalsFromCart() {
-  const itens = Array.from(carrinho.values());
-  const subtotal = itens.reduce((sum, item) => sum + Number(item.preco) * item.quantidade, 0);
-  const total = subtotal + taxaEntrega;
-  const count = itens.reduce((sum, item) => sum + item.quantidade, 0);
-  return { itens, subtotal, total, count };
-}
-
-function renderCart() {
-  const { itens, subtotal, total, count } = totalsFromCart();
-
-  cartCountEl.textContent = `${count} ${count === 1 ? 'item' : 'itens'}`;
-  totalItensEl.textContent = brl(subtotal);
-  totalEntregaEl.textContent = brl(taxaEntrega);
-  totalGeralEl.textContent = brl(total);
-
-  if (itens.length === 0) {
-    cartItemsEl.innerHTML = '<p class="muted">Seu carrinho está vazio.</p>';
-    return;
-  }
-
-  cartItemsEl.innerHTML = itens
-    .map((item) => `
-      <div class="cart-item">
-        <div class="cart-item-main">
-          <strong>${escapeHtml(item.nome_doce)}</strong>
-          <small>${brl(item.preco)}</small>
-        </div>
-        <div class="stepper">
-          <button type="button" data-dec="${item.id}">-</button>
-          <span>${item.quantidade}</span>
-          <button type="button" data-inc="${item.id}">+</button>
-        </div>
-      </div>
-    `)
-    .join('');
-}
-
-function addToCart(produtoId) {
-  const produto = categorias
-    .flatMap((categoria) => categoria.produtos)
-    .find((item) => item.id === produtoId);
-
-  if (!produto) return;
-
-  const current = carrinho.get(produto.id);
-  if (current) {
-    current.quantidade += 1;
-  } else {
-    carrinho.set(produto.id, { ...produto, quantidade: 1 });
-  }
-
-  renderCart();
-}
-
 function updateStoreHeader(store) {
   storeConfig = {
     loja_aberta: Boolean(store?.loja_aberta),
@@ -459,11 +337,9 @@ function updateStoreHeader(store) {
   };
 
   lojaAberta = Boolean(storeConfig.loja_aberta);
-
   chipStatusEl.textContent = lojaAberta ? 'Loja aberta' : 'Loja fechada';
   chipStatusEl.className = `info-chip ${lojaAberta ? 'chip-open' : 'chip-closed'}`;
   chipDeliveryEl.textContent = `Entrega ${formatDeliveryWindow(storeConfig)}`;
-  updateDeliveryFeeUi(loadCustomerSession());
 
   const notices = [storeConfig.mensagem_aviso, !lojaAberta ? storeConfig.loja_status_descricao : null].filter(Boolean);
   if (notices.length) {
@@ -482,58 +358,16 @@ async function init() {
     const store = await parseResponse(storeRes);
     const menu = await parseResponse(menuRes);
 
-    categorias = Array.isArray(menu) ? menu : [];
-
     updateStoreHeader(store || {});
-    renderCategoryTabs();
-    renderMenu();
-    renderCart();
-    syncCustomerSession();
+    catalogController.setCategories(Array.isArray(menu) ? menu : []);
   } catch (error) {
-    menuSectionsEl.innerHTML = `<p class="err">${escapeHtml(error.message)}</p>`;
+    catalogController.renderError(error.message || 'Erro ao carregar cardápio.');
   }
 }
 
-categoryTabsEl.addEventListener('click', (event) => {
-  const button = event.target.closest('button[data-category]');
-  if (!button) return;
-
-  const value = button.dataset.category;
-  activeCategory = value === 'all' ? 'all' : Number(value);
-  renderCategoryTabs();
-  renderMenu();
-});
-
-searchInputEl.addEventListener('input', () => {
-  searchTerm = searchInputEl.value || '';
-  renderMenu();
-});
-
-menuSectionsEl.addEventListener('click', (event) => {
-  const button = event.target.closest('button[data-add]');
-  if (!button) return;
-  addToCart(Number(button.dataset.add));
-});
-
-cartItemsEl.addEventListener('click', (event) => {
-  const decButton = event.target.closest('button[data-dec]');
-  const incButton = event.target.closest('button[data-inc]');
-  if (!decButton && !incButton) return;
-
-  const id = Number((decButton || incButton).dataset.dec || (decButton || incButton).dataset.inc);
-  const item = carrinho.get(id);
-  if (!item) return;
-
-  if (incButton) item.quantidade += 1;
-  if (decButton) item.quantidade -= 1;
-  if (item.quantidade <= 0) carrinho.delete(id);
-
-  renderCart();
-});
-
 checkoutFormEl.addEventListener('submit', async (event) => {
   event.preventDefault();
-      const session = loadCustomerSession();
+  const session = loadCustomerSession();
 
   if (!lojaAberta) {
     setStatus(orderStatusEl, 'Loja fechada no momento.', 'err');
@@ -546,31 +380,31 @@ checkoutFormEl.addEventListener('submit', async (event) => {
     return;
   }
 
-  const { itens } = totalsFromCart();
-  if (itens.length === 0) {
+  const { items } = cartController.getSnapshot();
+  if (!items.length) {
     setStatus(orderStatusEl, 'Adicione itens ao carrinho antes de finalizar.', 'err');
     return;
   }
 
   setStatus(orderStatusEl, 'Enviando pedido...', 'muted');
 
-    const payload = {
-      cliente_session_token: session.cliente_session_token,
-      metodo_pagamento: String(checkoutFormEl.elements.metodo.value || 'asaas_checkout').trim(),
-      observacoes: String(checkoutFormEl.elements.observacoes?.value || '').trim() || null,
-      itens: itens.map((item) => ({ produto_id: item.id, quantidade: item.quantidade })),
-    };
+  const payload = {
+    cliente_session_token: session.cliente_session_token,
+    metodo_pagamento: String(checkoutFormEl.elements.metodo.value || 'asaas_checkout').trim(),
+    observacoes: String(checkoutFormEl.elements.observacoes?.value || '').trim() || null,
+    itens: items.map((item) => ({ produto_id: item.id, quantidade: item.quantidade })),
+  };
 
-    if (session.endereco && session.endereco.rua && session.endereco.numero && session.endereco.bairro) {
-      payload.endereco = {
-        rua: session.endereco.rua,
-        numero: session.endereco.numero,
-        bairro: session.endereco.bairro,
-        ...(session.endereco.cidade ? { cidade: session.endereco.cidade } : {}),
-        ...(session.endereco.complemento ? { complemento: session.endereco.complemento } : {}),
-        ...(session.endereco.referencia ? { referencia: session.endereco.referencia } : {}),
-      };
-    }
+  if (session.endereco && session.endereco.rua && session.endereco.numero && session.endereco.bairro) {
+    payload.endereco = {
+      rua: session.endereco.rua,
+      numero: session.endereco.numero,
+      bairro: session.endereco.bairro,
+      ...(session.endereco.cidade ? { cidade: session.endereco.cidade } : {}),
+      ...(session.endereco.complemento ? { complemento: session.endereco.complemento } : {}),
+      ...(session.endereco.referencia ? { referencia: session.endereco.referencia } : {}),
+    };
+  }
 
   try {
     const response = await fetch('/api/checkout/create', {
@@ -589,8 +423,7 @@ checkoutFormEl.addEventListener('submit', async (event) => {
     if (checkoutFormEl.elements.observacoes) {
       checkoutFormEl.elements.observacoes.value = '';
     }
-    carrinho.clear();
-    renderCart();
+    cartController.clear();
     syncCustomerSession();
 
     if (order.checkout_url) {

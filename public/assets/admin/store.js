@@ -5,8 +5,17 @@ const STORAGE_KEYS = {
   rememberSession: 'donilla_admin_remember_session',
 };
 
+const OBJECT_STATE_KEYS = ['dashboardFilters', 'ordersState', 'customersState', 'categoryState', 'produtoState', 'catalogPortalState'];
+const MAP_STATE_KEYS = ['orderAuditCache'];
+const SET_STATE_KEYS = ['expandedOrderAuditIds'];
+
 function readStoredValue(key) {
   return sessionStorage.getItem(key) || localStorage.getItem(key) || '';
+}
+
+function resolvePositiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function createDashboardFilters() {
@@ -20,7 +29,7 @@ function createDashboardFilters() {
 function createOrdersState(defaults = {}) {
   return {
     page: 1,
-    pageSize: Number(defaults.pageSize || 10),
+    pageSize: resolvePositiveNumber(defaults.pageSize, 10),
     status: defaults.status || 'all',
     search: '',
     period: defaults.period || 'today',
@@ -32,7 +41,7 @@ function createOrdersState(defaults = {}) {
 function createCustomersState(defaults = {}) {
   return {
     page: 1,
-    pageSize: Number(defaults.pageSize || 12),
+    pageSize: resolvePositiveNumber(defaults.pageSize, 12),
     search: '',
     segment: defaults.segment || 'all',
     sort: defaults.sort || 'recent_desc',
@@ -45,7 +54,7 @@ function createCustomersState(defaults = {}) {
 function createCategoryState(defaults = {}) {
   return {
     page: 1,
-    pageSize: Number(defaults.pageSize || 10),
+    pageSize: resolvePositiveNumber(defaults.pageSize, 10),
     search: '',
     sort: defaults.sort || 'ordem_exibicao',
   };
@@ -54,7 +63,7 @@ function createCategoryState(defaults = {}) {
 function createProdutoState(defaults = {}) {
   return {
     page: 1,
-    pageSize: Number(defaults.pageSize || 12),
+    pageSize: resolvePositiveNumber(defaults.pageSize, 12),
     search: '',
     sort: defaults.sort || 'nome_doce',
     disponibilidade: defaults.disponibilidade || 'all',
@@ -69,8 +78,8 @@ function createCatalogPortalState() {
   };
 }
 
-export function createAdminStore({ defaults = {} } = {}) {
-  const state = {
+function createInitialAdminState(defaults = {}) {
+  return {
     accessToken: '',
     refreshToken: readStoredValue(STORAGE_KEYS.refreshToken),
     currentUser: null,
@@ -105,6 +114,37 @@ export function createAdminStore({ defaults = {} } = {}) {
     orderAuditCache: new Map(),
     expandedOrderAuditIds: new Set(),
   };
+}
+
+function applyStateSnapshot(target, snapshot) {
+  const preservedKeys = new Set([...OBJECT_STATE_KEYS, ...MAP_STATE_KEYS, ...SET_STATE_KEYS]);
+
+  Object.entries(snapshot).forEach(([key, value]) => {
+    if (preservedKeys.has(key)) return;
+    target[key] = value;
+  });
+
+  OBJECT_STATE_KEYS.forEach((key) => {
+    Object.assign(target[key], snapshot[key]);
+  });
+
+  MAP_STATE_KEYS.forEach((key) => {
+    target[key].clear();
+    snapshot[key].forEach((entryValue, entryKey) => {
+      target[key].set(entryKey, entryValue);
+    });
+  });
+
+  SET_STATE_KEYS.forEach((key) => {
+    target[key].clear();
+    snapshot[key].forEach((entryValue) => {
+      target[key].add(entryValue);
+    });
+  });
+}
+
+export function createAdminStore({ defaults = {} } = {}) {
+  const state = createInitialAdminState(defaults);
 
   function clearStoredSessionTokens() {
     [localStorage, sessionStorage].forEach((storage) => {
@@ -165,42 +205,10 @@ export function createAdminStore({ defaults = {} } = {}) {
   }
 
   function resetSessionState() {
-    state.accessToken = '';
-    state.refreshToken = '';
-    state.currentUser = null;
-    state.adminRealtimeConnected = false;
-    state.refreshSessionPromise = null;
     clearStoredSessionTokens();
-
-    state.allOrders = [];
-    state.dashboardSnapshot = null;
-    state.dashboardQueueOrders = [];
-    state.crmCustomers = [];
-    state.customerDetail = null;
-    state.menuCategorias = [];
-    state.allCategorias = [];
-    state.menuProdutos = [];
-    state.allMenuProdutos = [];
-    state.deliveryFees = [];
-    state.currentStoreSettings = null;
-    state.produtoImagemDataUrl = '';
-    state.selectedCustomerId = null;
-    state.customerPaginationMeta = null;
-    state.ordersPaginationMeta = null;
-    state.categoryPaginationMeta = null;
-    state.produtoPaginationMeta = null;
-    state.ordersListRenderSignature = '';
-    state.dashboardQueueLoaded = false;
-
-    state.orderAuditCache.clear();
-    state.expandedOrderAuditIds.clear();
-
-    Object.assign(state.dashboardFilters, createDashboardFilters());
-    Object.assign(state.ordersState, createOrdersState(defaults.orders));
-    Object.assign(state.customersState, createCustomersState(defaults.customers));
-    Object.assign(state.categoryState, createCategoryState(defaults.category));
-    Object.assign(state.produtoState, createProdutoState(defaults.produto));
-    Object.assign(state.catalogPortalState, createCatalogPortalState());
+    const nextState = createInitialAdminState(defaults);
+    nextState.productImageWebpSupported = state.productImageWebpSupported;
+    applyStateSnapshot(state, nextState);
   }
 
   return {
