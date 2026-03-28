@@ -21,6 +21,23 @@ cd /home/donilla/secrets-vault/bitwarden
 ./deploy-service-from-bws.sh donilla-app --build
 ```
 
+## Smoke test do catalogo
+
+Com a aplicacao rodando localmente, voce pode validar o fluxo basico de `/catalogo` com Playwright:
+
+```bash
+cd /home/donilla/donilla-app
+npm run smoke:catalog
+```
+
+O comando usa o container oficial do Playwright, entao nao depende das bibliotecas do browser instaladas na VPS.
+
+Opcoes uteis:
+
+- `SMOKE_BASE_URL=http://127.0.0.1:3000 npm run smoke:catalog`
+- `SMOKE_PATH=/catalogo npm run smoke:catalog`
+- `PLAYWRIGHT_VERSION=1.58.2 npm run smoke:catalog`
+
 Referencia de variaveis:
 
 - `.env.example` documenta os nomes esperados pelo app
