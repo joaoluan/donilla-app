@@ -5,6 +5,8 @@ import { bindCustomersSection } from './modules/customers.js?v=20260325o'
 import { bindOrdersSection } from './modules/orders.js?v=20260328d'
 import { bindSettingsSection } from './modules/settings.js?v=20260325o'
 import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
+import { createAdminStore } from './store.js?v=20260328a'
+import { createAdminApiClient } from './api.js?v=20260328a'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
 const STATUS_LABELS = {
@@ -45,7 +47,7 @@ const DASHBOARD_QUEUE_STATUS_LABELS = {
   pendente: 'Novo',
   preparando: 'Preparando',
   saiu_para_entrega: 'Em rota',
-  entregue: 'Concluido',
+  entregue: 'Concluído',
   cancelado: 'Cancelado',
 };
 
@@ -257,96 +259,50 @@ const produtoMetaEl = document.getElementById('produtoMeta');
 const produtoPrevBtnEl = document.getElementById('produtoPrevBtn');
 const produtoNextBtnEl = document.getElementById('produtoNextBtn');
 
-const STORAGE_KEYS = {
-  accessToken: 'donilla_access_token',
-  refreshToken: 'donilla_refresh_token',
-  rememberedUsername: 'donilla_admin_last_username',
-  rememberSession: 'donilla_admin_remember_session',
-};
 const PASSWORD_AUTO_HIDE_DELAY_MS = 30000;
 const LOGIN_PASSWORD_ASSIST_DEFAULT = 'A sessão fica ativa até expirar ou você sair manualmente.';
 
-function readStoredValue(key) {
-  return sessionStorage.getItem(key) || localStorage.getItem(key) || '';
-}
-
-let accessToken = '';
-let refreshToken = readStoredValue(STORAGE_KEYS.refreshToken);
-let currentUser = null;
-let allOrders = [];
-let dashboardSnapshot = null;
-let dashboardQueueOrders = [];
-let crmCustomers = [];
-let customerDetail = null;
-let menuCategorias = [];
-let allCategorias = [];
-let menuProdutos = [];
-let allMenuProdutos = [];
-let deliveryFees = [];
-let currentStoreSettings = null;
-let produtoImagemDataUrl = '';
-let productImageWebpSupported = null;
-let selectedCustomerId = null;
-let customerPaginationMeta = null;
-let ordersPaginationMeta = null;
-let categoryPaginationMeta = null;
-let produtoPaginationMeta = null;
-let ordersListRenderSignature = '';
-let dashboardQueueLoaded = false;
-const orderAuditCache = new Map();
-const expandedOrderAuditIds = new Set();
+const adminStore = createAdminStore({
+  defaults: {
+    orders: {
+      pageSize: Number(ordersPageSizeInputEl?.value || 10),
+      status: statusFilterEl?.value || 'all',
+      period: ordersRangePresetEl?.value || 'today',
+    },
+    customers: {
+      pageSize: Number(customersPageSizeInputEl?.value || 12),
+      segment: customersSegmentFilterEl?.value || 'all',
+      sort: customersSortInputEl?.value || 'recent_desc',
+      period: customersRangePresetEl?.value || 'all',
+    },
+    category: {
+      pageSize: Number(categoryPageSizeInputEl?.value || 10),
+      sort: categorySortInputEl?.value || 'ordem_exibicao',
+    },
+    produto: {
+      pageSize: Number(produtoPageSizeInputEl?.value || 12),
+      sort: produtoSortInputEl?.value || 'nome_doce',
+      disponibilidade: produtoDisponibilidadeFilterEl?.value || 'all',
+    },
+  },
+});
+const { state } = adminStore;
+const apiClient = createAdminApiClient({ state, store: adminStore });
+const authHeaders = apiClient.authHeaders;
+const parseEnvelope = apiClient.parseEnvelope;
+const parseResponse = apiClient.parseResponse;
+const refreshAdminSession = apiClient.refreshAdminSession;
+const revokeAdminSession = apiClient.revokeAdminSession;
+const dashboardFilters = state.dashboardFilters;
+const ordersState = state.ordersState;
+const customersState = state.customersState;
+const categoryState = state.categoryState;
+const produtoState = state.produtoState;
+const catalogPortalState = state.catalogPortalState;
+const orderAuditCache = state.orderAuditCache;
+const expandedOrderAuditIds = state.expandedOrderAuditIds;
 const passwordToggleTimeouts = new Map();
-let refreshSessionPromise = null;
-let adminRealtimeConnected = false;
 let clearSessionUiFrameId = null;
-
-const dashboardFilters = {
-  period: 'today',
-  from: '',
-  to: '',
-};
-
-const ordersState = {
-  page: 1,
-  pageSize: Number(ordersPageSizeInputEl?.value || 10),
-  status: statusFilterEl?.value || 'all',
-  search: '',
-  period: ordersRangePresetEl?.value || 'today',
-  from: '',
-  to: '',
-};
-
-const customersState = {
-  page: 1,
-  pageSize: Number(customersPageSizeInputEl?.value || 12),
-  search: '',
-  segment: customersSegmentFilterEl?.value || 'all',
-  sort: customersSortInputEl?.value || 'recent_desc',
-  period: customersRangePresetEl?.value || 'all',
-  from: '',
-  to: '',
-};
-
-const categoryState = {
-  page: 1,
-  pageSize: Number(categoryPageSizeInputEl?.value || 10),
-  search: '',
-  sort: categorySortInputEl?.value || 'ordem_exibicao',
-};
-
-const produtoState = {
-  page: 1,
-  pageSize: Number(produtoPageSizeInputEl?.value || 12),
-  search: '',
-  sort: produtoSortInputEl?.value || 'nome_doce',
-  disponibilidade: produtoDisponibilidadeFilterEl?.value || 'all',
-  categoria_id: 'all',
-};
-
-const catalogPortalState = {
-  search: '',
-  categoria_id: 'all',
-};
 
 const DEFAULT_ADMIN_VIEW = 'dashboard';
 const ADMIN_VIEW_PATH_SEGMENTS = {
@@ -888,24 +844,19 @@ function scrollCustomerDetailIntoView() {
 }
 
 function clearStoredSessionTokens() {
-  [localStorage, sessionStorage].forEach((storage) => {
-    storage.removeItem(STORAGE_KEYS.accessToken);
-    storage.removeItem(STORAGE_KEYS.refreshToken);
-  });
+  adminStore.clearStoredSessionTokens();
 }
 
 function clearLegacyStoredAccessToken() {
-  [localStorage, sessionStorage].forEach((storage) => {
-    storage.removeItem(STORAGE_KEYS.accessToken);
-  });
+  adminStore.clearLegacyStoredAccessToken();
 }
 
 function hasRememberedSessionPreference() {
-  return localStorage.getItem(STORAGE_KEYS.rememberSession) === 'true';
+  return adminStore.hasRememberedSessionPreference();
 }
 
 function getRememberedUsername() {
-  return localStorage.getItem(STORAGE_KEYS.rememberedUsername) || '';
+  return adminStore.getRememberedUsername();
 }
 
 function setLoginPasswordAssist(message, type = 'muted') {
@@ -916,7 +867,7 @@ function setLoginPasswordAssist(message, type = 'muted') {
 
 function updateRememberedLoginUi() {
   const rememberedUsername = getRememberedUsername();
-  const hasSavedData = Boolean(rememberedUsername || localStorage.getItem(STORAGE_KEYS.refreshToken));
+  const hasSavedData = Boolean(rememberedUsername || localStorage.getItem('donilla_refresh_token'));
 
   if (loginRememberEl) {
     loginRememberEl.checked = hasRememberedSessionPreference() || hasSavedData;
@@ -940,30 +891,12 @@ function updateRememberedLoginUi() {
 }
 
 function storeRememberedUsername(username, rememberSession) {
-  if (rememberSession && username) {
-    localStorage.setItem(STORAGE_KEYS.rememberedUsername, username);
-    localStorage.setItem(STORAGE_KEYS.rememberSession, 'true');
-  } else if (!rememberSession) {
-    localStorage.removeItem(STORAGE_KEYS.rememberedUsername);
-    localStorage.removeItem(STORAGE_KEYS.rememberSession);
-  }
-
+  adminStore.storeRememberedUsername(username, rememberSession);
   updateRememberedLoginUi();
 }
 
 function persistSessionTokens(session, rememberSession) {
-  clearStoredSessionTokens();
-
-  accessToken = session?.accessToken || '';
-  refreshToken = session?.refreshToken || '';
-
-  const storage = rememberSession ? localStorage : sessionStorage;
-  if (refreshToken) storage.setItem(STORAGE_KEYS.refreshToken, refreshToken);
-
-  if (rememberSession) {
-    localStorage.setItem(STORAGE_KEYS.rememberSession, 'true');
-  }
-
+  adminStore.persistSessionTokens(session, rememberSession);
   updateRememberedLoginUi();
 }
 
@@ -1047,79 +980,6 @@ function handlePasswordCapsLock(event) {
   );
 }
 
-function authHeaders(extra = {}) {
-  return {
-    Authorization: `Bearer ${accessToken}`,
-    ...extra,
-  };
-}
-
-async function parseEnvelope(response) {
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok) {
-    const message = payload?.error?.message || `Erro HTTP ${response.status}`;
-    const error = new Error(message);
-    error.status = response.status;
-    throw error;
-  }
-
-  return payload || { success: true, data: null, meta: null };
-}
-
-async function parseResponse(response) {
-  const payload = await parseEnvelope(response);
-  return payload?.data;
-}
-
-async function refreshAdminSession() {
-  if (!refreshToken) {
-    const error = new Error('Sessão expirada. Faça login novamente.');
-    error.status = 401;
-    throw error;
-  }
-
-  if (refreshSessionPromise) return refreshSessionPromise;
-
-  refreshSessionPromise = (async () => {
-    const response = await fetch('/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    const data = await parseResponse(response);
-    currentUser = data.user;
-    persistSessionTokens(data, hasRememberedSessionPreference());
-    return data;
-  })();
-
-  try {
-    return await refreshSessionPromise;
-  } finally {
-    refreshSessionPromise = null;
-  }
-}
-
-async function revokeAdminSession() {
-  if (!refreshToken) return;
-
-  try {
-    await fetch('/auth/logout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-  } catch {
-    // Best-effort revocation only.
-  }
-}
-
 function normalizeEstoque(value) {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
@@ -1161,10 +1021,10 @@ function imageFileIsValid(file) {
 }
 
 function isWebpSupported() {
-  if (productImageWebpSupported !== null) return productImageWebpSupported;
+  if (state.productImageWebpSupported !== null) return state.productImageWebpSupported;
   const canvas = document.createElement('canvas');
-  productImageWebpSupported = canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
-  return productImageWebpSupported;
+  state.productImageWebpSupported = canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  return state.productImageWebpSupported;
 }
 
 function loadImageFromDataUrl(dataUrl) {
@@ -1404,7 +1264,7 @@ function cancelPendingClearSessionUiRender() {
 }
 
 function renderLoggedOutAdminUi() {
-  if (accessToken || currentUser) return;
+  if (state.accessToken || state.currentUser) return;
 
   applySessionUi();
   renderDashboard();
@@ -1448,20 +1308,20 @@ function scheduleClearSessionUiRender() {
 function populateCategoriaOptions(selectedId = '') {
   const options = [
     '<option value="">Selecione a categoria</option>',
-    ...allCategorias.map((categoria) => {
+    ...state.allCategorias.map((categoria) => {
       const checked = String(selectedId) === String(categoria.id) ? 'selected' : '';
       return `<option value="${categoria.id}" ${checked}>${escapeHtml(categoria.nome)}</option>`;
     }),
   ];
 
   produtoCategoriaEl.innerHTML = options.join('');
-  produtoCategoriaEl.disabled = allCategorias.length === 0;
+  produtoCategoriaEl.disabled = state.allCategorias.length === 0;
 }
 
 function populateProdutoCategoriaFilterOptions() {
   const options = [
     '<option value="all">Todas as categorias</option>',
-    ...allCategorias.map((categoria) => {
+    ...state.allCategorias.map((categoria) => {
       const checked = String(produtoState.categoria_id) === String(categoria.id) ? 'selected' : '';
       return `<option value="${categoria.id}" ${checked}>${escapeHtml(categoria.nome)}</option>`;
     }),
@@ -1471,7 +1331,7 @@ function populateProdutoCategoriaFilterOptions() {
 }
 
 function populateCatalogPortalCategoryFilterOptions() {
-  const selectedCategoryId = allCategorias.some((categoria) => String(categoria.id) === String(catalogPortalState.categoria_id))
+  const selectedCategoryId = state.allCategorias.some((categoria) => String(categoria.id) === String(catalogPortalState.categoria_id))
     ? String(catalogPortalState.categoria_id)
     : 'all';
 
@@ -1481,7 +1341,7 @@ function populateCatalogPortalCategoryFilterOptions() {
 
   const options = [
     '<option value="all">Selecionar categoria</option>',
-    ...allCategorias.map((categoria) => {
+    ...state.allCategorias.map((categoria) => {
       const checked = selectedCategoryId === String(categoria.id) ? 'selected' : '';
       return `<option value="${categoria.id}" ${checked}>${escapeHtml(categoria.nome)}</option>`;
     }),
@@ -1491,7 +1351,7 @@ function populateCatalogPortalCategoryFilterOptions() {
 }
 
 function productCategoryName(categoriaId) {
-  const categoria = allCategorias.find((item) => item.id === categoriaId);
+  const categoria = state.allCategorias.find((item) => item.id === categoriaId);
   return categoria?.nome || 'Categoria não encontrada';
 }
 
@@ -1515,12 +1375,12 @@ function resetProdutoForm() {
   produtoClearImagemEl.checked = false;
   produtoSubmitBtn.textContent = 'Salvar item';
   produtoStatusEl.textContent = '';
-  produtoImagemDataUrl = '';
+  state.produtoImagemDataUrl = '';
   resetImagePreview();
 }
 
 function applySessionUi() {
-  const hasSession = Boolean(accessToken && currentUser);
+  const hasSession = Boolean(state.accessToken && state.currentUser);
   if (hasSession) {
     cancelPendingClearSessionUiRender();
   }
@@ -1537,7 +1397,7 @@ function applySessionUi() {
   }
   if (sessionLabelEl) {
     sessionLabelEl.textContent = hasSession
-      ? `Logado como ${currentUser.username} (${currentUser.role})`
+      ? `Logado como ${state.currentUser.username} (${state.currentUser.role})`
       : 'Sem sessão ativa';
   }
 
@@ -1550,56 +1410,7 @@ function applySessionUi() {
 }
 
 function clearSession() {
-  accessToken = '';
-  refreshToken = '';
-  currentUser = null;
-  adminRealtimeConnected = false;
-  clearStoredSessionTokens();
-  allOrders = [];
-  dashboardSnapshot = null;
-  dashboardQueueOrders = [];
-  crmCustomers = [];
-  customerDetail = null;
-  menuCategorias = [];
-  menuProdutos = [];
-  allMenuProdutos = [];
-  deliveryFees = [];
-  currentStoreSettings = null;
-  allCategorias = [];
-  selectedCustomerId = null;
-  customerPaginationMeta = null;
-  ordersPaginationMeta = null;
-  categoryPaginationMeta = null;
-  produtoPaginationMeta = null;
-  dashboardQueueLoaded = false;
-  orderAuditCache.clear();
-  expandedOrderAuditIds.clear();
-  customersState.page = 1;
-  customersState.pageSize = 12;
-  customersState.search = '';
-  customersState.segment = 'all';
-  customersState.sort = 'recent_desc';
-  customersState.period = 'all';
-  customersState.from = '';
-  customersState.to = '';
-  ordersState.page = 1;
-  ordersState.search = '';
-  ordersState.status = 'all';
-  ordersState.period = 'today';
-  ordersState.from = '';
-  ordersState.to = '';
-  categoryState.page = 1;
-  categoryState.pageSize = 10;
-  categoryState.search = '';
-  categoryState.sort = 'ordem_exibicao';
-  produtoState.page = 1;
-  produtoState.pageSize = 12;
-  produtoState.search = '';
-  produtoState.sort = 'nome_doce';
-  produtoState.disponibilidade = 'all';
-  produtoState.categoria_id = 'all';
-  catalogPortalState.search = '';
-  catalogPortalState.categoria_id = 'all';
+  adminStore.resetSessionState();
   document.dispatchEvent(new CustomEvent('admin:session-cleared'));
   scheduleClearSessionUiRender();
 }
@@ -1610,7 +1421,7 @@ function renderDashboard(dashboard, meta = null) {
   }
 
   if (!dashboard) {
-    dashboardSnapshot = null;
+    state.dashboardSnapshot = null;
     kpiTotalPedidosEl.textContent = '--';
     kpiPendentesEl.textContent = '--';
     kpiPreparandoEl.textContent = '--';
@@ -1630,7 +1441,7 @@ function renderDashboard(dashboard, meta = null) {
     return;
   }
 
-  dashboardSnapshot = dashboard;
+  state.dashboardSnapshot = dashboard;
   const totalPedidos = Number(dashboard.totalPedidos ?? 0);
   const faturamento = Number(dashboard.faturamento || 0);
   const ticketMedio = totalPedidos ? faturamento / totalPedidos : 0;
@@ -1664,15 +1475,15 @@ function renderNavBadge(element, count = 0) {
 }
 
 function pendingOrdersCount() {
-  if (dashboardSnapshot?.status) {
-    return Math.max(Number(dashboardSnapshot.status.pendentes ?? 0), 0);
+  if (state.dashboardSnapshot?.status) {
+    return Math.max(Number(state.dashboardSnapshot.status.pendentes ?? 0), 0);
   }
 
-  return dashboardQueueOrders.filter((order) => (order?.status_entrega || 'pendente') === 'pendente').length;
+  return state.dashboardQueueOrders.filter((order) => (order?.status_entrega || 'pendente') === 'pendente').length;
 }
 
 function renderAdminNavBadges() {
-  const hasSession = Boolean(accessToken && currentUser);
+  const hasSession = Boolean(state.accessToken && state.currentUser);
   if (!hasSession) {
     renderNavBadge(navOrdersBadgeEl, 0);
     renderNavBadge(navCatalogBadgeEl, 0);
@@ -1680,7 +1491,7 @@ function renderAdminNavBadges() {
   }
 
   const pendingOrders = pendingOrdersCount();
-  const semEstoque = allMenuProdutos.filter((produto) => {
+  const semEstoque = state.allMenuProdutos.filter((produto) => {
     const estoque = normalizeEstoque(produto.estoque_disponivel);
     return estoque !== null && estoque <= 0;
   }).length;
@@ -1692,7 +1503,7 @@ function renderAdminNavBadges() {
 function renderDashboardPendingAlert() {
   if (!dashboardPendingAlertEl || !dashboardPendingAlertTextEl) return;
 
-  const hasSession = Boolean(accessToken && currentUser);
+  const hasSession = Boolean(state.accessToken && state.currentUser);
   const pendingOrders = pendingOrdersCount();
 
   if (!hasSession || pendingOrders <= 0) {
@@ -1869,7 +1680,7 @@ function dashboardQueueCard(order) {
 function renderDashboardQueue() {
   if (!dashboardQueueListEl || !dashboardQueueMetaEl) return;
 
-  const hasSession = Boolean(accessToken && currentUser);
+  const hasSession = Boolean(state.accessToken && state.currentUser);
   if (!hasSession) {
     dashboardQueueMetaEl.textContent = 'Faça login para acompanhar a operação.';
     dashboardQueueListEl.innerHTML = '<article class="dashboard-queue-empty"><p class="muted">Faça login para carregar a fila operacional.</p></article>';
@@ -1878,7 +1689,7 @@ function renderDashboardQueue() {
     return;
   }
 
-  if (!dashboardQueueLoaded && dashboardQueueOrders.length === 0) {
+  if (!state.dashboardQueueLoaded && state.dashboardQueueOrders.length === 0) {
     dashboardQueueMetaEl.textContent = 'Carregando pedidos recentes.';
     dashboardQueueListEl.innerHTML = '<article class="dashboard-queue-empty"><p class="muted">Carregando pedidos do dia...</p></article>';
     renderDashboardPendingAlert();
@@ -1886,7 +1697,7 @@ function renderDashboardQueue() {
     return;
   }
 
-  const recentOrders = dashboardQueueOrders
+  const recentOrders = state.dashboardQueueOrders
     .sort((left, right) => new Date(right?.criado_em || 0).getTime() - new Date(left?.criado_em || 0).getTime());
   const visibleOrders = recentOrders.slice(0, 6);
   const pendingOrders = pendingOrdersCount();
@@ -1913,26 +1724,25 @@ function dashboardQueueQueryString() {
 }
 
 async function loadDashboardQueue() {
-  if (!accessToken) {
-    dashboardQueueLoaded = false;
-    dashboardQueueOrders = [];
+  if (!state.accessToken) {
+    state.dashboardQueueLoaded = false;
+    state.dashboardQueueOrders = [];
     renderDashboardQueue();
     return [];
   }
 
   const query = dashboardQueueQueryString();
-  const response = await fetch(`/admin/orders${query ? `?${query}` : ''}`, { headers: authHeaders() });
-  const payload = await parseEnvelope(response);
-  dashboardQueueOrders = Array.isArray(payload.data) ? payload.data : [];
-  dashboardQueueLoaded = true;
+  const payload = await apiClient.fetchOrders(query);
+  state.dashboardQueueOrders = Array.isArray(payload.data) ? payload.data : [];
+  state.dashboardQueueLoaded = true;
   renderDashboardQueue();
-  return dashboardQueueOrders;
+  return state.dashboardQueueOrders;
 }
 
-function renderSidebarStoreStatus(config = currentStoreSettings) {
+function renderSidebarStoreStatus(config = state.currentStoreSettings) {
   if (!sidebarStoreStatusCardEl || !sidebarStoreStatusTextEl || !sidebarStoreStatusMetaEl) return;
 
-  const hasSession = Boolean(accessToken && currentUser);
+  const hasSession = Boolean(state.accessToken && state.currentUser);
   if (!hasSession) {
     sidebarStoreStatusCardEl.classList.remove('is-open');
     sidebarStoreStatusCardEl.classList.add('is-closed');
@@ -1972,7 +1782,7 @@ function customerSegmentChip(customer) {
 }
 
 function customerCard(customer) {
-  const isActive = Number(selectedCustomerId || 0) === Number(customer.id || 0);
+  const isActive = Number(state.selectedCustomerId || 0) === Number(customer.id || 0);
   const addressLabel = customer.latest_endereco
     ? formatCompactAddress(customer.latest_endereco)
     : 'Sem endereço principal';
@@ -2065,8 +1875,8 @@ function customerDetailOrderCard(order) {
   `;
 }
 
-function renderCustomerDetail(detail = customerDetail, { scroll = false } = {}) {
-  if (!accessToken) {
+function renderCustomerDetail(detail = state.customerDetail, { scroll = false } = {}) {
+  if (!state.accessToken) {
     customerDetailEl.className = 'crm-detail-empty';
     customerDetailEl.innerHTML = '<div class="crm-detail-empty"><p class="muted">Faça login para visualizar o perfil do cliente.</p></div>';
     return;
@@ -2201,7 +2011,7 @@ function renderCustomerDetail(detail = customerDetail, { scroll = false } = {}) 
 }
 
 function renderCustomers() {
-  if (!accessToken) {
+  if (!state.accessToken) {
     customersListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para visualizar clientes.</p></div>';
     customersMetaEl.textContent = 'Faça login para carregar a carteira de clientes.';
     customersListMetaEl.textContent = 'Faça login para carregar clientes.';
@@ -2213,12 +2023,12 @@ function renderCustomers() {
     return;
   }
 
-  const summary = customerPaginationMeta?.summary || null;
-  const total = Number(customerPaginationMeta?.total || 0);
-  const totalPages = Number(customerPaginationMeta?.totalPages || 1);
-  const page = Number(customerPaginationMeta?.page || customersState.page || 1);
-  const pageSize = Number(customerPaginationMeta?.pageSize || customersState.pageSize || 12);
-  const filters = customerPaginationMeta?.filters || null;
+  const summary = state.customerPaginationMeta?.summary || null;
+  const total = Number(state.customerPaginationMeta?.total || 0);
+  const totalPages = Number(state.customerPaginationMeta?.totalPages || 1);
+  const page = Number(state.customerPaginationMeta?.page || customersState.page || 1);
+  const pageSize = Number(state.customerPaginationMeta?.pageSize || customersState.pageSize || 12);
+  const filters = state.customerPaginationMeta?.filters || null;
   const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
   const end = total === 0 ? 0 : Math.min(total, page * pageSize);
   const segmentLabel = getSelectOptionLabel(customersSegmentFilterEl, filters?.segment || customersState.segment);
@@ -2232,18 +2042,18 @@ function renderCustomers() {
   syncCustomerSegmentTabs(filters?.segment || customersState.segment || 'all');
   updateDatalistOptions(
     customersSearchSuggestionsEl,
-    crmCustomers.map((customer) => ({
+    state.crmCustomers.map((customer) => ({
       value: customer.nome || formatPhone(customer.telefone_whatsapp || ''),
       label: `${formatPhone(customer.telefone_whatsapp || '')} · ${customer.segment_label || 'Cliente'}`,
     })),
   );
 
-  if (crmCustomers.length === 0) {
+  if (state.crmCustomers.length === 0) {
     customersListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Nenhum cliente encontrado para este filtro.</p></div>';
     return;
   }
 
-  customersListEl.innerHTML = crmCustomers.map(customerCard).join('');
+  customersListEl.innerHTML = state.crmCustomers.map(customerCard).join('');
 }
 
 function customersQueryString() {
@@ -2258,59 +2068,57 @@ function customersQueryString() {
 }
 
 async function loadCustomerDetail(customerId, { silent = false } = {}) {
-  if (!accessToken || !customerId) {
-    customerDetail = null;
+  if (!state.accessToken || !customerId) {
+    state.customerDetail = null;
     renderCustomerDetail();
     return null;
   }
 
-  selectedCustomerId = Number(customerId);
+  state.selectedCustomerId = Number(customerId);
   if (!silent) {
     customerDetailEl.className = 'crm-detail-empty';
     customerDetailEl.innerHTML = '<div class="crm-detail-empty"><p class="muted">Carregando perfil do cliente...</p></div>';
   }
 
-  const response = await fetch(`/admin/customers/${customerId}`, { headers: authHeaders() });
-  customerDetail = await parseResponse(response);
+  state.customerDetail = await apiClient.fetchCustomerDetail(customerId);
   renderCustomers();
-  renderCustomerDetail(customerDetail, { scroll: !silent });
-  return customerDetail;
+  renderCustomerDetail(state.customerDetail, { scroll: !silent });
+  return state.customerDetail;
 }
 
 async function loadCustomers() {
   if (!validateRangeState(customersState, customersStatusEl, 'clientes')) return;
 
   const query = customersQueryString();
-  const response = await fetch(`/admin/customers?${query}`, { headers: authHeaders() });
-  const payload = await parseEnvelope(response);
-  crmCustomers = Array.isArray(payload.data) ? payload.data : [];
-  customerPaginationMeta = payload.meta || null;
+  const payload = await apiClient.fetchCustomers(query);
+  state.crmCustomers = Array.isArray(payload.data) ? payload.data : [];
+  state.customerPaginationMeta = payload.meta || null;
 
-  if (customerPaginationMeta && customersState.page > Number(customerPaginationMeta.totalPages || 1)) {
-    customersState.page = Number(customerPaginationMeta.totalPages || 1);
+  if (state.customerPaginationMeta && customersState.page > Number(state.customerPaginationMeta.totalPages || 1)) {
+    customersState.page = Number(state.customerPaginationMeta.totalPages || 1);
     return loadCustomers();
   }
 
-  const customerIds = new Set(crmCustomers.map((customer) => Number(customer.id || 0)));
-  if (!selectedCustomerId || !customerIds.has(Number(selectedCustomerId || 0))) {
-    selectedCustomerId = null;
-    customerDetail = null;
+  const customerIds = new Set(state.crmCustomers.map((customer) => Number(customer.id || 0)));
+  if (!state.selectedCustomerId || !customerIds.has(Number(state.selectedCustomerId || 0))) {
+    state.selectedCustomerId = null;
+    state.customerDetail = null;
   }
 
   clearStatus(customersStatusEl);
   renderCustomers();
 
-  if (!selectedCustomerId) {
+  if (!state.selectedCustomerId) {
     renderCustomerDetail();
     return;
   }
 
-  if (Number(customerDetail?.id || 0) === Number(selectedCustomerId || 0)) {
-    renderCustomerDetail(customerDetail);
+  if (Number(state.customerDetail?.id || 0) === Number(state.selectedCustomerId || 0)) {
+    renderCustomerDetail(state.customerDetail);
     return;
   }
 
-  await loadCustomerDetail(selectedCustomerId, { silent: true });
+  await loadCustomerDetail(state.selectedCustomerId, { silent: true });
 }
 
 async function openOrderFromCrm(orderId) {
@@ -2325,7 +2133,7 @@ async function openOrderFromCrm(orderId) {
 }
 
 function renderOrdersOverview() {
-  if (!accessToken) {
+  if (!state.accessToken) {
     if (ordersOverviewTotalEl) ordersOverviewTotalEl.textContent = 'Aguardando';
     if (ordersOverviewTotalMetaEl) ordersOverviewTotalMetaEl.textContent = 'Carregando total do período selecionado.';
     if (ordersOverviewPageEl) ordersOverviewPageEl.textContent = 'Aguardando';
@@ -2337,17 +2145,17 @@ function renderOrdersOverview() {
     return;
   }
 
-  const total = Number(ordersPaginationMeta?.total || 0);
-  const totalPages = Number(ordersPaginationMeta?.totalPages || 1);
-  const page = Number(ordersPaginationMeta?.page || ordersState.page || 1);
-  const pageSize = Number(ordersPaginationMeta?.pageSize || ordersState.pageSize || 10);
-  const filters = ordersPaginationMeta?.filters || null;
+  const total = Number(state.ordersPaginationMeta?.total || 0);
+  const totalPages = Number(state.ordersPaginationMeta?.totalPages || 1);
+  const page = Number(state.ordersPaginationMeta?.page || ordersState.page || 1);
+  const pageSize = Number(state.ordersPaginationMeta?.pageSize || ordersState.pageSize || 10);
+  const filters = state.ordersPaginationMeta?.filters || null;
 
-  const activeOrders = allOrders.filter((order) => ['pendente', 'preparando', 'saiu_para_entrega'].includes(order.status_entrega || 'pendente'));
+  const activeOrders = state.allOrders.filter((order) => ['pendente', 'preparando', 'saiu_para_entrega'].includes(order.status_entrega || 'pendente'));
   const preparingOrders = activeOrders.filter((order) => order.status_entrega === 'preparando').length;
   const deliveryOrders = activeOrders.filter((order) => order.status_entrega === 'saiu_para_entrega').length;
-  const pendingPaymentOrders = allOrders.filter((order) => paymentStatusClass(order.status_pagamento) !== 'pago').length;
-  const paidOrders = allOrders.filter((order) => paymentStatusClass(order.status_pagamento) === 'pago').length;
+  const pendingPaymentOrders = state.allOrders.filter((order) => paymentStatusClass(order.status_pagamento) !== 'pago').length;
+  const paidOrders = state.allOrders.filter((order) => paymentStatusClass(order.status_pagamento) === 'pago').length;
 
   if (ordersOverviewTotalEl) {
     ordersOverviewTotalEl.textContent = String(total);
@@ -2356,7 +2164,7 @@ function renderOrdersOverview() {
     ordersOverviewTotalMetaEl.textContent = formatRangeMeta(filters);
   }
   if (ordersOverviewPageEl) {
-    ordersOverviewPageEl.textContent = String(allOrders.length);
+    ordersOverviewPageEl.textContent = String(state.allOrders.length);
   }
   if (ordersOverviewPageMetaEl) {
     ordersOverviewPageMetaEl.textContent = total
@@ -2488,21 +2296,21 @@ function buildOrdersListRenderEntry(order) {
 }
 
 function buildOrdersListRenderSignature() {
-  return JSON.stringify(allOrders.map(buildOrdersListRenderEntry));
+  return JSON.stringify(state.allOrders.map(buildOrdersListRenderEntry));
 }
 
 function updateOrdersListMarkup(markup, signature) {
-  if (ordersListRenderSignature === signature) {
+  if (state.ordersListRenderSignature === signature) {
     return false;
   }
 
   ordersListEl.innerHTML = markup;
-  ordersListRenderSignature = signature;
+  state.ordersListRenderSignature = signature;
   return true;
 }
 
 function renderOrders() {
-  if (!accessToken) {
+  if (!state.accessToken) {
     updateOrdersListMarkup('<p class="muted">Faça login para visualizar pedidos.</p>', 'signed-out');
     ordersMetaEl.textContent = 'Faça login para carregar pedidos.';
     renderOrdersOverview();
@@ -2515,11 +2323,11 @@ function renderOrders() {
     return;
   }
 
-  const total = Number(ordersPaginationMeta?.total || 0);
-  const totalPages = Number(ordersPaginationMeta?.totalPages || 1);
-  const page = Number(ordersPaginationMeta?.page || ordersState.page || 1);
-  const pageSize = Number(ordersPaginationMeta?.pageSize || ordersState.pageSize || 10);
-  const filters = ordersPaginationMeta?.filters || null;
+  const total = Number(state.ordersPaginationMeta?.total || 0);
+  const totalPages = Number(state.ordersPaginationMeta?.totalPages || 1);
+  const page = Number(state.ordersPaginationMeta?.page || ordersState.page || 1);
+  const pageSize = Number(state.ordersPaginationMeta?.pageSize || ordersState.pageSize || 10);
+  const filters = state.ordersPaginationMeta?.filters || null;
   const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
   const end = total === 0 ? 0 : Math.min(total, page * pageSize);
 
@@ -2529,7 +2337,7 @@ function renderOrders() {
   renderOrdersOverview();
   updateDatalistOptions(
     ordersSearchSuggestionsEl,
-    allOrders.map((order) => ({
+    state.allOrders.map((order) => ({
       value: `#${order.id}`,
       label: `${order.clientes?.nome || '--'} · ${dateTime(order.criado_em)}`,
     })),
@@ -2540,21 +2348,20 @@ function renderOrders() {
     button.setAttribute('aria-pressed', String(isActive));
   });
 
-  if (allOrders.length === 0) {
+  if (state.allOrders.length === 0) {
     updateOrdersListMarkup('<p class="muted">Nenhum pedido encontrado para este filtro.</p>', 'empty');
     return;
   }
 
   const nextListSignature = `orders:${buildOrdersListRenderSignature()}`;
-  if (updateOrdersListMarkup(allOrders.map(orderCard).join(''), nextListSignature)) {
+  if (updateOrdersListMarkup(state.allOrders.map(orderCard).join(''), nextListSignature)) {
     hydrateExpandedOrderAudits();
   }
 }
 
 async function loadCurrentUser() {
-  const response = await fetch('/auth/me', { headers: authHeaders() });
-  const data = await parseResponse(response);
-  currentUser = data.user;
+  const data = await apiClient.fetchCurrentUser();
+  state.currentUser = data.user;
   applySessionUi();
 }
 
@@ -2568,8 +2375,7 @@ async function loadDashboard() {
   if (!validateRangeState(dashboardFilters, dashboardStatusEl, 'resumo')) return;
 
   const query = dashboardQueryString();
-  const response = await fetch(`/admin/dashboard${query ? `?${query}` : ''}`, { headers: authHeaders() });
-  const payload = await parseEnvelope(response);
+  const payload = await apiClient.fetchDashboard(query);
   clearStatus(dashboardStatusEl);
   renderDashboard(payload.data, payload.meta);
 }
@@ -2592,8 +2398,7 @@ async function fetchOrderAudit(orderId, { force = false } = {}) {
     return orderAuditCache.get(id);
   }
 
-  const response = await fetch(`/admin/orders/${id}/audit`, { headers: authHeaders() });
-  const items = await parseResponse(response);
+  const items = await apiClient.fetchOrderAudit(id);
   const safeItems = Array.isArray(items) ? items : [];
   orderAuditCache.set(id, safeItems);
   return safeItems;
@@ -2634,30 +2439,41 @@ function hydrateExpandedOrderAudits() {
 async function loadOrders() {
   if (!validateRangeState(ordersState, ordersStatusEl, 'pedidos')) return;
 
-  const query = ordersQueryString();
-  const response = await fetch(`/admin/orders?${query}`, { headers: authHeaders() });
-  const payload = await parseEnvelope(response);
-  allOrders = Array.isArray(payload.data) ? payload.data : [];
-  ordersPaginationMeta = payload.meta || null;
+  const MAX_PAGE_CORRECTION_RETRIES = 1;
+  let pageCorrectionRetries = 0;
 
-  if (ordersPaginationMeta && ordersState.page > Number(ordersPaginationMeta.totalPages || 1)) {
-    ordersState.page = Number(ordersPaginationMeta.totalPages || 1);
-    return loadOrders();
+  while (true) {
+    const query = ordersQueryString();
+    const payload = await apiClient.fetchOrders(query);
+    state.allOrders = Array.isArray(payload.data) ? payload.data : [];
+    state.ordersPaginationMeta = payload.meta || null;
+
+    const totalPages = Math.max(1, Number(state.ordersPaginationMeta?.totalPages || 1));
+    if (!state.ordersPaginationMeta || ordersState.page <= totalPages) {
+      break;
+    }
+
+    ordersState.page = totalPages;
+    if (pageCorrectionRetries >= MAX_PAGE_CORRECTION_RETRIES) {
+      break;
+    }
+
+    pageCorrectionRetries += 1;
   }
 
   clearStatus(ordersStatusEl);
   renderOrders();
   document.dispatchEvent(new CustomEvent('admin:orders-loaded', {
     detail: {
-      orders: allOrders,
-      meta: ordersPaginationMeta,
+      orders: state.allOrders,
+      meta: state.ordersPaginationMeta,
     },
   }));
 }
 
 function renderSettingsOverview() {
-  const config = currentStoreSettings || null;
-  const activeFees = deliveryFees.filter((fee) => fee?.ativo !== false);
+  const config = state.currentStoreSettings || null;
+  const activeFees = state.deliveryFees.filter((fee) => fee?.ativo !== false);
   const schedule = config?.horario_funcionamento || {};
   const enabledDays = STORE_HOURS_DAY_KEYS.filter((dayKey) => Boolean(schedule?.[dayKey]?.enabled)).length;
 
@@ -2704,7 +2520,7 @@ function renderSettingsOverview() {
   }
 
   if (settingsOverviewFeesEl) {
-    settingsOverviewFeesEl.textContent = `${deliveryFees.length} taxa(s)`;
+    settingsOverviewFeesEl.textContent = `${state.deliveryFees.length} taxa(s)`;
   }
 
   if (settingsOverviewFeesMetaEl) {
@@ -2765,8 +2581,8 @@ function renderStoreHoursStatus(config = {}) {
     const openNow = Boolean(config.loja_aberta_agora);
     storeHoursStatusEl.className = `status-text ${openNow ? 'ok' : 'muted'}`;
     storeHoursStatusEl.textContent = automatic
-      ? (config.loja_status_descricao || 'Horario automatico ativo.')
-      : 'Horario automatico desligado. A loja segue apenas o controle manual acima.';
+      ? (config.loja_status_descricao || 'Horário automático ativo.')
+      : 'Horário automático desligado. A loja segue apenas o controle manual acima.';
   }
 }
 
@@ -2790,9 +2606,8 @@ function applyStoreHoursConfig(config = {}) {
 }
 
 async function loadStoreSettings() {
-  const response = await fetch('/admin/store-settings', { headers: authHeaders() });
-  const config = await parseResponse(response);
-  currentStoreSettings = config;
+  const config = await apiClient.fetchStoreSettings();
+  state.currentStoreSettings = config;
 
   settingsFormEl.elements.loja_aberta.checked = Boolean(config.loja_aberta);
   applyStoreHoursConfig(config);
@@ -2831,7 +2646,7 @@ function describeWhatsAppSessionState(data) {
   const normalized = String(sourceValue ?? '').trim().toUpperCase();
 
   if (!configured) {
-    return 'WPPConnect nao configurado no servidor.';
+    return 'WPPConnect não configurado no servidor.';
   }
 
   if (normalized === 'CONNECTED') {
@@ -2839,7 +2654,7 @@ function describeWhatsAppSessionState(data) {
   }
 
   if (normalized === 'CLOSED' || normalized === 'DISCONNECTED' || normalized === 'FALSE') {
-    return 'Desconectado. Inicie a sessao e leia o QR Code para conectar o numero.';
+    return 'Desconectado. Inicie a sessão e leia o QR Code para conectar o número.';
   }
 
   if (normalized.includes('QRCODE') || normalized.includes('QR')) {
@@ -2847,7 +2662,7 @@ function describeWhatsAppSessionState(data) {
   }
 
   if (normalized.includes('START') || normalized.includes('OPEN') || normalized.includes('INIT')) {
-    return 'Sessao em inicializacao no WPPConnect.';
+    return 'Sessão em inicialização no WPPConnect.';
   }
 
   if (sourceValue) {
@@ -2868,15 +2683,13 @@ function renderWhatsAppSessionState(data) {
 }
 
 async function loadWhatsAppSessionStatus() {
-  const response = await fetch('/admin/whatsapp/session/status', { headers: authHeaders() });
-  const data = await parseResponse(response);
+  const data = await apiClient.fetchWhatsAppSessionStatus();
   renderWhatsAppSessionState(data);
   return data;
 }
 
 async function loadWhatsAppQrCode() {
-  const response = await fetch('/admin/whatsapp/session/qrcode', { headers: authHeaders() });
-  const data = await parseResponse(response);
+  const data = await apiClient.fetchWhatsAppQrCode();
   renderWhatsAppSessionState(data);
 
   if (data?.qrCodeDataUrl) {
@@ -2922,7 +2735,7 @@ function populateDeliveryFeeForm(fee) {
 function renderDeliveryFeeList() {
   const search = String(deliveryFeeSearchInputEl?.value || '').trim().toLowerCase();
 
-  const filteredFees = [...deliveryFees]
+  const filteredFees = [...state.deliveryFees]
     .filter((fee) => {
       const scope = deliveryFeeScopeLabel(fee).toLowerCase();
       return !search || scope.includes(search);
@@ -2933,7 +2746,7 @@ function renderDeliveryFeeList() {
       return scopeA.localeCompare(scopeB, 'pt-BR', { sensitivity: 'base' });
     });
 
-  if (!accessToken) {
+  if (!state.accessToken) {
     deliveryFeeListEl.innerHTML = '<p class="muted">Faça login para gerenciar taxas de entrega.</p>';
     return;
   }
@@ -2963,17 +2776,17 @@ function renderDeliveryFeeList() {
 }
 
 function renderCategoryMeta() {
-  if (!accessToken) {
+  if (!state.accessToken) {
     categoryMetaEl.textContent = 'Faça login para carregar categorias.';
     categoryPrevBtnEl.disabled = true;
     categoryNextBtnEl.disabled = true;
     return;
   }
 
-  const total = Number(categoryPaginationMeta?.total || 0);
-  const totalPages = Number(categoryPaginationMeta?.totalPages || 1);
-  const page = Number(categoryPaginationMeta?.page || categoryState.page || 1);
-  const pageSize = Number(categoryPaginationMeta?.pageSize || categoryState.pageSize || 10);
+  const total = Number(state.categoryPaginationMeta?.total || 0);
+  const totalPages = Number(state.categoryPaginationMeta?.totalPages || 1);
+  const page = Number(state.categoryPaginationMeta?.page || categoryState.page || 1);
+  const pageSize = Number(state.categoryPaginationMeta?.pageSize || categoryState.pageSize || 10);
   const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
   const end = total === 0 ? 0 : Math.min(total, page * pageSize);
 
@@ -2983,23 +2796,18 @@ function renderCategoryMeta() {
 }
 
 async function loadDeliveryFees() {
-  const response = await fetch('/admin/delivery-fees', { headers: authHeaders() });
-  deliveryFees = await parseResponse(response);
+  state.deliveryFees = await apiClient.fetchDeliveryFees();
   renderDeliveryFeeList();
   renderSettingsOverview();
 }
 
 async function removeDeliveryFee(id) {
-  const fee = deliveryFees.find((item) => item.id === id);
+  const fee = state.deliveryFees.find((item) => item.id === id);
   const label = fee ? deliveryFeeScopeLabel(fee) : `#${id}`;
   if (!confirm(`Deseja excluir a taxa de entrega de ${label}?`)) return;
 
   try {
-    const response = await fetch(`/admin/delivery-fees/${id}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    });
-    await parseResponse(response);
+    await apiClient.deleteDeliveryFee(id);
     await loadDeliveryFees();
     if (String(deliveryFeeIdEl.value || '') === String(id)) {
       resetDeliveryFeeForm();
@@ -3011,7 +2819,7 @@ async function removeDeliveryFee(id) {
 }
 
 function renderCategoryList() {
-  if (!accessToken) {
+  if (!state.accessToken) {
     categoryListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para gerenciar categorias.</p></div>';
     updateDatalistOptions(categorySearchSuggestionsEl, []);
     renderCategoryMeta();
@@ -3020,13 +2828,13 @@ function renderCategoryList() {
 
   updateDatalistOptions(
     categorySearchSuggestionsEl,
-    menuCategorias.map((categoria) => ({
+    state.menuCategorias.map((categoria) => ({
       value: categoria.nome,
       label: `${Number(categoria._count?.produtos || 0)} item(ns)`,
     })),
   );
 
-  if (menuCategorias.length === 0) {
+  if (state.menuCategorias.length === 0) {
     const semBusca = String(categoryState.search || '').trim();
     categoryListEl.innerHTML = semBusca
       ? '<div class="catalog-admin-preview-empty"><p class="muted">Nenhuma categoria corresponde ao filtro.</p></div>'
@@ -3035,7 +2843,7 @@ function renderCategoryList() {
     return;
   }
 
-  categoryListEl.innerHTML = menuCategorias
+  categoryListEl.innerHTML = state.menuCategorias
     .map((categoria) => {
       const totalProdutos = Number(categoria._count?.produtos || 0);
       const ordem = Number(categoria.ordem_exibicao || 0);
@@ -3066,43 +2874,43 @@ function renderCategoryList() {
 }
 
 function renderCatalogOverview() {
-  const totalCategorias = allCategorias.length;
-  const totalItens = allMenuProdutos.length;
-  const disponiveis = allMenuProdutos.filter((produto) => isProdutoDisponivel(produto)).length;
-  const semEstoque = allMenuProdutos.filter((produto) => {
+  const totalCategorias = state.allCategorias.length;
+  const totalItens = state.allMenuProdutos.length;
+  const disponiveis = state.allMenuProdutos.filter((produto) => isProdutoDisponivel(produto)).length;
+  const semEstoque = state.allMenuProdutos.filter((produto) => {
     const estoque = normalizeEstoque(produto.estoque_disponivel);
     return estoque !== null && estoque <= 0;
   }).length;
 
   if (catalogOverviewCategoriasEl) {
-    catalogOverviewCategoriasEl.textContent = accessToken ? String(totalCategorias) : 'Aguardando';
+    catalogOverviewCategoriasEl.textContent = state.accessToken ? String(totalCategorias) : 'Aguardando';
   }
   if (catalogOverviewCategoriasMetaEl) {
-    catalogOverviewCategoriasMetaEl.textContent = accessToken
+    catalogOverviewCategoriasMetaEl.textContent = state.accessToken
       ? (totalCategorias === 0 ? 'Nenhuma categoria cadastrada.' : 'Grupos que organizam a vitrine da loja.')
       : 'Carregando grupos do cardápio.';
   }
   if (catalogOverviewItensEl) {
-    catalogOverviewItensEl.textContent = accessToken ? String(totalItens) : 'Aguardando';
+    catalogOverviewItensEl.textContent = state.accessToken ? String(totalItens) : 'Aguardando';
   }
   if (catalogOverviewItensMetaEl) {
-    catalogOverviewItensMetaEl.textContent = accessToken
+    catalogOverviewItensMetaEl.textContent = state.accessToken
       ? (totalItens === 0 ? 'Nenhum item cadastrado ainda.' : 'Itens totais presentes no catálogo.')
       : 'Resumo dos produtos cadastrados.';
   }
   if (catalogOverviewDisponiveisEl) {
-    catalogOverviewDisponiveisEl.textContent = accessToken ? String(disponiveis) : 'Aguardando';
+    catalogOverviewDisponiveisEl.textContent = state.accessToken ? String(disponiveis) : 'Aguardando';
   }
   if (catalogOverviewDisponiveisMetaEl) {
-    catalogOverviewDisponiveisMetaEl.textContent = accessToken
+    catalogOverviewDisponiveisMetaEl.textContent = state.accessToken
       ? `${Math.max(totalItens - disponiveis, 0)} item(ns) exigem alguma ação.`
       : 'Itens prontos para venda.';
   }
   if (catalogOverviewSemEstoqueEl) {
-    catalogOverviewSemEstoqueEl.textContent = accessToken ? String(semEstoque) : 'Aguardando';
+    catalogOverviewSemEstoqueEl.textContent = state.accessToken ? String(semEstoque) : 'Aguardando';
   }
   if (catalogOverviewSemEstoqueMetaEl) {
-    catalogOverviewSemEstoqueMetaEl.textContent = accessToken
+    catalogOverviewSemEstoqueMetaEl.textContent = state.accessToken
       ? (semEstoque === 0 ? 'Nenhum item com estoque zerado.' : 'Itens sem saldo ou que precisam de revisão.')
       : 'Itens que exigem reposição ou revisão.';
   }
@@ -3113,7 +2921,7 @@ function renderCatalogOverview() {
 function renderCatalogPortal() {
   if (!catalogPortalListEl || !catalogPortalMetaEl) return;
 
-  if (!accessToken) {
+  if (!state.accessToken) {
     catalogPortalMetaEl.textContent = 'Faça login para carregar o cardápio.';
     catalogPortalListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para visualizar a vitrine do cardápio.</p></div>';
     updateDatalistOptions(catalogPortalSearchSuggestionsEl, []);
@@ -3122,20 +2930,20 @@ function renderCatalogPortal() {
 
   updateDatalistOptions(
     catalogPortalSearchSuggestionsEl,
-    allMenuProdutos.map((produto) => ({
+    state.allMenuProdutos.map((produto) => ({
       value: produto.nome_doce,
       label: `${productCategoryName(produto.categoria_id || produto.categorias?.id)} · ${brl(produto.preco)}`,
     })),
   );
 
-  if (allCategorias.length === 0) {
+  if (state.allCategorias.length === 0) {
     catalogPortalMetaEl.textContent = 'Nenhuma categoria cadastrada.';
     catalogPortalListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Cadastre a primeira categoria para começar a montar o cardápio.</p></div>';
     return;
   }
 
   const selectedCategoryId = String(catalogPortalState.categoria_id || 'all');
-  const normalizedCategoryId = allCategorias.some((categoria) => String(categoria.id) === selectedCategoryId)
+  const normalizedCategoryId = state.allCategorias.some((categoria) => String(categoria.id) === selectedCategoryId)
     ? selectedCategoryId
     : 'all';
   const search = String(catalogPortalState.search || '').trim().toLowerCase();
@@ -3147,7 +2955,7 @@ function renderCatalogPortal() {
     }
   }
 
-  const visibleCategorias = [...allCategorias]
+  const visibleCategorias = [...state.allCategorias]
     .sort((a, b) => {
       const ordemA = Number(a.ordem_exibicao || 0);
       const ordemB = Number(b.ordem_exibicao || 0);
@@ -3156,7 +2964,7 @@ function renderCatalogPortal() {
     })
     .filter((categoria) => normalizedCategoryId === 'all' || String(categoria.id) === normalizedCategoryId);
 
-  const produtosPorCategoria = allMenuProdutos.reduce((acc, produto) => {
+  const produtosPorCategoria = state.allMenuProdutos.reduce((acc, produto) => {
     const categoriaId = String(produto.categoria_id || produto.categorias?.id || '');
     if (!acc.has(categoriaId)) {
       acc.set(categoriaId, []);
@@ -3257,17 +3065,17 @@ function renderCatalogPortal() {
 }
 
 function renderProdutoMeta() {
-  if (!accessToken) {
+  if (!state.accessToken) {
     produtoMetaEl.textContent = 'Faça login para carregar itens.';
     produtoPrevBtnEl.disabled = true;
     produtoNextBtnEl.disabled = true;
     return;
   }
 
-  const total = Number(produtoPaginationMeta?.total || 0);
-  const totalPages = Number(produtoPaginationMeta?.totalPages || 1);
-  const page = Number(produtoPaginationMeta?.page || produtoState.page || 1);
-  const pageSize = Number(produtoPaginationMeta?.pageSize || produtoState.pageSize || 12);
+  const total = Number(state.produtoPaginationMeta?.total || 0);
+  const totalPages = Number(state.produtoPaginationMeta?.totalPages || 1);
+  const page = Number(state.produtoPaginationMeta?.page || produtoState.page || 1);
+  const pageSize = Number(state.produtoPaginationMeta?.pageSize || produtoState.pageSize || 12);
   const start = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
   const end = total === 0 ? 0 : Math.min(total, page * pageSize);
 
@@ -3277,7 +3085,7 @@ function renderProdutoMeta() {
 }
 
 function renderProdutoList() {
-  if (!accessToken) {
+  if (!state.accessToken) {
     produtoListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para gerenciar itens.</p></div>';
     updateDatalistOptions(produtoSearchSuggestionsEl, []);
     renderProdutoMeta();
@@ -3286,13 +3094,13 @@ function renderProdutoList() {
 
   updateDatalistOptions(
     produtoSearchSuggestionsEl,
-    menuProdutos.map((produto) => ({
+    state.menuProdutos.map((produto) => ({
       value: produto.nome_doce,
       label: `${productCategoryName(produto.categoria_id || produto.categorias?.id)} · ${brl(produto.preco)}`,
     })),
   );
 
-  if (menuProdutos.length === 0) {
+  if (state.menuProdutos.length === 0) {
     const semBusca = String(produtoState.search || '').trim();
     const semFiltro = semBusca || produtoState.disponibilidade !== 'all' || produtoState.categoria_id !== 'all';
     produtoListEl.innerHTML = semFiltro
@@ -3302,7 +3110,7 @@ function renderProdutoList() {
     return;
   }
 
-  produtoListEl.innerHTML = menuProdutos
+  produtoListEl.innerHTML = state.menuProdutos
     .map((produto) => {
       const estoque = normalizeEstoque(produto.estoque_disponivel);
       const disponibilidadeClasse = isProdutoDisponivel(produto) ? 'is-live' : 'is-off';
@@ -3344,7 +3152,6 @@ function renderProdutoList() {
 
 async function loadCategoryOptions() {
   const pageSize = 100;
-  const headers = authHeaders();
   const buildCategoryOptionsQuery = (page) => buildQueryString({
     sort: 'ordem_exibicao',
     order: 'asc',
@@ -3352,8 +3159,7 @@ async function loadCategoryOptions() {
     pageSize,
   });
 
-  const firstResponse = await fetch(`/categorias?${buildCategoryOptionsQuery(1)}`, { headers });
-  const firstPayload = await parseEnvelope(firstResponse);
+  const firstPayload = await apiClient.fetchCategorias(buildCategoryOptionsQuery(1));
   const firstItems = Array.isArray(firstPayload.data) ? firstPayload.data : [];
   const totalPages = Number(firstPayload.meta?.totalPages || 1);
 
@@ -3361,8 +3167,7 @@ async function loadCategoryOptions() {
     ? await Promise.all(
       Array.from({ length: totalPages - 1 }, (_, index) => {
         const page = index + 2;
-        return fetch(`/categorias?${buildCategoryOptionsQuery(page)}`, { headers })
-          .then((response) => parseEnvelope(response))
+        return apiClient.fetchCategorias(buildCategoryOptionsQuery(page))
           .then((payload) => (Array.isArray(payload.data) ? payload.data : []));
       }),
     )
@@ -3373,7 +3178,7 @@ async function loadCategoryOptions() {
     ...remainingPages.flat(),
   ];
 
-  allCategorias = collectedCategorias;
+  state.allCategorias = collectedCategorias;
   const currentCategoryId = produtoCategoriaEl.value;
   populateCategoriaOptions(currentCategoryId);
   populateProdutoCategoriaFilterOptions();
@@ -3393,15 +3198,12 @@ function categoriasQueryString() {
 }
 
 async function loadCategorias() {
-  const response = await fetch(`/categorias?${categoriasQueryString()}`, {
-    headers: authHeaders(),
-  });
-  const payload = await parseEnvelope(response);
-  menuCategorias = Array.isArray(payload.data) ? payload.data : [];
-  categoryPaginationMeta = payload.meta || null;
+  const payload = await apiClient.fetchCategorias(categoriasQueryString());
+  state.menuCategorias = Array.isArray(payload.data) ? payload.data : [];
+  state.categoryPaginationMeta = payload.meta || null;
 
-  if (categoryPaginationMeta && categoryState.page > Number(categoryPaginationMeta.totalPages || 1)) {
-    categoryState.page = Number(categoryPaginationMeta.totalPages || 1);
+  if (state.categoryPaginationMeta && categoryState.page > Number(state.categoryPaginationMeta.totalPages || 1)) {
+    categoryState.page = Number(state.categoryPaginationMeta.totalPages || 1);
     return loadCategorias();
   }
 
@@ -3429,15 +3231,12 @@ function produtosQueryString() {
 }
 
 async function loadProdutos() {
-  const response = await fetch(`/produtos?${produtosQueryString()}`, {
-    headers: authHeaders(),
-  });
-  const payload = await parseEnvelope(response);
-  menuProdutos = Array.isArray(payload.data) ? payload.data : [];
-  produtoPaginationMeta = payload.meta || null;
+  const payload = await apiClient.fetchProdutos(produtosQueryString());
+  state.menuProdutos = Array.isArray(payload.data) ? payload.data : [];
+  state.produtoPaginationMeta = payload.meta || null;
 
-  if (produtoPaginationMeta && produtoState.page > Number(produtoPaginationMeta.totalPages || 1)) {
-    produtoState.page = Number(produtoPaginationMeta.totalPages || 1);
+  if (state.produtoPaginationMeta && produtoState.page > Number(state.produtoPaginationMeta.totalPages || 1)) {
+    produtoState.page = Number(state.produtoPaginationMeta.totalPages || 1);
     return loadProdutos();
   }
 
@@ -3457,10 +3256,7 @@ async function loadCatalogPortalProdutos() {
       pageSize: 100,
     });
 
-    const response = await fetch(`/produtos?${query}`, {
-      headers: authHeaders(),
-    });
-    const payload = await parseEnvelope(response);
+    const payload = await apiClient.fetchProdutos(query);
     const items = Array.isArray(payload.data) ? payload.data : [];
 
     collectedProdutos.push(...items);
@@ -3468,7 +3264,7 @@ async function loadCatalogPortalProdutos() {
     page += 1;
   }
 
-  allMenuProdutos = collectedProdutos;
+  state.allMenuProdutos = collectedProdutos;
   renderCatalogOverview();
   renderCatalogPortal();
 }
@@ -3489,7 +3285,7 @@ function populateProdutoForm(produto) {
   produtoAtivoEl.checked = Boolean(produto.ativo);
   produtoImagemEl.value = '';
   produtoClearImagemEl.checked = false;
-  produtoImagemDataUrl = '';
+  state.produtoImagemDataUrl = '';
   buildImagePreview(produto.imagem_url);
 }
 
@@ -3502,7 +3298,7 @@ function startCategoriaEdit(categoria) {
 }
 
 async function removeCategoria(categoriaId) {
-  const categoria = menuCategorias.find((item) => item.id === categoriaId);
+  const categoria = state.menuCategorias.find((item) => item.id === categoriaId);
   const vinculados = Number(categoria?._count?.produtos || 0);
   const nome = categoria?.nome ? `"${categoria.nome}" ` : '';
   if (vinculados > 0) {
@@ -3518,11 +3314,7 @@ async function removeCategoria(categoriaId) {
   if (!confirm(message)) return;
 
   try {
-    await fetch(`/categorias/${categoriaId}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    }).then(async (response) => parseResponse(response));
-
+    await apiClient.deleteCategoria(categoriaId);
     await loadCardapioData();
     setStatus(categoryStatusEl, 'Categoria removida.', 'ok');
   } catch (error) {
@@ -3533,11 +3325,7 @@ async function removeCategoria(categoriaId) {
 async function removeProduto(produtoId) {
   if (!confirm('Deseja excluir esse item do cardápio?')) return;
   try {
-    const response = await fetch(`/produtos/${produtoId}`, {
-      method: 'DELETE',
-      headers: authHeaders(),
-    });
-    const result = await parseResponse(response);
+    const result = await apiClient.deleteProduto(produtoId);
     await loadCardapioData();
     setStatus(
       produtoStatusEl,
@@ -3553,10 +3341,10 @@ async function removeProduto(produtoId) {
 
 async function loadAdminData(options = {}) {
   const { allowRefresh = true } = options;
-  if (!accessToken && !refreshToken) return;
+  if (!state.accessToken && !state.refreshToken) return;
 
   try {
-    if (!accessToken && refreshToken) {
+    if (!state.accessToken && state.refreshToken) {
       await refreshAdminSession();
     }
 
@@ -3575,7 +3363,7 @@ async function loadAdminData(options = {}) {
     ]);
     document.dispatchEvent(new CustomEvent('admin:session-active'));
   } catch (error) {
-    if (allowRefresh && error.status === 401 && refreshToken) {
+    if (allowRefresh && error.status === 401 && state.refreshToken) {
       try {
         await refreshAdminSession();
         await loadAdminData({ allowRefresh: false });
@@ -3597,7 +3385,7 @@ async function loadAdminData(options = {}) {
   }
 }
 
-loginFormEl.addEventListener('submit', async (event) => {
+loginFormEl?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const payload = {
@@ -3622,14 +3410,8 @@ loginFormEl.addEventListener('submit', async (event) => {
   setStatus(loginStatusEl, 'Validando acesso...', 'muted');
 
   try {
-    const response = await fetch('/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await parseResponse(response);
-    currentUser = data.user;
+    const data = await apiClient.login(payload);
+    state.currentUser = data.user;
     persistSessionTokens(data, rememberSession);
     storeRememberedUsername(payload.username, rememberSession);
     applySessionUi();
@@ -3651,133 +3433,6 @@ loginFormEl.addEventListener('submit', async (event) => {
     setLoginBusy(false);
   }
 });
-
-
-const state = {
-  get accessToken() {
-    return accessToken;
-  },
-  set accessToken(value) {
-    accessToken = value;
-  },
-  get refreshToken() {
-    return refreshToken;
-  },
-  set refreshToken(value) {
-    refreshToken = value;
-  },
-  get currentUser() {
-    return currentUser;
-  },
-  set currentUser(value) {
-    currentUser = value;
-  },
-  get adminRealtimeConnected() {
-    return adminRealtimeConnected;
-  },
-  set adminRealtimeConnected(value) {
-    adminRealtimeConnected = Boolean(value);
-  },
-  get allOrders() {
-    return allOrders;
-  },
-  set allOrders(value) {
-    allOrders = value;
-  },
-  get crmCustomers() {
-    return crmCustomers;
-  },
-  set crmCustomers(value) {
-    crmCustomers = value;
-  },
-  get customerDetail() {
-    return customerDetail;
-  },
-  set customerDetail(value) {
-    customerDetail = value;
-  },
-  get menuCategorias() {
-    return menuCategorias;
-  },
-  set menuCategorias(value) {
-    menuCategorias = value;
-  },
-  get allCategorias() {
-    return allCategorias;
-  },
-  set allCategorias(value) {
-    allCategorias = value;
-  },
-  get menuProdutos() {
-    return menuProdutos;
-  },
-  set menuProdutos(value) {
-    menuProdutos = value;
-  },
-  get allMenuProdutos() {
-    return allMenuProdutos;
-  },
-  set allMenuProdutos(value) {
-    allMenuProdutos = value;
-  },
-  get deliveryFees() {
-    return deliveryFees;
-  },
-  set deliveryFees(value) {
-    deliveryFees = value;
-  },
-  get produtoImagemDataUrl() {
-    return produtoImagemDataUrl;
-  },
-  set produtoImagemDataUrl(value) {
-    produtoImagemDataUrl = value;
-  },
-  get productImageWebpSupported() {
-    return productImageWebpSupported;
-  },
-  set productImageWebpSupported(value) {
-    productImageWebpSupported = value;
-  },
-  get selectedCustomerId() {
-    return selectedCustomerId;
-  },
-  set selectedCustomerId(value) {
-    selectedCustomerId = value;
-  },
-  get customerPaginationMeta() {
-    return customerPaginationMeta;
-  },
-  set customerPaginationMeta(value) {
-    customerPaginationMeta = value;
-  },
-  get ordersPaginationMeta() {
-    return ordersPaginationMeta;
-  },
-  set ordersPaginationMeta(value) {
-    ordersPaginationMeta = value;
-  },
-  get categoryPaginationMeta() {
-    return categoryPaginationMeta;
-  },
-  set categoryPaginationMeta(value) {
-    categoryPaginationMeta = value;
-  },
-  get produtoPaginationMeta() {
-    return produtoPaginationMeta;
-  },
-  set produtoPaginationMeta(value) {
-    produtoPaginationMeta = value;
-  },
-  dashboardFilters,
-  ordersState,
-  customersState,
-  categoryState,
-  produtoState,
-  catalogPortalState,
-  orderAuditCache,
-  expandedOrderAuditIds,
-};
-
 const dom = {
   adminLayoutEl,
   loginCardEl,
@@ -4076,12 +3731,9 @@ if (loginPasswordEl) {
 
 if (clearRememberedLoginBtnEl) {
   clearRememberedLoginBtnEl.addEventListener('click', () => {
-    localStorage.removeItem(STORAGE_KEYS.accessToken);
-    localStorage.removeItem(STORAGE_KEYS.refreshToken);
-    localStorage.removeItem(STORAGE_KEYS.rememberedUsername);
-    localStorage.removeItem(STORAGE_KEYS.rememberSession);
+    adminStore.clearRememberedLoginData();
     updateRememberedLoginUi();
-    if (!accessToken && loginUsernameEl) {
+    if (!state.accessToken && loginUsernameEl) {
       loginUsernameEl.value = '';
       loginUsernameEl.focus();
     }
@@ -4119,7 +3771,7 @@ renderCatalogPortal();
 renderDeliveryFeeList();
 renderSettingsOverview();
 syncStoreHoursInputsState();
-if (accessToken || refreshToken) {
+if (state.accessToken || state.refreshToken) {
   loadAdminData();
 } else {
   clearSession();

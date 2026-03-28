@@ -1,5 +1,6 @@
 export function bindCustomersSection(ctx) {
   const { dom, state, helpers, api } = ctx;
+  const bindEvent = (target, eventName, handler) => target?.addEventListener?.(eventName, handler);
   const customerSegmentTabs = Array.from(document.querySelectorAll('[data-customers-segment-tab]'));
 
   const debouncedLoadCustomersSearch = helpers.createDebounce(220, () => {
@@ -7,7 +8,7 @@ export function bindCustomersSection(ctx) {
     api.loadCustomers().catch((error) => helpers.setStatus(dom.customersStatusEl, error.message, 'err'));
   });
 
-  dom.refreshCustomersBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.refreshCustomersBtnEl, 'click', async () => {
     if (!state.accessToken) return;
 
     try {
@@ -18,7 +19,7 @@ export function bindCustomersSection(ctx) {
   });
 
   customerSegmentTabs.forEach((button) => {
-    button.addEventListener('click', async () => {
+    bindEvent(button, 'click', async () => {
       const nextSegment = button.dataset.customersSegmentTab || 'all';
       state.customersState.segment = nextSegment;
       state.customersState.page = 1;
@@ -37,7 +38,7 @@ export function bindCustomersSection(ctx) {
     });
   });
 
-  dom.applyCustomersFiltersBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.applyCustomersFiltersBtnEl, 'click', async () => {
     api.syncCustomersStateFromControls();
     state.customersState.page = 1;
     if (!state.accessToken) return;
@@ -49,19 +50,19 @@ export function bindCustomersSection(ctx) {
     }
   });
 
-  dom.customersSearchInputEl.addEventListener('input', () => {
+  bindEvent(dom.customersSearchInputEl, 'input', () => {
     api.syncCustomersStateFromControls();
     state.customersState.page = 1;
     debouncedLoadCustomersSearch();
   });
 
-  dom.customersSearchInputEl.addEventListener('keydown', (event) => {
+  bindEvent(dom.customersSearchInputEl, 'keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    dom.applyCustomersFiltersBtnEl.click();
+    dom.applyCustomersFiltersBtnEl?.click();
   });
 
-  dom.customersSegmentFilterEl.addEventListener('change', async () => {
+  bindEvent(dom.customersSegmentFilterEl, 'change', async () => {
     state.customersState.segment = dom.customersSegmentFilterEl.value || 'all';
     state.customersState.page = 1;
     if (!state.accessToken) return;
@@ -73,7 +74,7 @@ export function bindCustomersSection(ctx) {
     }
   });
 
-  dom.customersSortInputEl.addEventListener('change', async () => {
+  bindEvent(dom.customersSortInputEl, 'change', async () => {
     state.customersState.sort = dom.customersSortInputEl.value || 'recent_desc';
     state.customersState.page = 1;
     if (!state.accessToken) return;
@@ -85,7 +86,7 @@ export function bindCustomersSection(ctx) {
     }
   });
 
-  dom.customersRangePresetEl.addEventListener('change', async () => {
+  bindEvent(dom.customersRangePresetEl, 'change', async () => {
     state.customersState.period = dom.customersRangePresetEl.value;
     helpers.syncRangeInputs(
       dom.customersRangePresetEl,
@@ -112,7 +113,7 @@ export function bindCustomersSection(ctx) {
     }
   });
 
-  dom.customersPageSizeInputEl.addEventListener('change', async () => {
+  bindEvent(dom.customersPageSizeInputEl, 'change', async () => {
     state.customersState.pageSize = Number(dom.customersPageSizeInputEl.value || 12);
     state.customersState.page = 1;
     if (!state.accessToken) return;
@@ -124,23 +125,23 @@ export function bindCustomersSection(ctx) {
     }
   });
 
-  dom.customersFromDateEl.addEventListener('change', () => {
+  bindEvent(dom.customersFromDateEl, 'change', () => {
     state.customersState.from = dom.customersFromDateEl.value || '';
     helpers.validateRangeState(state.customersState, dom.customersStatusEl, 'clientes');
   });
 
-  dom.customersToDateEl.addEventListener('change', () => {
+  bindEvent(dom.customersToDateEl, 'change', () => {
     state.customersState.to = dom.customersToDateEl.value || '';
     helpers.validateRangeState(state.customersState, dom.customersStatusEl, 'clientes');
   });
 
-  dom.customersPrevBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.customersPrevBtnEl, 'click', async () => {
     if (state.customersState.page <= 1 || !state.accessToken) return;
     state.customersState.page -= 1;
     await api.loadCustomers().catch((error) => helpers.setStatus(dom.customersStatusEl, error.message, 'err'));
   });
 
-  dom.customersNextBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.customersNextBtnEl, 'click', async () => {
     if (!state.accessToken) return;
     const totalPages = Number(state.customerPaginationMeta?.totalPages || 1);
     if (state.customersState.page >= totalPages) return;
@@ -148,7 +149,7 @@ export function bindCustomersSection(ctx) {
     await api.loadCustomers().catch((error) => helpers.setStatus(dom.customersStatusEl, error.message, 'err'));
   });
 
-  dom.customersListEl.addEventListener('click', async (event) => {
+  bindEvent(dom.customersListEl, 'click', async (event) => {
     const customerButton = event.target.closest('[data-customer-select]');
     if (!customerButton) return;
 
@@ -167,7 +168,7 @@ export function bindCustomersSection(ctx) {
     }
   });
 
-  dom.customerDetailEl.addEventListener('click', async (event) => {
+  bindEvent(dom.customerDetailEl, 'click', async (event) => {
     const orderButton = event.target.closest('button[data-open-order]');
     if (!orderButton) return;
 

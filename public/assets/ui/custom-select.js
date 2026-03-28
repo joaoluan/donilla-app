@@ -3,6 +3,7 @@
   const OPTION_DISABLED_SELECTOR = 'option:disabled';
   const instances = new WeakMap();
   let activeInstance = null;
+  let domObserver = null;
   let uid = 0;
 
   function nextId() {
@@ -266,6 +267,8 @@
       if (!isEligibleSelect(select)) return;
       createInstance(select);
     });
+
+    observeDom();
   }
 
   function refresh(select) {
@@ -299,8 +302,16 @@
     });
   }
 
+  function disconnectObserver() {
+    if (!domObserver) return;
+    domObserver.disconnect();
+    domObserver = null;
+  }
+
   function observeDom() {
-    const observer = new MutationObserver((records) => {
+    if (typeof MutationObserver === 'undefined' || !document.documentElement || domObserver) return;
+
+    domObserver = new MutationObserver((records) => {
       const pendingSelects = new Set();
 
       records.forEach((record) => {
@@ -331,7 +342,7 @@
       pendingSelects.forEach((select) => refresh(select));
     });
 
-    observer.observe(document.documentElement, {
+    domObserver.observe(document.documentElement, {
       subtree: true,
       childList: true,
       attributes: true,
@@ -376,6 +387,10 @@
     refreshAll,
     closeActive() {
       close(activeInstance);
+    },
+    destroy() {
+      close(activeInstance);
+      disconnectObserver();
     },
   };
 

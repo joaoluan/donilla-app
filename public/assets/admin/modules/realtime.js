@@ -62,7 +62,7 @@ export function bindRealtimeSection(ctx) {
           await api.refreshAdminSession();
         } catch {
           api.clearSession();
-          helpers.setStatus(dom.loginStatusEl, 'Sessao expirada. Faca login novamente.', 'err');
+          helpers.setStatus(dom.loginStatusEl, 'Sessão expirada. Faça login novamente.', 'err');
           return;
         }
       } else {
@@ -88,7 +88,7 @@ export function bindRealtimeSection(ctx) {
           return refreshAdminViewsFromRealtime({ allowRefresh: false });
         } catch {
           api.clearSession();
-          helpers.setStatus(dom.loginStatusEl, 'Sessao expirada. Faca login novamente.', 'err');
+          helpers.setStatus(dom.loginStatusEl, 'Sessão expirada. Faça login novamente.', 'err');
           return;
         }
       }
@@ -227,7 +227,7 @@ export function bindRealtimeSection(ctx) {
         await api.refreshAdminSession();
       } catch {
         api.clearSession();
-        helpers.setStatus(dom.loginStatusEl, 'Sessao expirada. Faca login novamente.', 'err');
+        helpers.setStatus(dom.loginStatusEl, 'Sessão expirada. Faça login novamente.', 'err');
         return;
       }
     }
@@ -258,7 +258,7 @@ export function bindRealtimeSection(ctx) {
             return connectStream({ allowRefresh: false });
           } catch {
             api.clearSession();
-            helpers.setStatus(dom.loginStatusEl, 'Sessao expirada. Faca login novamente.', 'err');
+            helpers.setStatus(dom.loginStatusEl, 'Sessão expirada. Faça login novamente.', 'err');
             return;
           }
         }
@@ -267,7 +267,7 @@ export function bindRealtimeSection(ctx) {
       }
 
       if (!response.body) {
-        throw new Error('Conexao em tempo real indisponivel neste navegador.');
+        throw new Error('Conexão em tempo real indisponível neste navegador.');
       }
 
       reconnectAttempts = 0;
@@ -287,7 +287,7 @@ export function bindRealtimeSection(ctx) {
           return connectStream({ allowRefresh: false });
         } catch {
           api.clearSession();
-          helpers.setStatus(dom.loginStatusEl, 'Sessao expirada. Faca login novamente.', 'err');
+          helpers.setStatus(dom.loginStatusEl, 'Sessão expirada. Faça login novamente.', 'err');
           return;
         }
       }

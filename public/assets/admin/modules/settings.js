@@ -1,5 +1,6 @@
 export function bindSettingsSection(ctx) {
   const { dom, state, helpers, api } = ctx;
+  const bindEvent = (target, eventName, handler) => target?.addEventListener?.(eventName, handler);
   const settingsTabButtons = Array.from(document.querySelectorAll('[data-settings-tab]'));
   const settingsPanels = Array.from(document.querySelectorAll('[data-settings-panel]'));
   let activeSettingsTab = 'operacao';
@@ -61,14 +62,14 @@ export function bindSettingsSection(ctx) {
   }
 
   settingsTabButtons.forEach((button) => {
-    button.addEventListener('click', () => {
+    bindEvent(button, 'click', () => {
       setActiveSettingsTab(button.dataset.settingsTab || 'operacao');
     });
   });
 
   setActiveSettingsTab('operacao');
 
-  dom.settingsFormEl.addEventListener('change', (event) => {
+  bindEvent(dom.settingsFormEl, 'change', (event) => {
     const target = event.target;
     const fieldName = String(target?.name || '');
     if (fieldName.startsWith('horario_funcionamento_') && fieldName.endsWith('_enabled')) {
@@ -76,7 +77,7 @@ export function bindSettingsSection(ctx) {
     }
   });
 
-  dom.settingsFormEl.addEventListener('submit', async (event) => {
+  bindEvent(dom.settingsFormEl, 'submit', async (event) => {
     event.preventDefault();
     if (!state.accessToken) {
       helpers.setStatus(dom.settingsStatusEl, 'Faça login antes de salvar.', 'err');
@@ -104,7 +105,7 @@ export function bindSettingsSection(ctx) {
     }
   });
 
-  dom.whatsappBotPauseBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.whatsappBotPauseBtnEl, 'click', async () => {
     if (!state.accessToken) {
       helpers.setStatus(dom.whatsappBotPauseStatusEl, 'Faça login antes de pausar o bot.', 'err');
       return;
@@ -142,7 +143,7 @@ export function bindSettingsSection(ctx) {
     }
   });
 
-  dom.whatsappSessionStatusBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.whatsappSessionStatusBtnEl, 'click', async () => {
     if (!state.accessToken) {
       helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de consultar a sessão.', 'err');
       return;
@@ -152,13 +153,13 @@ export function bindSettingsSection(ctx) {
 
     try {
       await api.loadWhatsAppSessionStatus();
-      helpers.setStatus(dom.whatsappSessionStatusEl, 'Consulta concluida. Se a sessao estiver conectada, o numero ja pode enviar mensagens.', 'ok');
+      helpers.setStatus(dom.whatsappSessionStatusEl, 'Consulta concluída. Se a sessão estiver conectada, o número já pode enviar mensagens.', 'ok');
     } catch (error) {
       helpers.setStatus(dom.whatsappSessionStatusEl, error.message, 'err');
     }
   });
 
-  dom.whatsappSessionStartBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.whatsappSessionStartBtnEl, 'click', async () => {
     if (!state.accessToken) {
       helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de iniciar a sessão.', 'err');
       return;
@@ -175,7 +176,7 @@ export function bindSettingsSection(ctx) {
 
       const data = await helpers.parseResponse(response);
       api.renderWhatsAppSessionState(data);
-      helpers.setStatus(dom.whatsappSessionStatusEl, 'Sessao preparada no WPPConnect. Agora clique em Buscar QR Code e escaneie no celular da loja.', 'ok');
+      helpers.setStatus(dom.whatsappSessionStatusEl, 'Sessão preparada no WPPConnect. Agora clique em Buscar QR Code e escaneie no celular da loja.', 'ok');
     } catch (error) {
       helpers.setStatus(dom.whatsappSessionStatusEl, error.message, 'err');
     } finally {
@@ -183,7 +184,7 @@ export function bindSettingsSection(ctx) {
     }
   });
 
-  dom.whatsappSessionQrBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.whatsappSessionQrBtnEl, 'click', async () => {
     if (!state.accessToken) {
       helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de buscar o QR Code.', 'err');
       return;
@@ -195,9 +196,9 @@ export function bindSettingsSection(ctx) {
     try {
       const data = await api.loadWhatsAppQrCode();
       if (data?.qrCodeDataUrl) {
-        helpers.setStatus(dom.whatsappSessionStatusEl, 'QR Code pronto. Abra o WhatsApp do numero da loja e escaneie agora.', 'ok');
+        helpers.setStatus(dom.whatsappSessionStatusEl, 'QR Code pronto. Abra o WhatsApp do número da loja e escaneie agora.', 'ok');
       } else {
-        helpers.setStatus(dom.whatsappSessionStatusEl, 'Nenhum QR Code disponivel agora. Consulte ou reinicie a sessao e tente novamente.', 'muted');
+        helpers.setStatus(dom.whatsappSessionStatusEl, 'Nenhum QR Code disponível agora. Consulte ou reinicie a sessão e tente novamente.', 'muted');
       }
     } catch (error) {
       helpers.setStatus(dom.whatsappSessionStatusEl, error.message, 'err');
@@ -206,7 +207,7 @@ export function bindSettingsSection(ctx) {
     }
   });
 
-  dom.whatsappTestBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.whatsappTestBtnEl, 'click', async () => {
     if (!state.accessToken) {
       helpers.setStatus(dom.whatsappTestStatusEl, 'Faça login antes de testar.', 'err');
       return;
@@ -232,7 +233,7 @@ export function bindSettingsSection(ctx) {
       });
 
       await helpers.parseResponse(response);
-      helpers.setStatus(dom.whatsappTestStatusEl, `Teste enviado para ${telefone}. Se o numero estiver conectado, a mensagem chega em alguns segundos.`, 'ok');
+      helpers.setStatus(dom.whatsappTestStatusEl, `Teste enviado para ${telefone}. Se o número estiver conectado, a mensagem chega em alguns segundos.`, 'ok');
     } catch (error) {
       helpers.setStatus(dom.whatsappTestStatusEl, error.message, 'err');
     } finally {
@@ -240,13 +241,11 @@ export function bindSettingsSection(ctx) {
     }
   });
 
-  if (dom.deliveryFeeSearchInputEl) {
-    dom.deliveryFeeSearchInputEl.addEventListener('input', () => {
-      api.renderDeliveryFeeList();
-    });
-  }
+  bindEvent(dom.deliveryFeeSearchInputEl, 'input', () => {
+    api.renderDeliveryFeeList();
+  });
 
-  dom.deliveryFeeFormEl.addEventListener('submit', async (event) => {
+  bindEvent(dom.deliveryFeeFormEl, 'submit', async (event) => {
     event.preventDefault();
     if (!state.accessToken) {
       helpers.setStatus(dom.deliveryFeeStatusEl, 'Faça login antes de salvar.', 'err');
@@ -290,11 +289,11 @@ export function bindSettingsSection(ctx) {
     }
   });
 
-  dom.deliveryFeeCancelBtnEl.addEventListener('click', () => {
+  bindEvent(dom.deliveryFeeCancelBtnEl, 'click', () => {
     api.resetDeliveryFeeForm();
   });
 
-  dom.deliveryFeeListEl.addEventListener('click', async (event) => {
+  bindEvent(dom.deliveryFeeListEl, 'click', async (event) => {
     const editButton = event.target.closest('button[data-delivery-fee-edit]');
     if (editButton) {
       const id = Number(editButton.dataset.deliveryFeeEdit);

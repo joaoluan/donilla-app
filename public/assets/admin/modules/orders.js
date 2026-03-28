@@ -102,8 +102,8 @@ export function bindOrdersSection(ctx) {
     }
     if (dom.ordersArrivalTextEl) {
       dom.ordersArrivalTextEl.textContent = count === 1
-        ? 'O pedido entrou agora e ficou destacado para voce agir sem rolar a pagina.'
-        : `${count} pedidos entraram agora e ficaram destacados para voce agir sem rolar a pagina.`;
+        ? 'O pedido entrou agora e ficou destacado para você agir sem rolar a página.'
+        : `${count} pedidos entraram agora e ficaram destacados para você agir sem rolar a página.`;
     }
     if (latestArrival && dom.ordersArrivalSummaryEl) {
       dom.ordersArrivalSummaryEl.classList.remove('hidden');

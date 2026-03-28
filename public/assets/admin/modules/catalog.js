@@ -1,5 +1,6 @@
 export function bindCatalogSection(ctx) {
   const { dom, state, helpers, api } = ctx;
+  const bindEvent = (target, eventName, handler) => target?.addEventListener?.(eventName, handler);
 
   const catalogTabButtons = Array.from(document.querySelectorAll('[data-catalog-tab]'));
   const catalogPanels = Array.from(document.querySelectorAll('[data-catalog-tab-panel]'));
@@ -26,7 +27,7 @@ export function bindCatalogSection(ctx) {
   };
 
   catalogTabButtons.forEach((button) => {
-    button.addEventListener('click', () => {
+    bindEvent(button, 'click', () => {
       setActiveCatalogTab(button.dataset.catalogTab || 'cardapio');
     });
   });
@@ -59,107 +60,87 @@ export function bindCatalogSection(ctx) {
     focusTarget?.focus({ preventScroll: true });
   };
 
-  if (dom.catalogPortalSearchInputEl) {
-    dom.catalogPortalSearchInputEl.addEventListener('input', () => {
-      state.catalogPortalState.search = String(dom.catalogPortalSearchInputEl.value || '').trim();
-      debouncedRenderCatalogPortal();
-    });
-  }
+  bindEvent(dom.catalogPortalSearchInputEl, 'input', () => {
+    state.catalogPortalState.search = String(dom.catalogPortalSearchInputEl.value || '').trim();
+    debouncedRenderCatalogPortal();
+  });
 
-  if (dom.catalogPortalCategoryFilterEl) {
-    dom.catalogPortalCategoryFilterEl.addEventListener('change', () => {
-      state.catalogPortalState.categoria_id = dom.catalogPortalCategoryFilterEl.value || 'all';
-      api.renderCatalogPortal();
-    });
-  }
+  bindEvent(dom.catalogPortalCategoryFilterEl, 'change', () => {
+    state.catalogPortalState.categoria_id = dom.catalogPortalCategoryFilterEl.value || 'all';
+    api.renderCatalogPortal();
+  });
 
-  if (dom.catalogGoToCategoriasBtnEl) {
-    dom.catalogGoToCategoriasBtnEl.addEventListener('click', () => {
-      focusCategoriaEditor({ reset: true });
-    });
-  }
+  bindEvent(dom.catalogGoToCategoriasBtnEl, 'click', () => {
+    focusCategoriaEditor({ reset: true });
+  });
 
-  if (categoryOpenFormBtn) {
-    categoryOpenFormBtn.addEventListener('click', () => {
-      focusCategoriaEditor({ reset: true });
-    });
-  }
+  bindEvent(categoryOpenFormBtn, 'click', () => {
+    focusCategoriaEditor({ reset: true });
+  });
 
-  if (dom.catalogGoToProdutosBtnEl) {
-    dom.catalogGoToProdutosBtnEl.addEventListener('click', () => {
-      focusProdutoEditor({ reset: true });
-    });
-  }
+  bindEvent(dom.catalogGoToProdutosBtnEl, 'click', () => {
+    focusProdutoEditor({ reset: true });
+  });
 
-  if (produtoOpenFormBtn) {
-    produtoOpenFormBtn.addEventListener('click', () => {
-      focusProdutoEditor({ reset: true });
-    });
-  }
+  bindEvent(produtoOpenFormBtn, 'click', () => {
+    focusProdutoEditor({ reset: true });
+  });
 
-  if (dom.catalogPortalListEl) {
-    dom.catalogPortalListEl.addEventListener('click', (event) => {
-      const categoryEditBtn = event.target.closest('button[data-catalog-quick-category]');
-      if (categoryEditBtn) {
-        const categoriaId = Number(categoryEditBtn.dataset.catalogQuickCategory);
-        const categoria = state.allCategorias.find((item) => item.id === categoriaId);
-        if (categoria) {
-          api.startCategoriaEdit(categoria);
-          focusCategoriaEditor();
-        }
-        return;
+  bindEvent(dom.catalogPortalListEl, 'click', (event) => {
+    const categoryEditBtn = event.target.closest('button[data-catalog-quick-category]');
+    if (categoryEditBtn) {
+      const categoriaId = Number(categoryEditBtn.dataset.catalogQuickCategory);
+      const categoria = state.allCategorias.find((item) => item.id === categoriaId);
+      if (categoria) {
+        api.startCategoriaEdit(categoria);
+        focusCategoriaEditor();
       }
+      return;
+    }
 
-      const productEditBtn = event.target.closest('button[data-catalog-quick-product]');
-      if (productEditBtn) {
-        const produtoId = Number(productEditBtn.dataset.catalogQuickProduct);
-        const produto = state.allMenuProdutos.find((item) => item.id === produtoId);
-        if (produto) {
-          api.populateProdutoForm(produto);
-          focusProdutoEditor();
-        }
+    const productEditBtn = event.target.closest('button[data-catalog-quick-product]');
+    if (productEditBtn) {
+      const produtoId = Number(productEditBtn.dataset.catalogQuickProduct);
+      const produto = state.allMenuProdutos.find((item) => item.id === produtoId);
+      if (produto) {
+        api.populateProdutoForm(produto);
+        focusProdutoEditor();
       }
-    });
-  }
+    }
+  });
 
   const debouncedLoadCategorias = helpers.createDebounce(250, () => {
     if (!state.accessToken) return;
     api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
   });
 
-  if (dom.categorySearchInputEl) {
-    dom.categorySearchInputEl.addEventListener('input', () => {
-      state.categoryState.search = String(dom.categorySearchInputEl.value || '').trim();
-      state.categoryState.page = 1;
-      debouncedLoadCategorias();
-    });
-  }
+  bindEvent(dom.categorySearchInputEl, 'input', () => {
+    state.categoryState.search = String(dom.categorySearchInputEl.value || '').trim();
+    state.categoryState.page = 1;
+    debouncedLoadCategorias();
+  });
 
-  if (dom.categorySortInputEl) {
-    dom.categorySortInputEl.addEventListener('change', () => {
-      state.categoryState.sort = dom.categorySortInputEl.value || 'ordem_exibicao';
-      state.categoryState.page = 1;
-      if (!state.accessToken) return;
-      api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
-    });
-  }
+  bindEvent(dom.categorySortInputEl, 'change', () => {
+    state.categoryState.sort = dom.categorySortInputEl.value || 'ordem_exibicao';
+    state.categoryState.page = 1;
+    if (!state.accessToken) return;
+    api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
+  });
 
-  if (dom.categoryPageSizeInputEl) {
-    dom.categoryPageSizeInputEl.addEventListener('change', () => {
-      state.categoryState.pageSize = Number(dom.categoryPageSizeInputEl.value || 10);
-      state.categoryState.page = 1;
-      if (!state.accessToken) return;
-      api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
-    });
-  }
+  bindEvent(dom.categoryPageSizeInputEl, 'change', () => {
+    state.categoryState.pageSize = Number(dom.categoryPageSizeInputEl.value || 10);
+    state.categoryState.page = 1;
+    if (!state.accessToken) return;
+    api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
+  });
 
-  dom.categoryPrevBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.categoryPrevBtnEl, 'click', async () => {
     if (state.categoryState.page <= 1 || !state.accessToken) return;
     state.categoryState.page -= 1;
     await api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
   });
 
-  dom.categoryNextBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.categoryNextBtnEl, 'click', async () => {
     if (!state.accessToken) return;
     const totalPages = Number(state.categoryPaginationMeta?.totalPages || 1);
     if (state.categoryState.page >= totalPages) return;
@@ -172,57 +153,47 @@ export function bindCatalogSection(ctx) {
     api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
   });
 
-  if (dom.produtoSearchInputEl) {
-    dom.produtoSearchInputEl.addEventListener('input', () => {
-      state.produtoState.search = String(dom.produtoSearchInputEl.value || '').trim();
-      state.produtoState.page = 1;
-      debouncedLoadProdutos();
-    });
-  }
+  bindEvent(dom.produtoSearchInputEl, 'input', () => {
+    state.produtoState.search = String(dom.produtoSearchInputEl.value || '').trim();
+    state.produtoState.page = 1;
+    debouncedLoadProdutos();
+  });
 
-  if (dom.produtoSortInputEl) {
-    dom.produtoSortInputEl.addEventListener('change', () => {
-      state.produtoState.sort = dom.produtoSortInputEl.value || 'nome_doce';
-      state.produtoState.page = 1;
-      if (!state.accessToken) return;
-      api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
-    });
-  }
+  bindEvent(dom.produtoSortInputEl, 'change', () => {
+    state.produtoState.sort = dom.produtoSortInputEl.value || 'nome_doce';
+    state.produtoState.page = 1;
+    if (!state.accessToken) return;
+    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+  });
 
-  if (dom.produtoDisponibilidadeFilterEl) {
-    dom.produtoDisponibilidadeFilterEl.addEventListener('change', () => {
-      state.produtoState.disponibilidade = dom.produtoDisponibilidadeFilterEl.value || 'all';
-      state.produtoState.page = 1;
-      if (!state.accessToken) return;
-      api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
-    });
-  }
+  bindEvent(dom.produtoDisponibilidadeFilterEl, 'change', () => {
+    state.produtoState.disponibilidade = dom.produtoDisponibilidadeFilterEl.value || 'all';
+    state.produtoState.page = 1;
+    if (!state.accessToken) return;
+    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+  });
 
-  if (dom.produtoCategoriaFilterEl) {
-    dom.produtoCategoriaFilterEl.addEventListener('change', () => {
-      state.produtoState.categoria_id = dom.produtoCategoriaFilterEl.value || 'all';
-      state.produtoState.page = 1;
-      if (!state.accessToken) return;
-      api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
-    });
-  }
+  bindEvent(dom.produtoCategoriaFilterEl, 'change', () => {
+    state.produtoState.categoria_id = dom.produtoCategoriaFilterEl.value || 'all';
+    state.produtoState.page = 1;
+    if (!state.accessToken) return;
+    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+  });
 
-  if (dom.produtoPageSizeInputEl) {
-    dom.produtoPageSizeInputEl.addEventListener('change', () => {
-      state.produtoState.pageSize = Number(dom.produtoPageSizeInputEl.value || 12);
-      state.produtoState.page = 1;
-      if (!state.accessToken) return;
-      api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
-    });
-  }
+  bindEvent(dom.produtoPageSizeInputEl, 'change', () => {
+    state.produtoState.pageSize = Number(dom.produtoPageSizeInputEl.value || 12);
+    state.produtoState.page = 1;
+    if (!state.accessToken) return;
+    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+  });
 
-  dom.produtoPrevBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.produtoPrevBtnEl, 'click', async () => {
     if (state.produtoState.page <= 1 || !state.accessToken) return;
     state.produtoState.page -= 1;
     await api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
   });
 
-  dom.produtoNextBtnEl.addEventListener('click', async () => {
+  bindEvent(dom.produtoNextBtnEl, 'click', async () => {
     if (!state.accessToken) return;
     const totalPages = Number(state.produtoPaginationMeta?.totalPages || 1);
     if (state.produtoState.page >= totalPages) return;
@@ -230,7 +201,7 @@ export function bindCatalogSection(ctx) {
     await api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
   });
 
-  dom.categoryFormEl.addEventListener('submit', async (event) => {
+  bindEvent(dom.categoryFormEl, 'submit', async (event) => {
     event.preventDefault();
     if (!state.accessToken) {
       helpers.setStatus(dom.categoryStatusEl, 'Faça login antes de salvar.', 'err');
@@ -272,11 +243,11 @@ export function bindCatalogSection(ctx) {
     }
   });
 
-  dom.categoriaCancelBtn.addEventListener('click', () => {
+  bindEvent(dom.categoriaCancelBtn, 'click', () => {
     api.resetCategoriaForm();
   });
 
-  dom.produtoFormEl.addEventListener('submit', async (event) => {
+  bindEvent(dom.produtoFormEl, 'submit', async (event) => {
     event.preventDefault();
     if (!state.accessToken) {
       helpers.setStatus(dom.produtoStatusEl, 'Faça login antes de salvar.', 'err');
@@ -340,11 +311,11 @@ export function bindCatalogSection(ctx) {
     }
   });
 
-  dom.produtoCancelBtn.addEventListener('click', () => {
+  bindEvent(dom.produtoCancelBtn, 'click', () => {
     api.resetProdutoForm();
   });
 
-  dom.produtoImagemEl.addEventListener('change', async () => {
+  bindEvent(dom.produtoImagemEl, 'change', async () => {
     if (!dom.produtoImagemEl.files || !dom.produtoImagemEl.files[0]) {
       return;
     }
@@ -360,7 +331,7 @@ export function bindCatalogSection(ctx) {
     }
   });
 
-  dom.produtoClearImagemEl.addEventListener('change', () => {
+  bindEvent(dom.produtoClearImagemEl, 'change', () => {
     if (!dom.produtoClearImagemEl.checked) return;
     dom.produtoImagemEl.value = '';
     state.produtoImagemDataUrl = '';
@@ -369,7 +340,7 @@ export function bindCatalogSection(ctx) {
     }
   });
 
-  dom.categoryListEl.addEventListener('click', async (event) => {
+  bindEvent(dom.categoryListEl, 'click', async (event) => {
     const btnEdit = event.target.closest('button[data-category-edit]');
     if (btnEdit) {
       const id = Number(btnEdit.dataset.categoryEdit);
@@ -390,7 +361,7 @@ export function bindCatalogSection(ctx) {
     }
   });
 
-  dom.produtoListEl.addEventListener('click', async (event) => {
+  bindEvent(dom.produtoListEl, 'click', async (event) => {
     const btnEdit = event.target.closest('button[data-produto-edit]');
     if (btnEdit) {
       const id = Number(btnEdit.dataset.produtoEdit);
