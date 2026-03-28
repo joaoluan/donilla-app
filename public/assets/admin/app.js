@@ -2,7 +2,7 @@ import { bindNavigationSection } from './modules/navigation.js?v=20260328a'
 import { bindDashboardSection } from './modules/dashboard.js?v=20260328a'
 import { bindRealtimeSection } from './modules/realtime.js?v=20260328b'
 import { bindCustomersSection } from './modules/customers.js?v=20260325o'
-import { bindOrdersSection } from './modules/orders.js?v=20260328b'
+import { bindOrdersSection } from './modules/orders.js?v=20260328d'
 import { bindSettingsSection } from './modules/settings.js?v=20260325o'
 import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
 
@@ -298,6 +298,7 @@ const expandedOrderAuditIds = new Set();
 const passwordToggleTimeouts = new Map();
 let refreshSessionPromise = null;
 let adminRealtimeConnected = false;
+let clearSessionUiFrameId = null;
 
 const dashboardFilters = {
   period: 'today',
@@ -1383,6 +1384,66 @@ function updateCustomersControlsFromState() {
   syncRangeInputs(customersRangePresetEl, customersFromDateEl, customersToDateEl, customersState);
 }
 
+function updateCatalogControlsFromState() {
+  if (catalogPortalSearchInputEl) catalogPortalSearchInputEl.value = catalogPortalState.search;
+  if (categorySearchInputEl) categorySearchInputEl.value = categoryState.search;
+  if (categorySortInputEl) categorySortInputEl.value = categoryState.sort;
+  if (categoryPageSizeInputEl) categoryPageSizeInputEl.value = String(categoryState.pageSize);
+  if (produtoSearchInputEl) produtoSearchInputEl.value = produtoState.search;
+  if (produtoSortInputEl) produtoSortInputEl.value = produtoState.sort;
+  if (produtoDisponibilidadeFilterEl) produtoDisponibilidadeFilterEl.value = produtoState.disponibilidade;
+  if (produtoPageSizeInputEl) produtoPageSizeInputEl.value = String(produtoState.pageSize);
+  if (deliveryFeeSearchInputEl) deliveryFeeSearchInputEl.value = '';
+}
+
+function cancelPendingClearSessionUiRender() {
+  if (clearSessionUiFrameId === null) return;
+  window.cancelAnimationFrame(clearSessionUiFrameId);
+  clearSessionUiFrameId = null;
+}
+
+function renderLoggedOutAdminUi() {
+  if (accessToken || currentUser) return;
+
+  applySessionUi();
+  renderDashboard();
+  renderCustomerDetail();
+  renderCustomers();
+  renderOrders();
+  resetCategoriaForm();
+  resetProdutoForm();
+  resetDeliveryFeeForm();
+  populateCategoriaOptions();
+  populateProdutoCategoriaFilterOptions();
+  populateCatalogPortalCategoryFilterOptions();
+  renderCategoryList();
+  renderProdutoList();
+  renderCatalogOverview();
+  renderCatalogPortal();
+  renderDeliveryFeeList();
+  renderSettingsOverview();
+  updateCustomersControlsFromState();
+  updateOrdersControlsFromState();
+  updateCatalogControlsFromState();
+  syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
+  clearStatus(dashboardStatusEl);
+  clearStatus(customersStatusEl);
+  clearStatus(ordersStatusEl);
+  setStatus(settingsStatusEl, 'Faça login para editar configurações.', 'muted');
+  setStatus(deliveryFeeStatusEl, 'Faça login para editar taxas de entrega.', 'muted');
+  setLoginBusy(false);
+  passwordToggleEls.forEach((button) => hidePasswordForButton(button));
+  setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
+}
+
+function scheduleClearSessionUiRender() {
+  cancelPendingClearSessionUiRender();
+  clearSessionUiFrameId = window.requestAnimationFrame(() => {
+    clearSessionUiFrameId = null;
+    renderLoggedOutAdminUi();
+  });
+}
+
 function populateCategoriaOptions(selectedId = '') {
   const options = [
     '<option value="">Selecione a categoria</option>',
@@ -1459,6 +1520,9 @@ function resetProdutoForm() {
 
 function applySessionUi() {
   const hasSession = Boolean(accessToken && currentUser);
+  if (hasSession) {
+    cancelPendingClearSessionUiRender();
+  }
   adminLayoutEl.classList.toggle('logged-out', !hasSession);
   loginCardEl.classList.toggle('hidden', hasSession);
   if (logoutBtnEl) {
@@ -1535,117 +1599,8 @@ function clearSession() {
   produtoState.categoria_id = 'all';
   catalogPortalState.search = '';
   catalogPortalState.categoria_id = 'all';
-  applySessionUi();
-  renderCustomersSummary();
-  renderCustomerDetail();
-  renderCustomers();
-  renderOrders();
-  renderDashboard();
-  resetCategoriaForm();
-  resetProdutoForm();
-  resetDeliveryFeeForm();
-  renderCatalogOverview();
-  renderCatalogPortal();
-  renderSettingsOverview();
   document.dispatchEvent(new CustomEvent('admin:session-cleared'));
-  setLoginBusy(false);
-  passwordToggleEls.forEach((button) => hidePasswordForButton(button));
-  setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
-  updateRememberedLoginUi();
-  if (customersSearchInputEl) {
-    customersSearchInputEl.value = '';
-  }
-  if (customersSegmentFilterEl) {
-    customersSegmentFilterEl.value = 'all';
-  }
-  if (customersSortInputEl) {
-    customersSortInputEl.value = 'recent_desc';
-  }
-  if (customersPageSizeInputEl) {
-    customersPageSizeInputEl.value = '12';
-  }
-  if (categoryListEl) {
-    categoryListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para carregar categorias.</p></div>';
-  }
-  if (produtoListEl) {
-    produtoListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para carregar itens.</p></div>';
-  }
-  if (catalogPortalListEl) {
-    catalogPortalListEl.innerHTML = '<div class="catalog-admin-preview-empty"><p class="muted">Faça login para visualizar a vitrine do cardápio.</p></div>';
-  }
-  if (deliveryFeeListEl) {
-    deliveryFeeListEl.innerHTML = '<p class="muted">Faça login para gerenciar taxas de entrega.</p>';
-  }
-  if (catalogPortalSearchInputEl) {
-    catalogPortalSearchInputEl.value = '';
-  }
-  if (categorySearchInputEl) {
-    categorySearchInputEl.value = '';
-  }
-  if (categorySortInputEl) {
-    categorySortInputEl.value = 'ordem_exibicao';
-  }
-  if (categoryPageSizeInputEl) {
-    categoryPageSizeInputEl.value = String(categoryState.pageSize);
-  }
-  if (produtoSearchInputEl) {
-    produtoSearchInputEl.value = '';
-  }
-  if (produtoSortInputEl) {
-    produtoSortInputEl.value = 'nome_doce';
-  }
-  if (produtoDisponibilidadeFilterEl) {
-    produtoDisponibilidadeFilterEl.value = 'all';
-  }
-  if (produtoCategoriaFilterEl) {
-    produtoCategoriaFilterEl.innerHTML = '<option value="all">Todas as categorias</option>';
-  }
-  if (catalogPortalCategoryFilterEl) {
-    catalogPortalCategoryFilterEl.innerHTML = '<option value="all">Selecionar categoria</option>';
-  }
-  if (produtoPageSizeInputEl) {
-    produtoPageSizeInputEl.value = String(produtoState.pageSize);
-  }
-  if (deliveryFeeSearchInputEl) {
-    deliveryFeeSearchInputEl.value = '';
-  }
-  if (produtoCategoriaEl) {
-    produtoCategoriaEl.innerHTML = '<option value="">Selecione a categoria</option>';
-  }
-  if (categoryMetaEl) {
-    categoryMetaEl.textContent = 'Faça login para carregar categorias.';
-  }
-  if (produtoMetaEl) {
-    produtoMetaEl.textContent = 'Faça login para carregar itens.';
-  }
-  if (catalogPortalMetaEl) {
-    catalogPortalMetaEl.textContent = 'Faça login para carregar o cardápio.';
-  }
-  if (customersMetaEl) {
-    customersMetaEl.textContent = 'Faça login para carregar a carteira de clientes.';
-  }
-  if (customersListMetaEl) {
-    customersListMetaEl.textContent = 'Faça login para carregar clientes.';
-  }
-  if (customersPrevBtnEl) customersPrevBtnEl.disabled = true;
-  if (customersNextBtnEl) customersNextBtnEl.disabled = true;
-  if (ordersPrevBtnEl) ordersPrevBtnEl.disabled = true;
-  if (ordersNextBtnEl) ordersNextBtnEl.disabled = true;
-  if (categoryPrevBtnEl) categoryPrevBtnEl.disabled = true;
-  if (categoryNextBtnEl) categoryNextBtnEl.disabled = true;
-  if (produtoPrevBtnEl) produtoPrevBtnEl.disabled = true;
-  if (produtoNextBtnEl) produtoNextBtnEl.disabled = true;
-  if (dashboardRangeMetaEl) {
-    dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
-  }
-  updateCustomersControlsFromState();
-  updateOrdersControlsFromState();
-  syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
-  clearStatus(dashboardStatusEl);
-  clearStatus(customersStatusEl);
-  clearStatus(ordersStatusEl);
-  setStatus(settingsStatusEl, 'Faça login para editar configurações.', 'muted');
-  setStatus(deliveryFeeStatusEl, 'Faça login para editar taxas de entrega.', 'muted');
+  scheduleClearSessionUiRender();
 }
 
 function renderDashboard(dashboard, meta = null) {
@@ -3200,14 +3155,23 @@ function renderCatalogPortal() {
     })
     .filter((categoria) => normalizedCategoryId === 'all' || String(categoria.id) === normalizedCategoryId);
 
+  const produtosPorCategoria = allMenuProdutos.reduce((acc, produto) => {
+    const categoriaId = String(produto.categoria_id || produto.categorias?.id || '');
+    if (!acc.has(categoriaId)) {
+      acc.set(categoriaId, []);
+    }
+    acc.get(categoriaId).push(produto);
+    return acc;
+  }, new Map());
+
+  produtosPorCategoria.forEach((produtos) => {
+    produtos.sort((a, b) => String(a.nome_doce || '').localeCompare(String(b.nome_doce || ''), 'pt-BR', { sensitivity: 'base' }));
+  });
+
   const groupedCategorias = visibleCategorias.map((categoria) => {
-    const produtos = allMenuProdutos
-      .filter((produto) => {
-        const categoriaId = String(produto.categoria_id || produto.categorias?.id || '');
-        if (categoriaId !== String(categoria.id)) return false;
-
-        if (!search) return true;
-
+    const produtosDaCategoria = produtosPorCategoria.get(String(categoria.id)) || [];
+    const produtos = search
+      ? produtosDaCategoria.filter((produto) => {
         const haystack = [
           produto.nome_doce,
           produto.descricao,
@@ -3216,7 +3180,7 @@ function renderCatalogPortal() {
 
         return haystack.includes(search);
       })
-      .sort((a, b) => String(a.nome_doce || '').localeCompare(String(b.nome_doce || ''), 'pt-BR', { sensitivity: 'base' }));
+      : produtosDaCategoria;
 
     return { categoria, produtos };
   });
@@ -3378,28 +3342,35 @@ function renderProdutoList() {
 }
 
 async function loadCategoryOptions() {
-  const collectedCategorias = [];
-  let page = 1;
-  let totalPages = 1;
+  const pageSize = 100;
+  const headers = authHeaders();
+  const buildCategoryOptionsQuery = (page) => buildQueryString({
+    sort: 'ordem_exibicao',
+    order: 'asc',
+    page,
+    pageSize,
+  });
 
-  while (page <= totalPages) {
-    const query = buildQueryString({
-      sort: 'ordem_exibicao',
-      order: 'asc',
-      page,
-      pageSize: 100,
-    });
+  const firstResponse = await fetch(`/categorias?${buildCategoryOptionsQuery(1)}`, { headers });
+  const firstPayload = await parseEnvelope(firstResponse);
+  const firstItems = Array.isArray(firstPayload.data) ? firstPayload.data : [];
+  const totalPages = Number(firstPayload.meta?.totalPages || 1);
 
-    const response = await fetch(`/categorias?${query}`, {
-      headers: authHeaders(),
-    });
-    const payload = await parseEnvelope(response);
-    const items = Array.isArray(payload.data) ? payload.data : [];
+  const remainingPages = totalPages > 1
+    ? await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, index) => {
+        const page = index + 2;
+        return fetch(`/categorias?${buildCategoryOptionsQuery(page)}`, { headers })
+          .then((response) => parseEnvelope(response))
+          .then((payload) => (Array.isArray(payload.data) ? payload.data : []));
+      }),
+    )
+    : [];
 
-    collectedCategorias.push(...items);
-    totalPages = Number(payload.meta?.totalPages || 1);
-    page += 1;
-  }
+  const collectedCategorias = [
+    ...firstItems,
+    ...remainingPages.flat(),
+  ];
 
   allCategorias = collectedCategorias;
   const currentCategoryId = produtoCategoriaEl.value;

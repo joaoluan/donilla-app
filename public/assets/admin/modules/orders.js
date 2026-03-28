@@ -1,21 +1,57 @@
 const ORDERS_AUTO_REFRESH_INTERVAL_MS = 5000;
 const NEW_ORDER_HIGHLIGHT_DURATION_MS = 16000;
 const ORDER_ARRIVAL_FOCUS_DURATION_MS = 2400;
+let ordersAutoRefreshIntervalId = null;
+let ordersPanelVisibilityObserver = null;
+let ordersSectionAbortController = null;
+let cleanupOrdersSectionRuntime = null;
+
+function cleanupOrdersSectionBindings() {
+  cleanupOrdersSectionRuntime?.();
+  cleanupOrdersSectionRuntime = null;
+
+  if (ordersSectionAbortController) {
+    ordersSectionAbortController.abort();
+    ordersSectionAbortController = null;
+  }
+
+  if (ordersAutoRefreshIntervalId !== null) {
+    window.clearInterval(ordersAutoRefreshIntervalId);
+    ordersAutoRefreshIntervalId = null;
+  }
+
+  if (ordersPanelVisibilityObserver) {
+    ordersPanelVisibilityObserver.disconnect();
+    ordersPanelVisibilityObserver = null;
+  }
+}
 
 export function bindOrdersSection(ctx) {
+  cleanupOrdersSectionBindings();
+
   const { dom, state, helpers, api } = ctx;
+  const abortController = new AbortController();
+  const { signal } = abortController;
+  ordersSectionAbortController = abortController;
   let autoRefreshRunning = false;
   let lastOrdersSignature = '';
   let ordersSnapshotReady = false;
   let knownOrderIds = new Set();
   let highlightedOrderIds = new Set();
   let pendingArrivalIds = [];
+  let arrivalFocusTimerId = null;
+  let sectionDisposed = false;
   const orderHighlightTimers = new Map();
   const ordersQuickFilterButtons = Array.from(document.querySelectorAll('[data-orders-quick-filter]'));
   const debouncedLoadOrdersSearch = helpers.createDebounce(220, () => {
-    if (!state.accessToken) return;
+    if (sectionDisposed || !state.accessToken) return;
     api.loadOrders().catch((error) => helpers.setStatus(dom.ordersStatusEl, error.message, 'err'));
   });
+
+  function addScopedListener(target, eventName, handler) {
+    if (!target?.addEventListener) return;
+    target.addEventListener(eventName, handler, { signal });
+  }
 
   function paymentMethodLabel(value) {
     const normalized = String(value || '').trim().toLowerCase();
@@ -47,6 +83,12 @@ export function bindOrdersSection(ctx) {
     if (!dom.ordersArrivalNoticeEl) return;
     dom.ordersArrivalNoticeEl.classList.add('hidden');
     dom.ordersArrivalSummaryEl?.classList.add('hidden');
+  }
+
+  function clearArrivalFocusTimer() {
+    if (!arrivalFocusTimerId) return;
+    window.clearTimeout(arrivalFocusTimerId);
+    arrivalFocusTimerId = null;
   }
 
   function showArrivalNotice(arrivalIds) {
@@ -158,8 +200,10 @@ export function bindOrdersSection(ctx) {
 
     targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
     targetCard.classList.add('is-arrival-focus');
-    window.setTimeout(() => {
+    clearArrivalFocusTimer();
+    arrivalFocusTimerId = window.setTimeout(() => {
       targetCard.classList.remove('is-arrival-focus');
+      arrivalFocusTimerId = null;
     }, ORDER_ARRIVAL_FOCUS_DURATION_MS);
     hideArrivalNotice();
   }
@@ -232,40 +276,40 @@ export function bindOrdersSection(ctx) {
     }
   }
 
-  window.setInterval(() => {
+  ordersAutoRefreshIntervalId = window.setInterval(() => {
     refreshOrdersAutomatically();
   }, ORDERS_AUTO_REFRESH_INTERVAL_MS);
 
-  document.addEventListener('visibilitychange', () => {
+  addScopedListener(document, 'visibilitychange', () => {
     if (document.hidden) return;
     refreshOrdersAutomatically();
   });
 
-  window.addEventListener('focus', () => {
+  addScopedListener(window, 'focus', () => {
     refreshOrdersAutomatically();
   });
 
   if (dom.ordersPanelEl && typeof MutationObserver !== 'undefined') {
-    const visibilityObserver = new MutationObserver(() => {
+    ordersPanelVisibilityObserver = new MutationObserver(() => {
       if (!dom.ordersPanelEl.classList.contains('hidden')) return;
       hideArrivalNotice();
     });
-    visibilityObserver.observe(dom.ordersPanelEl, { attributes: true, attributeFilter: ['class'] });
+    ordersPanelVisibilityObserver.observe(dom.ordersPanelEl, { attributes: true, attributeFilter: ['class'] });
   }
 
-  document.addEventListener('admin:orders-loaded', () => {
+  addScopedListener(document, 'admin:orders-loaded', () => {
     syncArrivalStateFromCurrentOrders();
   });
 
-  dom.ordersArrivalJumpBtnEl?.addEventListener('click', () => {
+  addScopedListener(dom.ordersArrivalJumpBtnEl, 'click', () => {
     scrollToArrivalOrder();
   });
 
-  dom.ordersArrivalDismissBtnEl?.addEventListener('click', () => {
+  addScopedListener(dom.ordersArrivalDismissBtnEl, 'click', () => {
     hideArrivalNotice();
   });
 
-  dom.refreshOrdersBtnEl.addEventListener('click', async () => {
+  addScopedListener(dom.refreshOrdersBtnEl, 'click', async () => {
     if (!state.accessToken) return;
 
     try {
@@ -276,7 +320,7 @@ export function bindOrdersSection(ctx) {
   });
 
   ordersQuickFilterButtons.forEach((button) => {
-    button.addEventListener('click', async () => {
+    addScopedListener(button, 'click', async () => {
       const nextStatus = button.dataset.ordersQuickFilter || 'all';
       state.ordersState.status = nextStatus;
       state.ordersState.page = 1;
@@ -296,7 +340,7 @@ export function bindOrdersSection(ctx) {
     });
   });
 
-  dom.applyOrdersFiltersBtnEl.addEventListener('click', async () => {
+  addScopedListener(dom.applyOrdersFiltersBtnEl, 'click', async () => {
     api.syncOrdersStateFromControls();
     state.ordersState.page = 1;
     hideArrivalNotice();
@@ -309,20 +353,20 @@ export function bindOrdersSection(ctx) {
     }
   });
 
-  dom.ordersSearchInputEl.addEventListener('input', () => {
+  addScopedListener(dom.ordersSearchInputEl, 'input', () => {
     api.syncOrdersStateFromControls();
     state.ordersState.page = 1;
     hideArrivalNotice();
     debouncedLoadOrdersSearch();
   });
 
-  dom.ordersSearchInputEl.addEventListener('keydown', (event) => {
+  addScopedListener(dom.ordersSearchInputEl, 'keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
     dom.applyOrdersFiltersBtnEl.click();
   });
 
-  dom.statusFilterEl.addEventListener('change', async () => {
+  addScopedListener(dom.statusFilterEl, 'change', async () => {
     state.ordersState.status = dom.statusFilterEl.value;
     state.ordersState.page = 1;
     hideArrivalNotice();
@@ -335,7 +379,7 @@ export function bindOrdersSection(ctx) {
     }
   });
 
-  dom.ordersRangePresetEl.addEventListener('change', async () => {
+  addScopedListener(dom.ordersRangePresetEl, 'change', async () => {
     state.ordersState.period = dom.ordersRangePresetEl.value;
     helpers.syncRangeInputs(dom.ordersRangePresetEl, dom.ordersFromDateEl, dom.ordersToDateEl, state.ordersState);
     hideArrivalNotice();
@@ -358,7 +402,7 @@ export function bindOrdersSection(ctx) {
     }
   });
 
-  dom.ordersPageSizeInputEl.addEventListener('change', async () => {
+  addScopedListener(dom.ordersPageSizeInputEl, 'change', async () => {
     state.ordersState.pageSize = Number(dom.ordersPageSizeInputEl.value || 10);
     state.ordersState.page = 1;
     hideArrivalNotice();
@@ -371,26 +415,26 @@ export function bindOrdersSection(ctx) {
     }
   });
 
-  dom.ordersFromDateEl.addEventListener('change', () => {
+  addScopedListener(dom.ordersFromDateEl, 'change', () => {
     state.ordersState.from = dom.ordersFromDateEl.value || '';
     hideArrivalNotice();
     helpers.validateRangeState(state.ordersState, dom.ordersStatusEl, 'pedidos');
   });
 
-  dom.ordersToDateEl.addEventListener('change', () => {
+  addScopedListener(dom.ordersToDateEl, 'change', () => {
     state.ordersState.to = dom.ordersToDateEl.value || '';
     hideArrivalNotice();
     helpers.validateRangeState(state.ordersState, dom.ordersStatusEl, 'pedidos');
   });
 
-  dom.ordersPrevBtnEl.addEventListener('click', async () => {
+  addScopedListener(dom.ordersPrevBtnEl, 'click', async () => {
     if (state.ordersState.page <= 1 || !state.accessToken) return;
     state.ordersState.page -= 1;
     hideArrivalNotice();
     await api.loadOrders().catch((error) => helpers.setStatus(dom.ordersStatusEl, error.message, 'err'));
   });
 
-  dom.ordersNextBtnEl.addEventListener('click', async () => {
+  addScopedListener(dom.ordersNextBtnEl, 'click', async () => {
     if (!state.accessToken) return;
     const totalPages = Number(state.ordersPaginationMeta?.totalPages || 1);
     if (state.ordersState.page >= totalPages) return;
@@ -399,7 +443,7 @@ export function bindOrdersSection(ctx) {
     await api.loadOrders().catch((error) => helpers.setStatus(dom.ordersStatusEl, error.message, 'err'));
   });
 
-  dom.ordersListEl.addEventListener('click', async (event) => {
+  addScopedListener(dom.ordersListEl, 'click', async (event) => {
     const auditButton = event.target.closest('button[data-order-audit-toggle]');
     if (auditButton) {
       const orderId = Number(auditButton.dataset.orderAuditToggle);
@@ -450,4 +494,12 @@ export function bindOrdersSection(ctx) {
       saveButton.disabled = false;
     }
   });
+
+  cleanupOrdersSectionRuntime = () => {
+    sectionDisposed = true;
+    autoRefreshRunning = false;
+    clearArrivalFocusTimer();
+    clearAllOrderHighlights();
+    hideArrivalNotice();
+  };
 }
