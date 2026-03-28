@@ -1,12 +1,6 @@
 export function bindDashboardSection(ctx) {
   const { dom, state, helpers, api } = ctx;
 
-  function formatOrderCode(orderId) {
-    const numericId = Number(orderId || 0);
-    if (!numericId) return '#---';
-    return `#${String(numericId).padStart(3, '0')}`;
-  }
-
   async function submitDashboardOrderAction(button, {
     orderId,
     nextStatus,
@@ -16,7 +10,7 @@ export function bindDashboardSection(ctx) {
   }) {
     if (!orderId || !nextStatus || !state.accessToken) return;
 
-    const orderCode = formatOrderCode(orderId);
+    const orderCode = helpers.formatOrderCode(orderId);
     if (requiresConfirmation && !window.confirm(`Cancelar pedido ${orderCode}?`)) {
       return;
     }

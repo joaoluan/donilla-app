@@ -177,7 +177,7 @@ export function bindCustomersSection(ctx) {
     try {
       await api.openOrderFromCrm(orderId);
     } catch (error) {
-      helpers.setStatus(dom.ordersStatusEl, error.message, 'err');
+      helpers.setStatus(dom.customersStatusEl, error.message, 'err');
     }
   });
 }

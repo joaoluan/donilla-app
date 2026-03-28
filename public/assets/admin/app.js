@@ -1360,7 +1360,7 @@ function validateRangeState(state, statusTarget, label) {
 }
 
 function updateDashboardControlsFromMeta(filters) {
-  dashboardFilters.period = 'today';
+  dashboardFilters.period = filters.period || 'today';
   dashboardFilters.from = filters.from || '';
   dashboardFilters.to = filters.to || '';
   syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
@@ -2553,7 +2553,7 @@ async function loadCurrentUser() {
 
 function dashboardQueryString() {
   return buildQueryString({
-    ...buildPeriodParams({ period: 'today' }, 'today'),
+    ...buildPeriodParams(dashboardFilters, 'today'),
   });
 }
 
@@ -3386,9 +3386,17 @@ async function loadCategorias() {
 }
 
 function produtosQueryString() {
+  const produtoOrderBySort = {
+    id: 'desc',
+    nome_doce: 'asc',
+    preco: 'asc',
+    estoque_disponivel: 'asc',
+    categoria: 'asc',
+  };
+
   return buildQueryString({
     sort: produtoState.sort,
-    order: produtoState.sort === 'preco' || produtoState.sort === 'estoque_disponivel' ? 'asc' : 'asc',
+    order: produtoOrderBySort[produtoState.sort] || 'desc',
     page: produtoState.page,
     pageSize: produtoState.pageSize,
     search: produtoState.search,
@@ -3923,6 +3931,7 @@ const helpers = {
   dateTime,
   dateOnly,
   formatPhone,
+  formatOrderCode,
   pluralize,
   formatDaysSinceLastOrder,
   formatDaysSinceLastOrderCompact,
