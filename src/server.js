@@ -1,10 +1,17 @@
 const { createServer } = require('node:http')
-const { readFile } = require('node:fs/promises')
+const { open } = require('node:fs/promises')
 const pathLib = require('node:path')
+const { pipeline } = require('node:stream/promises')
 const { createRouter } = require('./routes')
 const { AppError } = require('./utils/errors')
 const { sendError, sendRaw, sendSuccess } = require('./utils/http')
-const { createRateLimitGuard, getServerTimeoutConfig, shouldExposeErrorDetails } = require('./utils/security')
+const {
+  createRateLimitGuard,
+  getNoStoreHeaders,
+  getSecurityHeaders,
+  getServerTimeoutConfig,
+  shouldExposeErrorDetails,
+} = require('./utils/security')
 
 // Keep public entrypoints explicit so production URLs stay predictable.
 const ADMIN_STATIC_ROUTE = { type: 'file', fileName: 'admin.html' }
@@ -45,25 +52,84 @@ function resolvePublicAssetPath(routePath) {
   return filePath
 }
 
+function buildStaticHeaders(contentType, size) {
+  return {
+    ...getSecurityHeaders(),
+    ...getNoStoreHeaders(),
+    'Content-Type': contentType,
+    'Content-Length': String(size),
+  }
+}
+
+async function openStaticFile(filePath) {
+  let fileHandle
+
+  try {
+    fileHandle = await open(filePath, 'r')
+  } catch (error) {
+    if (error?.code === 'ENOENT' || error?.code === 'EISDIR') {
+      return null
+    }
+
+    throw error
+  }
+
+  try {
+    const stats = await fileHandle.stat()
+    if (!stats.isFile()) {
+      await fileHandle.close()
+      return null
+    }
+
+    return {
+      size: stats.size,
+      stream: fileHandle.createReadStream(),
+    }
+  } catch (error) {
+    await fileHandle.close().catch(() => {})
+
+    if (error?.code === 'ENOENT' || error?.code === 'EISDIR') {
+      return null
+    }
+
+    throw error
+  }
+}
+
+async function streamStaticFile(res, filePath, contentType) {
+  const file = await openStaticFile(filePath)
+  if (!file) return false
+
+  res.writeHead(200, buildStaticHeaders(contentType, file.size))
+  try {
+    await pipeline(file.stream, res)
+  } catch (error) {
+    if (error?.code === 'ERR_STREAM_PREMATURE_CLOSE' || error?.code === 'ECONNRESET') {
+      return true
+    }
+
+    if (res.headersSent) {
+      console.error('Erro ao transmitir arquivo estatico:', error)
+      if (typeof res.destroy === 'function' && !res.destroyed) {
+        res.destroy(error)
+      }
+      return true
+    }
+
+    throw error
+  }
+
+  return true
+}
+
 async function serveStatic(req, res, routePath) {
   if (req.method !== 'GET') return false
 
   const assetPath = resolvePublicAssetPath(routePath)
   if (assetPath) {
-    try {
-      const ext = pathLib.extname(assetPath)
-      const mime = MIME_TYPES[ext] || 'application/octet-stream'
-      const content = await readFile(assetPath)
-
-      sendRaw(res, 200, content, mime)
-      return true
-    } catch (error) {
-      if (error?.code === 'ENOENT' || error?.code === 'EISDIR') {
-        return false
-      }
-
-      throw error
-    }
+    const ext = pathLib.extname(assetPath)
+    const mime = MIME_TYPES[ext] || 'application/octet-stream'
+    return streamStaticFile(res, assetPath, mime)
   }
 
   const route = STATIC_ROUTES[routePath]
@@ -80,10 +146,7 @@ async function serveStatic(req, res, routePath) {
   const filePath = pathLib.join(PUBLIC_DIR, fileName)
   const ext = pathLib.extname(fileName)
   const mime = MIME_TYPES[ext] || 'text/plain; charset=utf-8'
-  const content = await readFile(filePath)
-
-  sendRaw(res, 200, content, mime)
-  return true
+  return streamStaticFile(res, filePath, mime)
 }
 
 function handleError(res, error) {

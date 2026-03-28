@@ -1,6 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
+const { Writable } = require('node:stream')
 const { Prisma } = require('@prisma/client')
 
 const { createApp } = require('../src/server')
@@ -16,23 +17,29 @@ function requestApp(server, { method = 'GET', url = '/', headers = {}, body = ''
     req.socket = { remoteAddress }
     req.destroy = () => {}
 
-    const response = {
-      statusCode: 200,
-      headers: {},
-      body: '',
-      writeHead(statusCode, headers = {}) {
-        this.statusCode = statusCode
-        this.headers = headers
+    const chunks = []
+    const response = new Writable({
+      write(chunk, _encoding, callback) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)))
+        callback()
       },
-      end(chunk = '') {
-        this.body += chunk
-        resolve({
-          statusCode: this.statusCode,
-          headers: this.headers,
-          body: this.body,
-        })
-      },
+    })
+    response.statusCode = 200
+    response.headers = {}
+    response.headersSent = false
+    response.writeHead = function writeHead(statusCode, nextHeaders = {}) {
+      this.statusCode = statusCode
+      this.headers = nextHeaders
+      this.headersSent = true
+      return this
     }
+    response.on('finish', () => {
+      resolve({
+        statusCode: response.statusCode,
+        headers: response.headers,
+        body: Buffer.concat(chunks).toString('utf8'),
+      })
+    })
 
     try {
       server.emit('request', req, response)
@@ -150,12 +157,14 @@ test('assets do admin modularizado devem ser servidos como javascript', async ()
   assert.equal(appModuleResponse.statusCode, 200)
   assert.equal(appModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
   assert.equal(appModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
+  assert.ok(Number(appModuleResponse.headers['Content-Length']) > 0)
   assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=[0-9]{8}[a-z])?'/)
 
   const nestedModuleResponse = await requestApp(app, { url: '/assets/admin/modules/navigation.js' })
   assert.equal(nestedModuleResponse.statusCode, 200)
   assert.equal(nestedModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
   assert.equal(nestedModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
+  assert.ok(Number(nestedModuleResponse.headers['Content-Length']) > 0)
   assert.match(nestedModuleResponse.body, /export function bindNavigationSection/)
 })
 
