@@ -4,6 +4,7 @@ const { EventEmitter } = require('node:events')
 const { Prisma } = require('@prisma/client')
 
 const { createApp } = require('../src/server')
+const { createAdminEventsBroker } = require('../src/services/adminEventsBroker')
 const { signToken } = require('../src/utils/jwt')
 
 function requestApp(server, { method = 'GET', url = '/', headers = {}, body = '', remoteAddress = '127.0.0.1' } = {}) {
@@ -37,6 +38,62 @@ function requestApp(server, { method = 'GET', url = '/', headers = {}, body = ''
       server.emit('request', req, response)
       process.nextTick(() => {
         if (body) req.emit('data', body)
+        req.emit('end')
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
+}
+
+function openSseConnection(server, { method = 'GET', url = '/', headers = {}, remoteAddress = '127.0.0.1' } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = new EventEmitter()
+    req.method = method
+    req.url = url
+    req.headers = headers
+    req.socket = {
+      remoteAddress,
+      setTimeout() {},
+    }
+    req.setTimeout = () => {}
+    req.destroy = () => {}
+
+    const response = new EventEmitter()
+    response.statusCode = 200
+    response.headers = {}
+    response.body = ''
+    response.socket = {
+      setTimeout() {},
+    }
+    response.setTimeout = () => {}
+    response.flushHeaders = () => {}
+
+    let settled = false
+    const succeed = () => {
+      if (settled) return
+      settled = true
+      resolve({ req, response })
+    }
+
+    response.writeHead = function writeHead(statusCode, nextHeaders = {}) {
+      this.statusCode = statusCode
+      this.headers = nextHeaders
+      succeed()
+    }
+    response.write = function write(chunk = '') {
+      this.body += chunk
+      return true
+    }
+    response.end = function end(chunk = '') {
+      this.body += chunk
+      this.emit('close')
+      succeed()
+    }
+
+    try {
+      server.emit('request', req, response)
+      process.nextTick(() => {
         req.emit('end')
       })
     } catch (error) {
@@ -93,7 +150,7 @@ test('assets do admin modularizado devem ser servidos como javascript', async ()
   assert.equal(appModuleResponse.statusCode, 200)
   assert.equal(appModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
   assert.equal(appModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
-  assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=20260325o)?'/)
+  assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=[0-9]{8}[a-z])?'/)
 
   const nestedModuleResponse = await requestApp(app, { url: '/assets/admin/modules/navigation.js' })
   assert.equal(nestedModuleResponse.statusCode, 200)
@@ -299,6 +356,62 @@ test('rota admin de auditoria do pedido exige admin e devolve historico', async 
     assert.equal(response.statusCode, 200)
     assert.match(response.body, /checkout_criado/)
     assert.match(response.body, /chk_41/)
+  } finally {
+    if (previousSecret === undefined) delete process.env.JWT_SECRET
+    else process.env.JWT_SECRET = previousSecret
+  }
+})
+
+test('rota admin events exige autenticacao e transmite SSE para admins', async () => {
+  const previousSecret = process.env.JWT_SECRET
+  process.env.JWT_SECRET = 'test-secret'
+
+  const adminToken = signToken(
+    {
+      sub: '9',
+      username: 'admin',
+      role: 'admin',
+    },
+    process.env.JWT_SECRET,
+    3600,
+  )
+
+  const broker = createAdminEventsBroker({ heartbeatIntervalMs: 60_000 })
+  const app = createApp({}, { adminEventsBroker: broker })
+
+  try {
+    const unauthorizedResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/admin/events',
+    })
+
+    assert.equal(unauthorizedResponse.statusCode, 401)
+
+    const { req, response } = await openSseConnection(app, {
+      method: 'GET',
+      url: '/admin/events',
+      headers: {
+        authorization: `Bearer ${adminToken}`,
+      },
+    })
+
+    await new Promise((resolve) => setImmediate(resolve))
+
+    assert.equal(response.statusCode, 200)
+    assert.equal(response.headers['Content-Type'], 'text/event-stream; charset=utf-8')
+    assert.match(response.body, /event: connected/)
+    assert.equal(broker.getClientCount(), 1)
+
+    broker.publish('order.created', { orderId: 41, total: '12.00' })
+    await new Promise((resolve) => setImmediate(resolve))
+
+    assert.match(response.body, /event: order\.created/)
+    assert.match(response.body, /"orderId":41/)
+    assert.match(response.body, /"total":"12\.00"/)
+
+    req.emit('close')
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.equal(broker.getClientCount(), 0)
   } finally {
     if (previousSecret === undefined) delete process.env.JWT_SECRET
     else process.env.JWT_SECRET = previousSecret

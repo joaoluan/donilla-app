@@ -44,6 +44,22 @@ Referencia de variaveis:
 - `/webhooks/asaas`: retorno server-to-server do Asaas Checkout
 - `/categorias`, `/produtos`, `/usuarios`: gestão interna
 
+## Tempo real no admin
+
+O painel admin usa SSE para refletir novo pedido em tempo real nas telas de resumo e pedidos.
+
+Fluxo atual:
+
+- o backend publica `order.created` quando um pedido e criado com sucesso
+- clientes admin autenticados escutam o stream em `GET /admin/events`
+- ao receber o evento, o frontend recarrega resumo, fila operacional e pedidos
+
+Observacao importante:
+
+- esta primeira versao usa broker em memoria dentro do processo Node
+- em uma unica instancia do app isso funciona bem
+- se o projeto passar a rodar com multiplos containers, replicas ou processos, o proximo passo e trocar a publicacao por um barramento compartilhado, como Redis Pub/Sub, NATS ou Kafka, para que o SSE continue consistente entre instancias
+
 ## Asaas Checkout
 
 O checkout online agora pode ser iniciado pelo backend da Donilla usando o Asaas.

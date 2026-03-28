@@ -224,6 +224,372 @@
         grid-template-columns: 1fr;
       }
     }
+
+    .dashboard-pending-alert {
+      margin: 16px 16px 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(239, 159, 39, 0.34);
+      background: linear-gradient(135deg, rgba(239, 159, 39, 0.2) 0%, rgba(99, 56, 6, 0.16) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .dashboard-pending-alert-copy {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .dashboard-pending-alert-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(250, 238, 218, 0.96);
+      color: #633806;
+      font-size: 0.95rem;
+      font-weight: 800;
+      flex: 0 0 34px;
+    }
+
+    .dashboard-pending-alert-text {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .dashboard-pending-alert-text small {
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .dashboard-pending-alert-text strong {
+      color: #fff8ee;
+      font-size: 0.96rem;
+      line-height: 1.3;
+      font-weight: 700;
+    }
+
+    .dashboard-pending-alert .primary-btn {
+      min-width: 148px;
+      white-space: nowrap;
+      background: #ef9f27;
+      border-color: #ef9f27;
+      color: #412402;
+    }
+
+    .dashboard-pending-alert .primary-btn:hover {
+      background: #f0ad46;
+      color: #311b01;
+    }
+
+    .dashboard-metric-trend {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 22px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .dashboard-metric-trend.is-positive {
+      color: #8be0ab;
+    }
+
+    .dashboard-metric-trend.is-negative {
+      color: #f4a5a0;
+    }
+
+    .dashboard-metric-trend.is-neutral {
+      color: rgba(255, 255, 255, 0.56);
+    }
+
+    .dashboard-order-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .dashboard-order-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(52, 50, 48, 0.98) 0%, rgba(43, 42, 40, 0.98) 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    }
+
+    .dashboard-order-card.is-urgent {
+      border-color: rgba(226, 75, 74, 0.42);
+      box-shadow: 0 0 0 1px rgba(226, 75, 74, 0.12);
+    }
+
+    .dashboard-order-main {
+      min-width: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .dashboard-order-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .dashboard-order-statuses {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .dashboard-order-title {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .dashboard-order-code {
+      color: rgba(255, 255, 255, 0.46);
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      flex: 0 0 auto;
+    }
+
+    .dashboard-order-copy {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .dashboard-order-copy strong {
+      color: #f6f5f2;
+      font-size: 1rem;
+      line-height: 1.2;
+      font-weight: 700;
+    }
+
+    .dashboard-order-copy p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.82rem;
+      line-height: 1.3;
+    }
+
+    .dashboard-order-copy .dashboard-order-age.is-urgent {
+      color: #ffb2a8;
+      font-weight: 700;
+    }
+
+    .dashboard-order-summary {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
+    .dashboard-order-progress {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: center;
+      gap: 0;
+      padding: 0 10px;
+      min-height: 16px;
+    }
+
+    .dashboard-order-progress::before {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      top: 7px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .dashboard-order-progress.is-cancelled::before {
+      background: rgba(226, 75, 74, 0.2);
+    }
+
+    .dashboard-order-progress-step {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+    }
+
+    .dashboard-order-progress-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      box-sizing: border-box;
+    }
+
+    .dashboard-order-progress-step.is-complete .dashboard-order-progress-dot {
+      background: #20b486;
+      border-color: #20b486;
+    }
+
+    .dashboard-order-progress-step.is-current .dashboard-order-progress-dot {
+      background: #ef9f27;
+      border-color: #ef9f27;
+      box-shadow: 0 0 0 4px rgba(239, 159, 39, 0.18);
+    }
+
+    .dashboard-order-progress.is-cancelled .dashboard-order-progress-dot {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow: none;
+    }
+
+    .dashboard-order-side {
+      display: grid;
+      gap: 12px;
+      justify-items: end;
+      min-width: 188px;
+    }
+
+    .dashboard-order-total {
+      color: #f6f5f2;
+      font-size: 1.28rem;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .dashboard-order-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .dashboard-order-actions:empty {
+      display: none;
+    }
+
+    .dashboard-order-btn {
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, filter 0.18s ease, border-color 0.18s ease;
+    }
+
+    .dashboard-order-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    .dashboard-order-btn:disabled {
+      opacity: 0.58;
+      cursor: progress;
+      transform: none;
+    }
+
+    .dashboard-order-btn.btn-aceitar {
+      background: #ef9f27;
+      color: #412402;
+    }
+
+    .dashboard-order-btn.btn-despachar {
+      background: #378add;
+      color: #042c53;
+    }
+
+    .dashboard-order-btn.btn-confirmar {
+      background: #7f77dd;
+      color: #26215c;
+    }
+
+    .dashboard-order-btn.btn-cancelar {
+      background: transparent;
+      border-color: #e24b4a;
+      color: #f4a5a0;
+    }
+
+    .admin-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      min-width: 220px;
+      max-width: min(92vw, 420px);
+      padding: 12px 18px;
+      border-radius: 999px;
+      background: #27500a;
+      color: #eaf3de;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+      font-size: 0.84rem;
+      font-weight: 700;
+      text-align: center;
+      z-index: 9999;
+      opacity: 1;
+      transition: opacity 0.24s ease, transform 0.24s ease;
+    }
+
+    .admin-toast.is-hiding {
+      opacity: 0;
+      transform: translateX(-50%) translateY(8px);
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-pending-alert {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .dashboard-pending-alert .primary-btn {
+        width: 100%;
+      }
+
+      .dashboard-order-card {
+        grid-template-columns: 1fr;
+      }
+
+      .dashboard-order-side {
+        min-width: 0;
+        width: 100%;
+        justify-items: stretch;
+      }
+
+      .dashboard-order-statuses {
+        justify-content: flex-start;
+      }
+
+      .dashboard-order-actions {
+        justify-content: stretch;
+      }
+
+      .dashboard-order-btn {
+        flex: 1 1 140px;
+      }
+    }
   </style>
 </head>
 <body class="page-admin">
@@ -455,7 +821,6 @@
                 <span class="dashboard-portal-kicker">Portal da loja</span>
                 <h2>Resumo do dia</h2>
                 <p id="dashboardDateLabel" class="dashboard-portal-date">Carregando data...</p>
-                <p id="dashboardRangeMeta" class="muted dashboard-portal-meta">Faça login para carregar indicadores.</p>
               </div>
 
               <div class="dashboard-portal-actions">
@@ -463,6 +828,17 @@
                 <button id="dashboardOpenOrdersBtn" class="primary-btn dashboard-action-btn" type="button">Ver pedidos</button>
               </div>
             </header>
+
+            <section id="dashboardPendingAlert" class="dashboard-pending-alert hidden" aria-live="polite">
+              <div class="dashboard-pending-alert-copy">
+                <span class="dashboard-pending-alert-icon" aria-hidden="true">!</span>
+                <div class="dashboard-pending-alert-text">
+                  <small>Atenção imediata</small>
+                  <strong id="dashboardPendingAlertText">Novos pedidos aguardando confirmação.</strong>
+                </div>
+              </div>
+              <button id="dashboardPendingAlertBtn" class="primary-btn" type="button">Ver pedidos →</button>
+            </section>
 
             <p id="dashboardStatus" class="status-text muted dashboard-status-line"></p>
 
@@ -476,7 +852,8 @@
                 <div class="dashboard-metric-copy">
                   <small>Faturamento</small>
                   <strong id="kpiFaturamento">--</strong>
-                  <span class="dashboard-metric-meta">Receita no período selecionado.</span>
+                  <span id="kpiFaturamentoTrend" class="dashboard-metric-trend hidden">--</span>
+                  <span class="dashboard-metric-meta">Receita acumulada hoje.</span>
                 </div>
               </article>
 
@@ -490,7 +867,8 @@
                 <div class="dashboard-metric-copy">
                   <small>Pedidos</small>
                   <strong id="kpiTotalPedidos">--</strong>
-                  <span class="dashboard-metric-meta">Volume bruto do recorte atual.</span>
+                  <span id="kpiTotalPedidosTrend" class="dashboard-metric-trend hidden">--</span>
+                  <span class="dashboard-metric-meta">Volume total de pedidos de hoje.</span>
                 </div>
               </article>
 
@@ -504,7 +882,8 @@
                 <div class="dashboard-metric-copy">
                   <small>Ticket médio</small>
                   <strong id="kpiTicketMedio">--</strong>
-                  <span class="dashboard-metric-meta">Média por pedido no período.</span>
+                  <span id="kpiTicketMedioTrend" class="dashboard-metric-trend hidden">--</span>
+                  <span class="dashboard-metric-meta">Média por pedido fechado hoje.</span>
                 </div>
               </article>
             </section>
@@ -525,44 +904,25 @@
               <article class="dashboard-status-card dashboard-status-card-complete">
                 <small>Concluídos</small>
                 <strong id="kpiEntregues">--</strong>
-                <span>Pedidos fechados dentro do recorte.</span>
+                <span>Pedidos finalizados ao longo de hoje.</span>
               </article>
             </section>
 
-            <section class="dashboard-queue-panel" aria-label="Pedidos em andamento">
+            <section class="dashboard-queue-panel" aria-label="Pedidos recentes">
               <header class="dashboard-queue-head">
                 <div>
-                  <h3>Pedidos em andamento</h3>
-                  <p id="dashboardQueueMeta" class="muted">Faça login para acompanhar a fila.</p>
+                  <h3>Pedidos recentes</h3>
+                  <p id="dashboardQueueMeta" class="muted">Faça login para acompanhar a operação.</p>
                 </div>
               </header>
 
-              <div id="dashboardQueueList" class="dashboard-queue-list">
+              <div id="dashboardQueueList" class="dashboard-queue-list dashboard-order-list">
                 <article class="dashboard-queue-empty">
                   <p class="muted">Faça login para carregar a fila operacional.</p>
                 </article>
               </div>
             </section>
 
-            <section class="dashboard-filter-bar" aria-label="Filtro do resumo">
-              <div class="dashboard-filter-copy">
-                <span class="dashboard-filter-label">Período do resumo</span>
-                <p class="muted">Ajuste o recorte sem sair da visão principal.</p>
-              </div>
-
-              <div class="dashboard-filter-controls">
-                <select id="dashboardRangePreset">
-                  <option value="7d">Últimos 7 dias</option>
-                  <option value="30d">Últimos 30 dias</option>
-                  <option value="month">Este mês</option>
-                  <option value="all">Todo o período</option>
-                  <option value="custom">Período personalizado</option>
-                </select>
-                <input id="dashboardFromDate" type="date" aria-label="Data inicial do resumo" />
-                <input id="dashboardToDate" type="date" aria-label="Data final do resumo" />
-                <button id="dashboardApplyBtn" class="ghost-btn" type="button">Aplicar</button>
-              </div>
-            </section>
           </div>
         </article>
 
@@ -1434,6 +1794,6 @@
   </div>
 
   <script src="/assets/ui/custom-select.js?v=20260327a"></script>
-  <script type="module" src="/assets/admin/app.js?v=20260326b"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260328a"></script>
 </body>
 </html>

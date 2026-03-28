@@ -101,7 +101,7 @@ test('parseDashboardQuery deve aplicar periodo padrao', () => {
   const query = parseDashboardQuery(mockUrl('/admin/dashboard'))
 
   assert.deepEqual(query, {
-    period: '7d',
+    period: 'today',
   })
 })
 

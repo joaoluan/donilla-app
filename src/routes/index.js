@@ -16,10 +16,12 @@ const { createWhatsAppNotificationService } = require('../services/whatsappNotif
 const { createWppConnectService } = require('../services/wppConnectService')
 const { createWhatsAppBotService } = require('../services/whatsappBotService')
 const { createAsaasService } = require('../services/asaasService')
+const { createAdminEventsBroker } = require('../services/adminEventsBroker')
 
 function createRouter(prisma, deps = {}) {
   const whatsappTransport = deps.whatsappTransport || createWppConnectService()
   const whatsappNotifier = deps.whatsappNotifier || createWhatsAppNotificationService({ transportService: whatsappTransport })
+  const adminEvents = deps.adminEventsBroker || createAdminEventsBroker()
   const whatsappBot = whatsappController(createWhatsAppBotService(prisma, { transportService: whatsappTransport }))
   const asaas = deps.asaasService || createAsaasService()
   const categorias = categoriasController(categoriasService(prisma))
@@ -29,14 +31,18 @@ function createRouter(prisma, deps = {}) {
   const storeService = deps.storeService || publicStoreService(prisma, {
     whatsappNotifier,
     asaas,
+    adminEvents,
     scheduleTask: deps.scheduleTask,
     logger: deps.logger,
   })
   const pub = publicController(storeService)
   const payments = paymentsController(deps.paymentsService || storeService)
-  const admin = adminController(adminPanelService(prisma, { whatsappNotifier, whatsappTransport }))
+  const admin = adminController(
+    adminPanelService(prisma, { whatsappNotifier, whatsappTransport, adminEvents }),
+    { adminEvents },
+  )
 
-  return async function route(req, method, path, url) {
+  return async function route(req, res, method, path, url) {
     if (method === 'GET' && path === '/health') {
       return { statusCode: 200, data: { ok: true } }
     }
@@ -219,6 +225,11 @@ function createRouter(prisma, deps = {}) {
     if (method === 'GET' && path === '/admin/dashboard') {
       requireRole(req, 'admin')
       return admin.dashboard(url)
+    }
+
+    if (method === 'GET' && path === '/admin/events') {
+      requireRole(req, 'admin')
+      return admin.events(req, res)
     }
 
     if (method === 'GET' && path === '/admin/customers') {

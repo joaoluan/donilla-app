@@ -236,6 +236,28 @@ function buildCreatedAtWhere(query) {
   }
 }
 
+function buildMetricComparison(currentValue, previousValue) {
+  const current = Number(currentValue || 0)
+  const previous = Number(previousValue || 0)
+  const delta = current - previous
+
+  if (previous === 0) {
+    return {
+      current,
+      previous,
+      delta: Number(delta.toFixed(2)),
+      percent: current === 0 ? 0 : 100,
+    }
+  }
+
+  return {
+    current,
+    previous,
+    delta: Number(delta.toFixed(2)),
+    percent: Number((((current - previous) / previous) * 100).toFixed(1)),
+  }
+}
+
 function normalizeSearchValue(value) {
   return String(value || '').trim()
 }
@@ -850,6 +872,7 @@ function toNotificationOrderData(order) {
 function adminPanelService(prisma, deps = {}) {
   const whatsappNotifier = deps.whatsappNotifier || null
   const whatsappTransport = deps.whatsappTransport || null
+  const adminEvents = deps.adminEvents || null
   const orderAudit = deps.orderAudit || createOrderAuditService(prisma)
   const assertSafeTargetUrl = deps.assertSafeTargetUrl || assertSafeExternalUrl
   const nowProvider = typeof deps.nowProvider === 'function' ? deps.nowProvider : () => new Date()
@@ -917,6 +940,15 @@ function adminPanelService(prisma, deps = {}) {
     async dashboard(query = {}) {
       const { where: createdAtWhere, meta } = buildCreatedAtWhere(query)
       const baseWhere = createdAtWhere ? { criado_em: createdAtWhere } : undefined
+      const now = nowProvider()
+      const today = toDateOnly(now)
+      const yesterdayDate = shiftDays(startOfDay(today), -1)
+      const yesterdayWhere = {
+        criado_em: {
+          gte: yesterdayDate,
+          lte: endOfDay(toDateOnly(yesterdayDate)),
+        },
+      }
 
       const [totalPedidos, pendentes, preparando, entregues, cancelados] = await prisma.$transaction([
         prisma.pedidos.count({ where: baseWhere }),
@@ -932,12 +964,34 @@ function adminPanelService(prisma, deps = {}) {
       })
 
       const faturamento = receitas.reduce((acc, item) => acc + Number(item.valor_total || 0), 0)
+      let comparison = null
+
+      if (meta.period === 'today') {
+        const [totalPedidosOntem, receitasOntem] = await prisma.$transaction([
+          prisma.pedidos.count({ where: yesterdayWhere }),
+          prisma.pedidos.findMany({
+            where: { ...yesterdayWhere, status_entrega: { in: ['entregue'] } },
+            select: { valor_total: true },
+          }),
+        ])
+
+        const faturamentoOntem = receitasOntem.reduce((acc, item) => acc + Number(item.valor_total || 0), 0)
+        const ticketMedioHoje = totalPedidos > 0 ? faturamento / totalPedidos : 0
+        const ticketMedioOntem = totalPedidosOntem > 0 ? faturamentoOntem / totalPedidosOntem : 0
+
+        comparison = {
+          totalPedidos: buildMetricComparison(totalPedidos, totalPedidosOntem),
+          faturamento: buildMetricComparison(Number(faturamento.toFixed(2)), Number(faturamentoOntem.toFixed(2))),
+          ticketMedio: buildMetricComparison(Number(ticketMedioHoje.toFixed(2)), Number(ticketMedioOntem.toFixed(2))),
+        }
+      }
 
       return {
         data: {
           totalPedidos,
           status: { pendentes, preparando, entregues, cancelados },
           faturamento: Number(faturamento.toFixed(2)),
+          comparison,
         },
         meta: {
           filters: meta,
@@ -1250,6 +1304,14 @@ function adminPanelService(prisma, deps = {}) {
           delivery_changed: deliveryChanged,
           payment_changed: paymentChanged,
         },
+      })
+
+      adminEvents?.publish?.('order.updated', {
+        orderId: updatedOrder.id,
+        createdAt: updatedOrder.criado_em,
+        deliveryStatus: updatedOrder.status_entrega,
+        paymentStatus: updatedOrder.status_pagamento,
+        total: updatedOrder.valor_total,
       })
 
       return updatedOrder

@@ -14,6 +14,10 @@ const basePeriodSchema = z.object({
   toAt: isoDateTimeSchema.optional(),
 })
 
+const dashboardQuerySchema = basePeriodSchema.extend({
+  period: periodSchema.default('today'),
+})
+
 const ordersQuerySchema = basePeriodSchema.extend({
   page: positiveInt.default(1),
   pageSize: positiveInt.max(50).default(10),
@@ -53,7 +57,7 @@ function validatePeriodRange(data) {
 }
 
 function parseDashboardQuery(url) {
-  const parsed = basePeriodSchema.safeParse(fromSearchParams(url))
+  const parsed = dashboardQuerySchema.safeParse(fromSearchParams(url))
   if (!parsed.success) throw new AppError(400, 'Parametros de filtro invalidos.')
   return validatePeriodRange(parsed.data)
 }

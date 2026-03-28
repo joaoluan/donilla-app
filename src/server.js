@@ -181,7 +181,11 @@ function createApp(prisma, deps = {}) {
         return
       }
 
-      const response = await route(req, method, normalizedPath, url)
+      const response = await route(req, res, method, normalizedPath, url)
+
+      if (response?.handled) {
+        return
+      }
 
       if (response === null) {
         sendError(res, 404, 'Rota nao encontrada.')

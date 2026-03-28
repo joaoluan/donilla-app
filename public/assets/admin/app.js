@@ -1,5 +1,6 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260325o'
-import { bindDashboardSection } from './modules/dashboard.js?v=20260325o'
+import { bindNavigationSection } from './modules/navigation.js?v=20260328a'
+import { bindDashboardSection } from './modules/dashboard.js?v=20260328a'
+import { bindRealtimeSection } from './modules/realtime.js?v=20260328a'
 import { bindCustomersSection } from './modules/customers.js?v=20260325o'
 import { bindOrdersSection } from './modules/orders.js?v=20260325o'
 import { bindSettingsSection } from './modules/settings.js?v=20260325o'
@@ -77,14 +78,20 @@ const dashboardApplyBtnEl = document.getElementById('dashboardApplyBtn');
 const dashboardDateLabelEl = document.getElementById('dashboardDateLabel');
 const dashboardRefreshBtnEl = document.getElementById('dashboardRefreshBtn');
 const dashboardOpenOrdersBtnEl = document.getElementById('dashboardOpenOrdersBtn');
+const dashboardPendingAlertEl = document.getElementById('dashboardPendingAlert');
+const dashboardPendingAlertTextEl = document.getElementById('dashboardPendingAlertText');
+const dashboardPendingAlertBtnEl = document.getElementById('dashboardPendingAlertBtn');
 const dashboardQueueMetaEl = document.getElementById('dashboardQueueMeta');
 const dashboardQueueListEl = document.getElementById('dashboardQueueList');
 const kpiTotalPedidosEl = document.getElementById('kpiTotalPedidos');
+const kpiTotalPedidosTrendEl = document.getElementById('kpiTotalPedidosTrend');
 const kpiPendentesEl = document.getElementById('kpiPendentes');
 const kpiPreparandoEl = document.getElementById('kpiPreparando');
 const kpiEntreguesEl = document.getElementById('kpiEntregues');
 const kpiFaturamentoEl = document.getElementById('kpiFaturamento');
+const kpiFaturamentoTrendEl = document.getElementById('kpiFaturamentoTrend');
 const kpiTicketMedioEl = document.getElementById('kpiTicketMedio');
+const kpiTicketMedioTrendEl = document.getElementById('kpiTicketMedioTrend');
 const sidebarStoreStatusCardEl = document.getElementById('sidebarStoreStatus');
 const sidebarStoreStatusTextEl = document.getElementById('sidebarStoreStatusText');
 const sidebarStoreStatusMetaEl = document.getElementById('sidebarStoreStatusMeta');
@@ -267,6 +274,7 @@ let accessToken = readStoredValue(STORAGE_KEYS.accessToken);
 let refreshToken = readStoredValue(STORAGE_KEYS.refreshToken);
 let currentUser = null;
 let allOrders = [];
+let dashboardSnapshot = null;
 let dashboardQueueOrders = [];
 let crmCustomers = [];
 let customerDetail = null;
@@ -290,7 +298,7 @@ const passwordToggleTimeouts = new Map();
 let refreshSessionPromise = null;
 
 const dashboardFilters = {
-  period: dashboardRangePresetEl?.value || '7d',
+  period: 'today',
   from: '',
   to: '',
 };
@@ -437,6 +445,33 @@ function formatCompactTime(value) {
   });
 }
 
+function formatOrderCode(value) {
+  const numericId = Number(value || 0);
+  if (!numericId) return '#---';
+  return `#${String(numericId).padStart(3, '0')}`;
+}
+
+function elapsedMinutesSince(value) {
+  const timestamp = new Date(value || '').getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+}
+
+function formatElapsedSince(value) {
+  const minutes = elapsedMinutesSince(value);
+  if (minutes === null) return 'há pouco';
+  if (minutes < 1) return 'agora';
+  if (minutes < 60) return `há ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `há ${hours} h`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return `há ${days} d`;
+}
+
 function customerInitials(value) {
   const parts = String(value || '')
     .trim()
@@ -469,6 +504,7 @@ function escapeHtml(value) {
 }
 
 function setStatus(target, message, type = 'muted') {
+  if (!target) return;
   target.textContent = message;
   target.className = `status-text ${type}`;
 }
@@ -476,6 +512,26 @@ function setStatus(target, message, type = 'muted') {
 function clearStatus(target) {
   if (!target) return;
   setStatus(target, '', 'muted');
+}
+
+function showToast(message) {
+  const text = String(message || '').trim();
+  if (!text) return;
+
+  document.querySelectorAll('.admin-toast').forEach((toast) => toast.remove());
+
+  const toast = document.createElement('div');
+  toast.className = 'admin-toast';
+  toast.textContent = text;
+  document.body.appendChild(toast);
+
+  window.setTimeout(() => {
+    toast.classList.add('is-hiding');
+  }, 1800);
+
+  window.setTimeout(() => {
+    toast.remove();
+  }, 2200);
 }
 
 function buildAddressKey(endereco) {
@@ -1304,8 +1360,7 @@ function validateRangeState(state, statusTarget, label) {
 }
 
 function updateDashboardControlsFromMeta(filters) {
-  if (!filters) return;
-  dashboardFilters.period = filters.period || dashboardFilters.period;
+  dashboardFilters.period = 'today';
   dashboardFilters.from = filters.from || '';
   dashboardFilters.to = filters.to || '';
   syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
@@ -1433,6 +1488,7 @@ function clearSession() {
   currentUser = null;
   clearStoredSessionTokens();
   allOrders = [];
+  dashboardSnapshot = null;
   dashboardQueueOrders = [];
   crmCustomers = [];
   customerDetail = null;
@@ -1488,6 +1544,7 @@ function clearSession() {
   renderCatalogOverview();
   renderCatalogPortal();
   renderSettingsOverview();
+  document.dispatchEvent(new CustomEvent('admin:session-cleared'));
   setLoginBusy(false);
   passwordToggleEls.forEach((button) => hidePasswordForButton(button));
   setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
@@ -1575,7 +1632,9 @@ function clearSession() {
   if (categoryNextBtnEl) categoryNextBtnEl.disabled = true;
   if (produtoPrevBtnEl) produtoPrevBtnEl.disabled = true;
   if (produtoNextBtnEl) produtoNextBtnEl.disabled = true;
-  dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
+  if (dashboardRangeMetaEl) {
+    dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
+  }
   updateCustomersControlsFromState();
   updateOrdersControlsFromState();
   syncRangeInputs(dashboardRangePresetEl, dashboardFromDateEl, dashboardToDateEl, dashboardFilters);
@@ -1592,6 +1651,7 @@ function renderDashboard(dashboard, meta = null) {
   }
 
   if (!dashboard) {
+    dashboardSnapshot = null;
     kpiTotalPedidosEl.textContent = '--';
     kpiPendentesEl.textContent = '--';
     kpiPreparandoEl.textContent = '--';
@@ -1600,12 +1660,21 @@ function renderDashboard(dashboard, meta = null) {
     if (kpiTicketMedioEl) {
       kpiTicketMedioEl.textContent = '--';
     }
-    dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
+    if (dashboardRangeMetaEl) {
+      dashboardRangeMetaEl.textContent = 'Faça login para carregar indicadores.';
+    }
+    renderDashboardTrend(kpiFaturamentoTrendEl, null);
+    renderDashboardTrend(kpiTotalPedidosTrendEl, null);
+    renderDashboardTrend(kpiTicketMedioTrendEl, null, { mode: 'currency' });
+    renderDashboardPendingAlert();
+    renderAdminNavBadges();
     return;
   }
 
+  dashboardSnapshot = dashboard;
   const totalPedidos = Number(dashboard.totalPedidos ?? 0);
   const faturamento = Number(dashboard.faturamento || 0);
+  const ticketMedio = totalPedidos ? faturamento / totalPedidos : 0;
 
   kpiTotalPedidosEl.textContent = String(totalPedidos);
   kpiPendentesEl.textContent = String(dashboard.status?.pendentes ?? 0);
@@ -1613,11 +1682,18 @@ function renderDashboard(dashboard, meta = null) {
   kpiEntreguesEl.textContent = String(dashboard.status?.entregues ?? 0);
   kpiFaturamentoEl.textContent = brl(faturamento);
   if (kpiTicketMedioEl) {
-    kpiTicketMedioEl.textContent = brl(totalPedidos ? faturamento / totalPedidos : 0);
+    kpiTicketMedioEl.textContent = brl(ticketMedio);
   }
+  renderDashboardTrend(kpiFaturamentoTrendEl, dashboard.comparison?.faturamento);
+  renderDashboardTrend(kpiTotalPedidosTrendEl, dashboard.comparison?.totalPedidos);
+  renderDashboardTrend(kpiTicketMedioTrendEl, dashboard.comparison?.ticketMedio, { mode: 'currency' });
 
   const filters = meta?.filters || null;
-  dashboardRangeMetaEl.textContent = filters ? formatRangeMeta(filters) : 'Todo o período';
+  if (dashboardRangeMetaEl) {
+    dashboardRangeMetaEl.textContent = filters ? formatRangeMeta(filters) : 'Todo o período';
+  }
+  renderDashboardPendingAlert();
+  renderAdminNavBadges();
   updateDashboardControlsFromMeta(filters || dashboardFilters);
 }
 
@@ -1628,6 +1704,14 @@ function renderNavBadge(element, count = 0) {
   element.classList.toggle('hidden', safeCount === 0);
 }
 
+function pendingOrdersCount() {
+  if (dashboardSnapshot?.status) {
+    return Math.max(Number(dashboardSnapshot.status.pendentes ?? 0), 0);
+  }
+
+  return dashboardQueueOrders.filter((order) => (order?.status_entrega || 'pendente') === 'pendente').length;
+}
+
 function renderAdminNavBadges() {
   const hasSession = Boolean(accessToken && currentUser);
   if (!hasSession) {
@@ -1636,14 +1720,110 @@ function renderAdminNavBadges() {
     return;
   }
 
-  const activeOrders = dashboardQueueOrders.filter((order) => DASHBOARD_QUEUE_ACTIVE_STATUSES.includes(order?.status_entrega || 'pendente')).length;
+  const pendingOrders = pendingOrdersCount();
   const semEstoque = allMenuProdutos.filter((produto) => {
     const estoque = normalizeEstoque(produto.estoque_disponivel);
     return estoque !== null && estoque <= 0;
   }).length;
 
-  renderNavBadge(navOrdersBadgeEl, activeOrders);
+  renderNavBadge(navOrdersBadgeEl, pendingOrders);
   renderNavBadge(navCatalogBadgeEl, semEstoque);
+}
+
+function renderDashboardPendingAlert() {
+  if (!dashboardPendingAlertEl || !dashboardPendingAlertTextEl) return;
+
+  const hasSession = Boolean(accessToken && currentUser);
+  const pendingOrders = pendingOrdersCount();
+
+  if (!hasSession || pendingOrders <= 0) {
+    dashboardPendingAlertEl.classList.add('hidden');
+    return;
+  }
+
+  dashboardPendingAlertTextEl.textContent = pendingOrders === 1
+    ? '1 novo pedido aguardando confirmação.'
+    : `${pendingOrders} novos pedidos aguardando confirmação.`;
+  dashboardPendingAlertEl.classList.remove('hidden');
+}
+
+function renderDashboardTrend(element, comparison, { mode = 'percent' } = {}) {
+  if (!element || !comparison) {
+    if (element) {
+      element.textContent = '';
+      element.classList.add('hidden');
+    }
+    return;
+  }
+
+  const delta = Number(comparison.delta || 0);
+  const direction = delta > 0 ? 'positive' : (delta < 0 ? 'negative' : 'neutral');
+  const arrow = direction === 'positive' ? '↑' : (direction === 'negative' ? '↓' : '•');
+
+  let label = 'Estável vs ontem';
+  if (mode === 'currency') {
+    label = delta === 0
+      ? 'Estável vs ontem'
+      : `${arrow} ${brl(Math.abs(delta))} vs ontem`;
+  } else {
+    const percent = Math.abs(Number(comparison.percent || 0));
+    label = delta === 0
+      ? 'Estável vs ontem'
+      : `${arrow} ${percent.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% vs ontem`;
+  }
+
+  element.textContent = label;
+  element.className = `dashboard-metric-trend is-${direction}`;
+  element.classList.remove('hidden');
+}
+
+function orderItemQuantity(order) {
+  return (order?.itens_pedido || []).reduce((acc, item) => acc + Number(item?.quantidade || 0), 0);
+}
+
+function isUrgentPendingOrder(order) {
+  return (order?.status_entrega || 'pendente') === 'pendente' && Number(elapsedMinutesSince(order?.criado_em) || 0) > 15;
+}
+
+function dashboardOrderAction(order) {
+  const status = order?.status_entrega || 'pendente';
+
+  if (status === 'pendente') {
+    return { label: 'Aceitar pedido', nextStatus: 'preparando', nextStatusLabel: 'Preparando', className: 'btn-aceitar' };
+  }
+
+  if (status === 'preparando') {
+    return { label: 'Despachar', nextStatus: 'saiu_para_entrega', nextStatusLabel: 'Saiu para entrega', className: 'btn-despachar' };
+  }
+
+  if (status === 'saiu_para_entrega') {
+    return { label: 'Confirmar entrega', nextStatus: 'entregue', nextStatusLabel: 'Entregue', className: 'btn-confirmar' };
+  }
+
+  return null;
+}
+
+function dashboardProgressMarkup(order) {
+  const status = order?.status_entrega || 'pendente';
+  const steps = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue'];
+  const currentIndex = steps.indexOf(status);
+  const isCancelled = status === 'cancelado';
+
+  return `
+    <div class="dashboard-order-progress${isCancelled ? ' is-cancelled' : ''}" aria-hidden="true">
+      ${steps.map((step, index) => {
+        const stepClass = !isCancelled && currentIndex > index
+          ? 'is-complete'
+          : (!isCancelled && currentIndex === index ? 'is-current' : '');
+
+        return `
+          <span class="dashboard-order-progress-step ${stepClass}" title="${STATUS_LABELS[step] || step}">
+            <span class="dashboard-order-progress-dot"></span>
+          </span>
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 function dashboardQueueItemsSummary(order) {
@@ -1665,24 +1845,65 @@ function dashboardQueueItemsSummary(order) {
 function dashboardQueueCard(order) {
   const status = order.status_entrega || 'pendente';
   const customerName = order.clientes?.nome || 'Cliente sem nome';
+  const action = dashboardOrderAction(order);
+  const itemQuantity = orderItemQuantity(order);
+  const urgentOrder = isUrgentPendingOrder(order);
+  const orderCode = formatOrderCode(order.id);
+  const elapsedLabel = formatElapsedSince(order.criado_em);
+  const actionButtonsHtml = action
+    ? `
+        <button
+          type="button"
+          class="dashboard-order-btn ${action.className}"
+          data-dashboard-advance="${order.id}"
+          data-dashboard-next-status="${action.nextStatus}"
+          data-dashboard-next-status-label="${action.nextStatusLabel}"
+          data-dashboard-payment-status="${escapeHtml(order.status_pagamento || 'pendente')}"
+        >
+          ${escapeHtml(action.label)}
+        </button>
+        <button
+          type="button"
+          class="dashboard-order-btn btn-cancelar"
+          data-dashboard-cancel="${order.id}"
+          data-dashboard-payment-status="${escapeHtml(order.status_pagamento || 'pendente')}"
+        >
+          Cancelar
+        </button>
+      `
+    : '';
 
   return `
-    <button type="button" class="dashboard-queue-card" data-open-dashboard-order="${order.id}">
-      <span class="dashboard-queue-avatar" aria-hidden="true">${escapeHtml(customerInitials(customerName))}</span>
-
-      <div class="dashboard-queue-main">
-        <div class="dashboard-queue-title-row">
-          <strong>${escapeHtml(`#${order.id} - ${customerName}`)}</strong>
-          <span class="dashboard-queue-time">${escapeHtml(formatCompactTime(order.criado_em))}</span>
+    <article class="dashboard-order-card${urgentOrder ? ' is-urgent' : ''}">
+      <div class="dashboard-order-main">
+        <div class="dashboard-order-head">
+          <div class="dashboard-order-title">
+            <span class="dashboard-order-code">${escapeHtml(orderCode)}</span>
+            <div class="dashboard-order-copy">
+              <strong>${escapeHtml(customerName)}</strong>
+              <p>
+                ${escapeHtml(pluralize(itemQuantity, 'item', 'itens'))}
+                <span class="dashboard-order-age${urgentOrder ? ' is-urgent' : ''}">· ${escapeHtml(elapsedLabel)}</span>
+              </p>
+            </div>
+          </div>
+          <div class="dashboard-order-statuses">
+            <span class="status-chip status-${status}">${escapeHtml(DASHBOARD_QUEUE_STATUS_LABELS[status] || STATUS_LABELS[status] || status)}</span>
+            ${paymentChipMarkup(order.status_pagamento)}
+          </div>
         </div>
 
-        <p class="dashboard-queue-summary">${escapeHtml(dashboardQueueItemsSummary(order))}</p>
+        <p class="dashboard-order-summary">${escapeHtml(dashboardQueueItemsSummary(order))}</p>
+        ${dashboardProgressMarkup(order)}
       </div>
 
-      <div class="dashboard-queue-side">
-        <span class="status-chip status-${status}">${escapeHtml(DASHBOARD_QUEUE_STATUS_LABELS[status] || STATUS_LABELS[status] || status)}</span>
+      <div class="dashboard-order-side">
+        <strong class="dashboard-order-total">${brl(order.valor_total)}</strong>
+        <div class="dashboard-order-actions">
+          ${actionButtonsHtml}
+        </div>
       </div>
-    </button>
+    </article>
   `;
 }
 
@@ -1691,30 +1912,35 @@ function renderDashboardQueue() {
 
   const hasSession = Boolean(accessToken && currentUser);
   if (!hasSession) {
-    dashboardQueueMetaEl.textContent = 'Faça login para acompanhar a fila.';
+    dashboardQueueMetaEl.textContent = 'Faça login para acompanhar a operação.';
     dashboardQueueListEl.innerHTML = '<article class="dashboard-queue-empty"><p class="muted">Faça login para carregar a fila operacional.</p></article>';
+    renderDashboardPendingAlert();
     renderAdminNavBadges();
     return;
   }
 
   if (!dashboardQueueLoaded && dashboardQueueOrders.length === 0) {
-    dashboardQueueMetaEl.textContent = 'Carregando fila operacional.';
-    dashboardQueueListEl.innerHTML = '<article class="dashboard-queue-empty"><p class="muted">Carregando pedidos em andamento...</p></article>';
+    dashboardQueueMetaEl.textContent = 'Carregando pedidos recentes.';
+    dashboardQueueListEl.innerHTML = '<article class="dashboard-queue-empty"><p class="muted">Carregando pedidos do dia...</p></article>';
+    renderDashboardPendingAlert();
     renderAdminNavBadges();
     return;
   }
 
-  const activeOrders = dashboardQueueOrders
-    .filter((order) => DASHBOARD_QUEUE_ACTIVE_STATUSES.includes(order?.status_entrega || 'pendente'))
+  const recentOrders = dashboardQueueOrders
     .sort((left, right) => new Date(right?.criado_em || 0).getTime() - new Date(left?.criado_em || 0).getTime());
-  const compactVisibleOrders = activeOrders.slice(0, 3);
+  const visibleOrders = recentOrders.slice(0, 6);
+  const pendingOrders = pendingOrdersCount();
 
-  dashboardQueueMetaEl.textContent = activeOrders.length
-    ? `${activeOrders.length} pedido(s) exigem atenção agora.`
-    : 'Nenhum pedido em andamento no momento.';
-  dashboardQueueListEl.innerHTML = compactVisibleOrders.length
-    ? compactVisibleOrders.map(dashboardQueueCard).join('')
-    : '<article class="dashboard-queue-empty"><p class="muted">Nenhum pedido em andamento no momento.</p></article>';
+  dashboardQueueMetaEl.textContent = visibleOrders.length
+    ? (pendingOrders > 0
+      ? `${pendingOrders} aguardando confirmação · ${visibleOrders.length} pedidos recentes no radar.`
+      : `${visibleOrders.length} pedidos recentes recebidos hoje.`)
+    : 'Nenhum pedido recebido hoje até agora.';
+  dashboardQueueListEl.innerHTML = visibleOrders.length
+    ? visibleOrders.map(dashboardQueueCard).join('')
+    : '<article class="dashboard-queue-empty"><p class="muted">Nenhum pedido recebido hoje até agora.</p></article>';
+  renderDashboardPendingAlert();
   renderAdminNavBadges();
 }
 
@@ -2327,7 +2553,7 @@ async function loadCurrentUser() {
 
 function dashboardQueryString() {
   return buildQueryString({
-    ...buildPeriodParams(dashboardFilters, '7d'),
+    ...buildPeriodParams({ period: 'today' }, 'today'),
   });
 }
 
@@ -3316,6 +3542,7 @@ async function loadAdminData(options = {}) {
         setStatus(whatsappSessionStatusEl, error.message, 'muted');
       }),
     ]);
+    document.dispatchEvent(new CustomEvent('admin:session-active'));
   } catch (error) {
     if (allowRefresh && error.status === 401 && refreshToken) {
       try {
@@ -3401,6 +3628,12 @@ const state = {
   },
   set accessToken(value) {
     accessToken = value;
+  },
+  get refreshToken() {
+    return refreshToken;
+  },
+  set refreshToken(value) {
+    refreshToken = value;
   },
   get currentUser() {
     return currentUser;
@@ -3527,14 +3760,20 @@ const dom = {
   dashboardDateLabelEl,
   dashboardRefreshBtnEl,
   dashboardOpenOrdersBtnEl,
+  dashboardPendingAlertEl,
+  dashboardPendingAlertTextEl,
+  dashboardPendingAlertBtnEl,
   dashboardQueueMetaEl,
   dashboardQueueListEl,
   kpiTotalPedidosEl,
+  kpiTotalPedidosTrendEl,
   kpiPendentesEl,
   kpiPreparandoEl,
   kpiEntreguesEl,
   kpiFaturamentoEl,
+  kpiFaturamentoTrendEl,
   kpiTicketMedioEl,
+  kpiTicketMedioTrendEl,
   sidebarStoreStatusCardEl,
   sidebarStoreStatusTextEl,
   sidebarStoreStatusMetaEl,
@@ -3691,6 +3930,7 @@ const helpers = {
   escapeHtml,
   setStatus,
   clearStatus,
+  showToast,
   createDebounce,
   updateDatalistOptions,
   scrollCustomerDetailIntoView,
@@ -3715,6 +3955,7 @@ const api = {
   updateCustomersControlsFromState,
   applySessionUi,
   clearSession,
+  refreshAdminSession,
   loadCurrentUser,
   loadDashboard,
   renderDashboard,
@@ -3765,6 +4006,7 @@ const ctx = { dom, state, helpers, api };
 
 bindNavigationSection(ctx);
 bindDashboardSection(ctx);
+bindRealtimeSection(ctx);
 bindCustomersSection(ctx);
 bindOrdersSection(ctx);
 bindSettingsSection(ctx);

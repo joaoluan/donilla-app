@@ -17,8 +17,15 @@ const {
   parseCustomerId,
 } = require('../validators/adminQueryValidator')
 
-function adminController(service) {
+function adminController(service, deps = {}) {
+  const adminEvents = deps.adminEvents || null
+
   return {
+    async events(req, res) {
+      adminEvents?.subscribe(req, res, { auth: req.auth || null })
+      return { handled: true }
+    },
+
     async dashboard(url) {
       const query = parseDashboardQuery(url)
       const result = await service.dashboard(query)

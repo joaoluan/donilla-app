@@ -377,6 +377,7 @@ function buildWebhookAuditActor(payload) {
 function publicStoreService(prisma, deps = {}) {
   const whatsappNotifier = deps.whatsappNotifier || null
   const asaas = deps.asaas || null
+  const adminEvents = deps.adminEvents || null
   const logger = deps.logger || console
   const orderAudit = deps.orderAudit || createOrderAuditService(prisma, { logger })
   const scheduleTask = typeof deps.scheduleTask === 'function'
@@ -1293,6 +1294,15 @@ function publicStoreService(prisma, deps = {}) {
           order: createdOrder.notification,
         })
       }
+
+      adminEvents?.publish?.('order.created', {
+        orderId: response.id,
+        createdAt: response.criado_em,
+        paymentMethod: response.metodo_pagamento,
+        deliveryStatus: response.status_entrega,
+        paymentStatus: response.status_pagamento,
+        total: response.valor_total,
+      })
 
       return response
     },

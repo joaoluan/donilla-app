@@ -1,6 +1,58 @@
 export function bindDashboardSection(ctx) {
   const { dom, state, helpers, api } = ctx;
 
+  function formatOrderCode(orderId) {
+    const numericId = Number(orderId || 0);
+    if (!numericId) return '#---';
+    return `#${String(numericId).padStart(3, '0')}`;
+  }
+
+  async function submitDashboardOrderAction(button, {
+    orderId,
+    nextStatus,
+    nextStatusLabel,
+    currentPaymentStatus,
+    requiresConfirmation = false,
+  }) {
+    if (!orderId || !nextStatus || !state.accessToken) return;
+
+    const orderCode = formatOrderCode(orderId);
+    if (requiresConfirmation && !window.confirm(`Cancelar pedido ${orderCode}?`)) {
+      return;
+    }
+
+    const actionGroup = button.closest('.dashboard-order-actions');
+    const buttons = Array.from(actionGroup?.querySelectorAll('button') || [button]);
+    buttons.forEach((actionButton) => {
+      actionButton.disabled = true;
+    });
+
+    try {
+      const response = await fetch(`/admin/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: helpers.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          status_entrega: nextStatus,
+          status_pagamento: currentPaymentStatus || 'pendente',
+        }),
+      });
+
+      await helpers.parseResponse(response);
+      await Promise.all([api.loadDashboard(), api.loadDashboardQueue(), api.loadOrders()]);
+      helpers.showToast(
+        nextStatus === 'cancelado'
+          ? `Pedido ${orderCode} cancelado ✓`
+          : `Pedido ${orderCode} → ${nextStatusLabel} ✓`,
+      );
+    } catch (error) {
+      helpers.setStatus(dom.dashboardStatusEl, error.message, 'err');
+    } finally {
+      buttons.forEach((actionButton) => {
+        actionButton.disabled = false;
+      });
+    }
+  }
+
   dom.dashboardRefreshBtnEl?.addEventListener('click', async () => {
     if (!state.accessToken) return;
 
@@ -19,6 +71,21 @@ export function bindDashboardSection(ctx) {
     }
   });
 
+  dom.dashboardPendingAlertBtnEl?.addEventListener('click', async () => {
+    api.navigateToAdminView('pedidos');
+    state.ordersState.status = 'pendente';
+    state.ordersState.search = '';
+    state.ordersState.page = 1;
+    api.updateOrdersControlsFromState();
+    if (!state.accessToken) return;
+
+    try {
+      await api.loadOrders();
+    } catch (error) {
+      helpers.setStatus(dom.ordersStatusEl, error.message, 'err');
+    }
+  });
+
   dom.dashboardOpenOrdersBtnEl?.addEventListener('click', async () => {
     api.navigateToAdminView('pedidos');
     if (!state.accessToken) return;
@@ -31,6 +98,29 @@ export function bindDashboardSection(ctx) {
   });
 
   dom.dashboardQueueListEl?.addEventListener('click', async (event) => {
+    const advanceButton = event.target.closest('[data-dashboard-advance]');
+    if (advanceButton) {
+      await submitDashboardOrderAction(advanceButton, {
+        orderId: Number(advanceButton.dataset.dashboardAdvance || 0),
+        nextStatus: advanceButton.dataset.dashboardNextStatus || '',
+        nextStatusLabel: advanceButton.dataset.dashboardNextStatusLabel || 'Atualizado',
+        currentPaymentStatus: advanceButton.dataset.dashboardPaymentStatus || 'pendente',
+      });
+      return;
+    }
+
+    const cancelButton = event.target.closest('[data-dashboard-cancel]');
+    if (cancelButton) {
+      await submitDashboardOrderAction(cancelButton, {
+        orderId: Number(cancelButton.dataset.dashboardCancel || 0),
+        nextStatus: 'cancelado',
+        nextStatusLabel: 'Cancelado',
+        currentPaymentStatus: cancelButton.dataset.dashboardPaymentStatus || 'pendente',
+        requiresConfirmation: true,
+      });
+      return;
+    }
+
     const orderCard = event.target.closest('[data-open-dashboard-order]');
     if (!orderCard) return;
 
@@ -46,6 +136,10 @@ export function bindDashboardSection(ctx) {
       orderCard.disabled = false;
     }
   });
+
+  if (!dom.dashboardRangePresetEl || !dom.dashboardFromDateEl || !dom.dashboardToDateEl || !dom.dashboardApplyBtnEl) {
+    return;
+  }
 
   dom.dashboardRangePresetEl.addEventListener('change', () => {
     state.dashboardFilters.period = dom.dashboardRangePresetEl.value;

@@ -449,6 +449,57 @@ test('createOrder deve criar pedido pix aguardando pagamento de forma persistent
   }
 })
 
+test('createOrder deve publicar evento SSE administrativo para novo pedido', async () => {
+  const originalSecret = process.env.JWT_SECRET
+  process.env.JWT_SECRET = 'test-secret'
+
+  const { prisma } = createOrderPrismaMock()
+  const events = []
+  const service = publicStoreService(prisma, {
+    adminEvents: {
+      publish(eventName, payload) {
+        events.push({ eventName, payload })
+      },
+    },
+  })
+
+  const sessionToken = signToken(
+    {
+      purpose: 'customer_session',
+      customer_id: null,
+      telefone_whatsapp: '11999999999',
+      nome: 'Maria Tempo Real',
+      endereco: {
+        rua: 'Rua das Flores',
+        numero: '20',
+        bairro: 'Centro',
+        cidade: 'Sapiranga',
+      },
+    },
+    process.env.JWT_SECRET,
+    3600,
+  )
+
+  try {
+    await service.createOrder({
+      cliente_session_token: sessionToken,
+      metodo_pagamento: 'pix',
+      itens: [{ produto_id: 1, quantidade: 1 }],
+    })
+
+    assert.equal(events.length, 1)
+    assert.equal(events[0].eventName, 'order.created')
+    assert.equal(events[0].payload.orderId, 41)
+    assert.equal(events[0].payload.paymentMethod, 'pix')
+    assert.equal(events[0].payload.deliveryStatus, 'pendente')
+    assert.equal(events[0].payload.paymentStatus, 'pendente')
+    assert.equal(events[0].payload.total, '12.00')
+  } finally {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET
+    else process.env.JWT_SECRET = originalSecret
+  }
+})
+
 test('createOrder deve ignorar preco, frete, total e status enviados pelo cliente', async () => {
   const originalSecret = process.env.JWT_SECRET
   process.env.JWT_SECRET = 'test-secret'

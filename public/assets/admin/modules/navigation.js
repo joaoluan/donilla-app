@@ -1,5 +1,5 @@
 export function bindNavigationSection(ctx) {
-  const { dom, api } = ctx;
+  const { dom, state, helpers, api } = ctx;
 
   dom.adminViewLinks.forEach((link) => {
     link.addEventListener('click', (event) => {

@@ -175,6 +175,60 @@ test('listOrders prioriza intervalo exato enviado pela interface', async () => {
   assert.equal(result.meta.filters.to, '2026-03-25')
 })
 
+test('dashboard calcula tendencias comparando com ontem', async () => {
+  const calls = {
+    count: [],
+    findMany: [],
+  }
+  const countResults = [8, 3, 2, 2, 1, 5]
+  const revenueResults = [
+    [{ valor_total: '30.00' }, { valor_total: '50.00' }],
+    [{ valor_total: '20.00' }, { valor_total: '20.00' }],
+  ]
+  const prisma = {
+    pedidos: {
+      count(args) {
+        calls.count.push(args)
+        return Promise.resolve(countResults[calls.count.length - 1] ?? 0)
+      },
+      findMany(args) {
+        calls.findMany.push(args)
+        return Promise.resolve(revenueResults[calls.findMany.length - 1] ?? [])
+      },
+    },
+    $transaction(actions) {
+      return Promise.all(actions)
+    },
+  }
+  const service = adminPanelService(prisma, {
+    nowProvider: () => new Date('2026-03-28T12:00:00.000Z'),
+  })
+
+  const result = await service.dashboard({
+    period: 'today',
+    from: '2026-03-28',
+    to: '2026-03-28',
+    fromAt: '2026-03-28T00:00:00.000Z',
+    toAt: '2026-03-28T23:59:59.999Z',
+  })
+
+  assert.equal(result.data.totalPedidos, 8)
+  assert.deepEqual(result.data.status, {
+    pendentes: 3,
+    preparando: 2,
+    entregues: 2,
+    cancelados: 1,
+  })
+  assert.equal(result.data.faturamento, 80)
+  assert.deepEqual(result.data.comparison, {
+    totalPedidos: { current: 8, previous: 5, delta: 3, percent: 60 },
+    faturamento: { current: 80, previous: 40, delta: 40, percent: 100 },
+    ticketMedio: { current: 10, previous: 8, delta: 2, percent: 25 },
+  })
+  assert.equal(calls.count.length, 6)
+  assert.equal(calls.findMany.length, 2)
+})
+
 test('listCustomers permite localizar clientes pelo numero de pedido', async () => {
   const { prisma, calls } = createCustomerListPrismaMock([])
   const service = adminPanelService(prisma)
@@ -485,6 +539,7 @@ test('getCustomer devolve detalhe CRM com favoritos e historico de pedidos', asy
 
 test('updateOrderStatus dispara notificacao quando o status muda', async () => {
   const notifications = []
+  const publishedEvents = []
   const audits = []
   const currentOrder = {
     id: 9,
@@ -535,6 +590,11 @@ test('updateOrderStatus dispara notificacao quando o status muda', async () => {
         notifications.push(payload)
       },
     },
+    adminEvents: {
+      publish(eventName, payload) {
+        publishedEvents.push({ eventName, payload })
+      },
+    },
   })
 
   const result = await service.updateOrderStatus(
@@ -550,6 +610,18 @@ test('updateOrderStatus dispara notificacao quando o status muda', async () => {
   assert.equal(audits.length, 1)
   assert.equal(audits[0].acao, 'status_atualizado_no_painel')
   assert.equal(audits[0].ator, 'admin#7')
+  assert.deepEqual(publishedEvents, [
+    {
+      eventName: 'order.updated',
+      payload: {
+        orderId: 9,
+        createdAt: '2026-03-11T10:00:00.000Z',
+        deliveryStatus: 'preparando',
+        paymentStatus: 'pendente',
+        total: '29.90',
+      },
+    },
+  ])
 })
 
 test('updateOrderStatus nao dispara notificacao quando o status nao muda', async () => {
