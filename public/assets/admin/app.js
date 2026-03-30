@@ -5,6 +5,7 @@ import { bindCustomersSection } from './modules/customers.js?v=20260325o'
 import { bindOrdersSection } from './modules/orders.js?v=20260328d'
 import { bindSettingsSection } from './modules/settings.js?v=20260330a'
 import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
+import { bindBroadcastSection } from './modules/broadcast.js?v=20260330a'
 import { createAdminStore } from './store.js?v=20260328b'
 import { createAdminApiClient } from './api.js?v=20260328a'
 import { brl, dateTime, dateOnly, formatPhone, escapeHtml } from '../shared/utils.js?v=20260328b'
@@ -313,6 +314,7 @@ const ADMIN_VIEW_PATH_SEGMENTS = {
   clientes: 'clientes',
   cardapio: 'cardapio',
   pedidos: 'pedidos',
+  broadcast: 'disparos',
   config: 'configuracoes',
   whatsapp: 'bot-whatsapp',
 };
@@ -322,6 +324,8 @@ const ADMIN_VIEW_ALIASES = {
   clientes: 'clientes',
   cardapio: 'cardapio',
   pedidos: 'pedidos',
+  disparos: 'broadcast',
+  broadcast: 'broadcast',
   configuracoes: 'config',
   config: 'config',
   whatsapp: 'whatsapp',
@@ -333,6 +337,7 @@ const ADMIN_VIEW_DESCRIPTIONS = {
   clientes: 'Base de clientes com histórico, preferências e pedidos.',
   cardapio: 'Categorias, itens, estoque e disponibilidade do cardápio.',
   pedidos: 'Acompanhe, filtre e atualize pedidos em tempo real.',
+  broadcast: 'Listas, campanhas e historico dos disparos em massa pelo WhatsApp.',
   config: 'Operação da loja, agenda automática e taxas por local.',
   whatsapp: 'Conexão, automações, mensagens e testes do Bot WhatsApp.',
 };
@@ -718,6 +723,9 @@ function renderAdminView(view) {
   });
 
   setAdminTopbarDescription(activeView);
+  document.dispatchEvent(new CustomEvent('admin:view-change', {
+    detail: { view: activeView },
+  }));
   window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
@@ -3675,6 +3683,7 @@ bindCustomersSection(ctx);
 bindOrdersSection(ctx);
 bindSettingsSection(ctx);
 bindCatalogSection(ctx);
+bindBroadcastSection(ctx);
 
 
 window.addEventListener('popstate', () => {

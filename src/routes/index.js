@@ -4,6 +4,7 @@ const { usuariosController } = require('../controllers/usuariosController')
 const { authController } = require('../controllers/authController')
 const { publicController } = require('../controllers/publicController')
 const { adminController } = require('../controllers/adminController')
+const { broadcastController } = require('../controllers/broadcastController')
 const { whatsappController } = require('../controllers/whatsappController')
 const { paymentsController } = require('../controllers/paymentsController')
 const { requireAuth, requireRole } = require('../middleware/auth')
@@ -12,6 +13,7 @@ const { produtosService } = require('../services/produtosService')
 const { usuariosService } = require('../services/usuariosService')
 const { publicStoreService } = require('../services/publicStoreService')
 const { adminPanelService } = require('../services/adminPanelService')
+const { createBroadcastService } = require('../services/broadcastService')
 const { createWhatsAppNotificationService } = require('../services/whatsappNotificationService')
 const { createWppConnectService } = require('../services/wppConnectService')
 const { createWhatsAppBotService } = require('../services/whatsappBotService')
@@ -55,6 +57,15 @@ const ROUTE_PATTERNS = {
   adminOrderAudit: compileRoutePattern('/admin/orders/:id/audit'),
   adminOrderStatus: compileRoutePattern('/admin/orders/:id/status'),
   adminDeliveryFeeById: compileRoutePattern('/admin/delivery-fees/:id'),
+  broadcastListById: compileRoutePattern('/admin/broadcast/lists/:id'),
+  broadcastListMembers: compileRoutePattern('/admin/broadcast/lists/:id/members'),
+  broadcastListMemberByPhone: compileRoutePattern('/admin/broadcast/lists/:id/members/:phone'),
+  broadcastListImportClients: compileRoutePattern('/admin/broadcast/lists/:id/import-clients'),
+  broadcastTemplateById: compileRoutePattern('/admin/broadcast/templates/:id'),
+  broadcastCampaignById: compileRoutePattern('/admin/broadcast/campaigns/:id'),
+  broadcastCampaignLogs: compileRoutePattern('/admin/broadcast/campaigns/:id/logs'),
+  broadcastCampaignStart: compileRoutePattern('/admin/broadcast/campaigns/:id/start'),
+  broadcastCampaignCancel: compileRoutePattern('/admin/broadcast/campaigns/:id/cancel'),
 }
 
 function createRouter(prisma, deps = {}) {
@@ -79,6 +90,9 @@ function createRouter(prisma, deps = {}) {
   const admin = adminController(
     adminPanelService(prisma, { whatsappNotifier, whatsappTransport, adminEvents }),
     { adminEvents },
+  )
+  const broadcast = broadcastController(
+    createBroadcastService(prisma, { whatsappTransport, logger: deps.logger }),
   )
 
   return async function route(req, res, method, path, url) {
@@ -355,6 +369,120 @@ function createRouter(prisma, deps = {}) {
       if (method === 'DELETE') {
         requireRole(req, 'admin')
         return admin.removeDeliveryFee(adminDeliveryFeeByIdMatch.id)
+      }
+    }
+
+    if (method === 'GET' && path === '/admin/broadcast/lists') {
+      requireRole(req, 'admin')
+      return broadcast.lists()
+    }
+
+    if (method === 'POST' && path === '/admin/broadcast/lists') {
+      requireRole(req, 'admin')
+      return broadcast.createList(req)
+    }
+
+    const broadcastListByIdMatch = matchRoute(path, ROUTE_PATTERNS.broadcastListById)
+    if (broadcastListByIdMatch) {
+      if (method === 'DELETE') {
+        requireRole(req, 'admin')
+        return broadcast.removeList(broadcastListByIdMatch.id)
+      }
+    }
+
+    const broadcastListMembersMatch = matchRoute(path, ROUTE_PATTERNS.broadcastListMembers)
+    if (broadcastListMembersMatch) {
+      if (method === 'GET') {
+        requireRole(req, 'admin')
+        return broadcast.listMembers(broadcastListMembersMatch.id)
+      }
+
+      if (method === 'POST') {
+        requireRole(req, 'admin')
+        return broadcast.addMember(req, broadcastListMembersMatch.id)
+      }
+    }
+
+    const broadcastListMemberByPhoneMatch = matchRoute(path, ROUTE_PATTERNS.broadcastListMemberByPhone)
+    if (broadcastListMemberByPhoneMatch) {
+      if (method === 'DELETE') {
+        requireRole(req, 'admin')
+        return broadcast.removeMember(
+          broadcastListMemberByPhoneMatch.id,
+          broadcastListMemberByPhoneMatch.phone,
+        )
+      }
+    }
+
+    const broadcastListImportClientsMatch = matchRoute(path, ROUTE_PATTERNS.broadcastListImportClients)
+    if (broadcastListImportClientsMatch) {
+      if (method === 'POST') {
+        requireRole(req, 'admin')
+        return broadcast.importClients(broadcastListImportClientsMatch.id)
+      }
+    }
+
+    if (method === 'GET' && path === '/admin/broadcast/templates') {
+      requireRole(req, 'admin')
+      return broadcast.templates()
+    }
+
+    if (method === 'POST' && path === '/admin/broadcast/templates') {
+      requireRole(req, 'admin')
+      return broadcast.createTemplate(req)
+    }
+
+    const broadcastTemplateByIdMatch = matchRoute(path, ROUTE_PATTERNS.broadcastTemplateById)
+    if (broadcastTemplateByIdMatch) {
+      if (method === 'DELETE') {
+        requireRole(req, 'admin')
+        return broadcast.removeTemplate(broadcastTemplateByIdMatch.id)
+      }
+    }
+
+    if (method === 'GET' && path === '/admin/broadcast/campaigns') {
+      requireRole(req, 'admin')
+      return broadcast.campaigns()
+    }
+
+    if (method === 'POST' && path === '/admin/broadcast/campaigns') {
+      requireRole(req, 'admin')
+      return broadcast.createCampaign(req)
+    }
+
+    const broadcastCampaignByIdMatch = matchRoute(path, ROUTE_PATTERNS.broadcastCampaignById)
+    if (broadcastCampaignByIdMatch) {
+      if (method === 'GET') {
+        requireRole(req, 'admin')
+        return broadcast.campaign(broadcastCampaignByIdMatch.id)
+      }
+      if (method === 'DELETE') {
+        requireRole(req, 'admin')
+        return broadcast.removeCampaign(broadcastCampaignByIdMatch.id)
+      }
+    }
+
+    const broadcastCampaignLogsMatch = matchRoute(path, ROUTE_PATTERNS.broadcastCampaignLogs)
+    if (broadcastCampaignLogsMatch) {
+      if (method === 'GET') {
+        requireRole(req, 'admin')
+        return broadcast.campaignLogs(broadcastCampaignLogsMatch.id)
+      }
+    }
+
+    const broadcastCampaignStartMatch = matchRoute(path, ROUTE_PATTERNS.broadcastCampaignStart)
+    if (broadcastCampaignStartMatch) {
+      if (method === 'POST') {
+        requireRole(req, 'admin')
+        return broadcast.startCampaign(broadcastCampaignStartMatch.id)
+      }
+    }
+
+    const broadcastCampaignCancelMatch = matchRoute(path, ROUTE_PATTERNS.broadcastCampaignCancel)
+    if (broadcastCampaignCancelMatch) {
+      if (method === 'POST') {
+        requireRole(req, 'admin')
+        return broadcast.cancelCampaign(broadcastCampaignCancelMatch.id)
       }
     }
 

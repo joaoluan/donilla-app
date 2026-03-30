@@ -28,6 +28,7 @@ const STATIC_ROUTES = {
   '/admin/clientes': ADMIN_STATIC_ROUTE,
   '/admin/cardapio': ADMIN_STATIC_ROUTE,
   '/admin/pedidos': ADMIN_STATIC_ROUTE,
+  '/admin/disparos': ADMIN_STATIC_ROUTE,
   '/admin/configuracoes': ADMIN_STATIC_ROUTE,
   '/site': { type: 'redirect', location: '/', statusCode: 308 },
   '/cliente': { type: 'redirect', location: '/', statusCode: 308 },

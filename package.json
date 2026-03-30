@@ -8,7 +8,8 @@
     "prisma:validate": "npx prisma validate",
     "prisma:generate": "npx prisma generate",
     "test": "node --test test/*.test.js",
-    "smoke:catalog": "bash ./scripts/run-catalog-smoke.sh"
+    "smoke:catalog": "bash ./scripts/run-catalog-smoke.sh",
+    "smoke:broadcast": "bash ./scripts/run-broadcast-smoke.sh"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",

@@ -28,6 +28,7 @@ const {
   validateUpdateOrderStatus,
 } = require('../src/validators/publicOrderValidator')
 const { validateUpdateStoreSettings } = require('../src/validators/storeSettingsValidator')
+const { parseMemberPhone } = require('../src/validators/broadcastValidator')
 const {
   validateCreateDeliveryFee,
   validateUpdateDeliveryFee,
@@ -212,6 +213,11 @@ test('validateCustomerLookup deve rejeitar telefone curto', () => {
     () => validateCustomerLookup('123'),
     (error) => error instanceof AppError && error.message === 'Telefone invalido.',
   )
+})
+
+test('parseMemberPhone preserva telefone legado sem prefixar 55 na rota de exclusao', () => {
+  const phone = parseMemberPhone('51999999999')
+  assert.equal(phone, '51999999999')
 })
 
 test('validateCreateOrder deve aceitar observacoes e normalizar vazio para null', () => {

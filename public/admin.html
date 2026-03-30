@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
   <link rel="stylesheet" href="/styles.css?v=20260329a" />
+  <link rel="stylesheet" href="/assets/admin/broadcast.css?v=20260330a" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -689,6 +690,21 @@
             <span class="admin-nav-link-copy">
               <span class="admin-nav-link-label">Configurações</span>
               <small>Operação, horários e taxas</small>
+            </span>
+          </a>
+
+          <a href="/admin/disparos" data-admin-view-link="broadcast" class="admin-nav-link">
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M5 7h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M5 12h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M5 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M16 11l3 3-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label">Disparos</span>
+              <small>Listas, campanhas e logs</small>
             </span>
           </a>
 
@@ -1843,11 +1859,324 @@
             </form>
           </section>
         </article>
+
+        <article id="broadcast" class="card admin-card admin-panel-view hidden" data-admin-view="broadcast">
+          <section class="broadcast-shell">
+            <section class="broadcast-hero-card">
+              <div class="broadcast-hero-copy">
+                <span class="broadcast-eyebrow">Disparos em massa</span>
+                <h2>Campanhas de WhatsApp com cadencia, segmentacao e historico.</h2>
+                <p class="muted">Monte listas de contatos, salve templates de mensagem, agende campanhas e acompanhe o progresso de cada envio sem sair do painel administrativo.</p>
+              </div>
+
+              <div class="broadcast-overview-grid" aria-label="Resumo dos disparos">
+                <article class="broadcast-overview-card">
+                  <strong id="broadcastStatLists">0</strong>
+                  <span>Listas</span>
+                  <small>Segmentos prontos para uso</small>
+                </article>
+
+                <article class="broadcast-overview-card">
+                  <strong id="broadcastStatTemplates">0</strong>
+                  <span>Templates</span>
+                  <small>Mensagens reutilizaveis</small>
+                </article>
+
+                <article class="broadcast-overview-card">
+                  <strong id="broadcastStatCampaigns">0</strong>
+                  <span>Campanhas</span>
+                  <small>Historico consolidado</small>
+                </article>
+
+                <article class="broadcast-overview-card">
+                  <strong id="broadcastStatRunning">0</strong>
+                  <span>Em envio</span>
+                  <small>Atualizacao automatica a cada 5s</small>
+                </article>
+              </div>
+            </section>
+
+            <nav class="broadcast-tabs" aria-label="Seções do modulo de disparos">
+              <button class="broadcast-tab active" type="button" data-broadcast-tab="lists" aria-pressed="true">Listas</button>
+              <button class="broadcast-tab" type="button" data-broadcast-tab="templates" aria-pressed="false">Templates</button>
+              <button class="broadcast-tab" type="button" data-broadcast-tab="compose" aria-pressed="false">Nova campanha</button>
+              <button class="broadcast-tab" type="button" data-broadcast-tab="campaigns" aria-pressed="false">Campanhas</button>
+            </nav>
+
+            <section class="broadcast-panel" data-broadcast-panel="lists">
+              <div class="broadcast-grid broadcast-grid-2">
+                <article class="broadcast-card">
+                  <div class="broadcast-card-head">
+                    <div>
+                      <h3>Listas de contatos</h3>
+                      <p class="muted">Crie segmentos por interesse, bairro, sazonalidade ou qualquer criterio que fizer sentido para sua operacao.</p>
+                    </div>
+
+                    <div class="broadcast-card-actions">
+                      <button id="broadcastNewListBtn" class="primary-btn" type="button">Nova lista</button>
+                    </div>
+                  </div>
+
+                  <p id="broadcastListsStatus" class="status-text muted">Faça login para carregar listas.</p>
+                  <div id="broadcastListsGrid" class="broadcast-list-grid"></div>
+                </article>
+
+                <article class="broadcast-card">
+                  <div class="broadcast-card-head">
+                    <div>
+                      <h3 id="broadcastMembersTitle">Membros da lista</h3>
+                      <p id="broadcastMembersMeta" class="muted">Selecione uma lista para ver os contatos.</p>
+                    </div>
+
+                    <div class="broadcast-members-toolbar">
+                      <button id="broadcastImportClientsBtn" class="ghost-btn" type="button" disabled>Importar todos clientes</button>
+                      <button id="broadcastAddMemberBtn" class="ghost-btn" type="button" disabled>Adicionar contato</button>
+                    </div>
+                  </div>
+
+                  <p id="broadcastMembersStatus" class="status-text muted">Faça login para gerenciar os contatos das listas.</p>
+                  <div id="broadcastMembersList"></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="broadcast-panel hidden" data-broadcast-panel="templates">
+              <article class="broadcast-card">
+                <div class="broadcast-card-head">
+                  <div>
+                    <h3>Templates de mensagem</h3>
+                    <p class="muted">Guarde textos de campanha para cupom, avisos de entrega, novidades do cardapio e retomada de clientes.</p>
+                  </div>
+
+                  <div class="broadcast-card-actions">
+                    <button id="broadcastNewTemplateBtn" class="primary-btn" type="button">Novo template</button>
+                  </div>
+                </div>
+
+                <p id="broadcastTemplatesStatus" class="status-text muted">Faça login para carregar templates.</p>
+                <div id="broadcastTemplatesGrid" class="broadcast-template-grid"></div>
+              </article>
+            </section>
+
+            <section class="broadcast-panel hidden" data-broadcast-panel="compose">
+              <article class="broadcast-card">
+                <div class="broadcast-card-head">
+                  <div>
+                    <h3>Montar nova campanha</h3>
+                    <p class="muted">Quando a data estiver vazia, o painel cria a campanha e ja inicia o envio. Se preencher a agenda, ela fica programada.</p>
+                  </div>
+                </div>
+
+                <form id="broadcastCampaignForm" class="broadcast-form-grid">
+                  <div class="broadcast-form-grid broadcast-form-grid-2">
+                    <label class="broadcast-field">
+                      <strong>Nome da campanha</strong>
+                      <input name="name" placeholder="Ex.: Cupom de fim de semana" maxlength="255" required />
+                    </label>
+
+                    <label class="broadcast-field">
+                      <strong>Lista de contatos</strong>
+                      <select id="broadcastCampaignList" name="list_id" required>
+                        <option value="">Selecione uma lista</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <label class="broadcast-field">
+                    <strong>Mensagem</strong>
+                    <textarea id="broadcastCampaignMessage" name="message" placeholder="Escreva a mensagem que sera enviada no WhatsApp." maxlength="4000" required></textarea>
+                    <span class="broadcast-field-hint">Use um tom direto e humano. O disparo respeita um intervalo aleatorio de 3 a 6 segundos entre mensagens.</span>
+                  </label>
+
+                  <div class="broadcast-compose-actions">
+                    <button id="broadcastUseTemplateBtn" class="ghost-btn" type="button">Usar template salvo</button>
+                    <span class="broadcast-inline-note">Campanhas sem data sao iniciadas logo apos a criacao.</span>
+                  </div>
+
+                  <label class="broadcast-field">
+                    <strong>Data e hora do agendamento</strong>
+                    <input id="broadcastCampaignScheduledAt" name="scheduled_at" type="datetime-local" />
+                    <span class="broadcast-field-hint">Opcional. Se vazio, o envio comeca agora. Se preenchido, a campanha fica agendada.</span>
+                  </label>
+
+                  <div class="broadcast-dialog-actions">
+                    <button class="primary-btn" type="submit">Criar campanha</button>
+                  </div>
+
+                  <p id="broadcastCampaignFormStatus" class="status-text muted">Faça login para criar campanhas.</p>
+                </form>
+              </article>
+            </section>
+
+            <section class="broadcast-panel hidden" data-broadcast-panel="campaigns">
+              <article class="broadcast-card">
+                <div class="broadcast-card-head">
+                  <div>
+                    <h3>Campanhas e progresso</h3>
+                    <p class="muted">Acompanhe o status de cada campanha, abra os logs individuais e monitore o envio sem recarregar a pagina.</p>
+                  </div>
+
+                  <div class="broadcast-card-actions">
+                    <button id="broadcastCampaignsRefreshBtn" class="ghost-btn" type="button">Atualizar agora</button>
+                  </div>
+                </div>
+
+                <p id="broadcastCampaignsStatus" class="status-text muted">Faça login para carregar campanhas.</p>
+                <div id="broadcastCampaignsTable"></div>
+              </article>
+            </section>
+          </section>
+
+          <dialog id="broadcastListDialog" class="broadcast-dialog">
+            <form id="broadcastListForm" method="dialog" class="broadcast-dialog-shell">
+              <div class="broadcast-dialog-head">
+                <div>
+                  <h3>Nova lista de contatos</h3>
+                  <p class="muted">Crie um segmento para seus disparos antes de montar a campanha.</p>
+                </div>
+                <button class="broadcast-dialog-close" data-broadcast-dialog-close type="button" aria-label="Fechar">X</button>
+              </div>
+
+              <label class="broadcast-field">
+                <strong>Nome da lista</strong>
+                <input name="name" maxlength="255" placeholder="Ex.: Clientes aniversario do mes" required />
+              </label>
+
+              <label class="broadcast-field">
+                <strong>Descricao</strong>
+                <textarea name="description" maxlength="2000" placeholder="Explique quem entra nesta lista e qual o contexto do disparo."></textarea>
+              </label>
+
+              <p id="broadcastListDialogStatus" class="status-text muted"></p>
+
+              <div class="broadcast-dialog-actions">
+                <button class="ghost-btn" data-broadcast-dialog-close type="button">Cancelar</button>
+                <button class="primary-btn" type="submit">Salvar lista</button>
+              </div>
+            </form>
+          </dialog>
+
+          <dialog id="broadcastMemberDialog" class="broadcast-dialog">
+            <form id="broadcastMemberForm" method="dialog" class="broadcast-dialog-shell">
+              <div class="broadcast-dialog-head">
+                <div>
+                  <h3>Adicionar contato</h3>
+                  <p class="muted">Inclua um contato manualmente para o proximo disparo.</p>
+                </div>
+                <button class="broadcast-dialog-close" data-broadcast-dialog-close type="button" aria-label="Fechar">X</button>
+              </div>
+
+              <div class="broadcast-form-grid broadcast-form-grid-2">
+                <label class="broadcast-field">
+                  <strong>Telefone</strong>
+                  <input name="phone" type="tel" placeholder="Ex.: 5551999999999" required />
+                </label>
+
+                <label class="broadcast-field">
+                  <strong>Nome</strong>
+                  <input name="name" maxlength="255" placeholder="Nome do contato" />
+                </label>
+              </div>
+
+              <p id="broadcastMemberDialogStatus" class="status-text muted"></p>
+
+              <div class="broadcast-dialog-actions">
+                <button class="ghost-btn" data-broadcast-dialog-close type="button">Cancelar</button>
+                <button class="primary-btn" type="submit">Adicionar</button>
+              </div>
+            </form>
+          </dialog>
+
+          <dialog id="broadcastTemplateDialog" class="broadcast-dialog">
+            <form id="broadcastTemplateForm" method="dialog" class="broadcast-dialog-shell">
+              <div class="broadcast-dialog-head">
+                <div>
+                  <h3>Novo template</h3>
+                  <p class="muted">Salve mensagens prontas para reaproveitar nas proximas campanhas.</p>
+                </div>
+                <button class="broadcast-dialog-close" data-broadcast-dialog-close type="button" aria-label="Fechar">X</button>
+              </div>
+
+              <label class="broadcast-field">
+                <strong>Nome do template</strong>
+                <input name="name" maxlength="255" placeholder="Ex.: Aviso de promo relampago" required />
+              </label>
+
+              <label class="broadcast-field">
+                <strong>Conteudo</strong>
+                <textarea name="content" maxlength="4000" placeholder="Escreva aqui a mensagem padrao do template." required></textarea>
+              </label>
+
+              <p id="broadcastTemplateDialogStatus" class="status-text muted"></p>
+
+              <div class="broadcast-dialog-actions">
+                <button class="ghost-btn" data-broadcast-dialog-close type="button">Cancelar</button>
+                <button class="primary-btn" type="submit">Salvar template</button>
+              </div>
+            </form>
+          </dialog>
+
+          <dialog id="broadcastTemplatePickerDialog" class="broadcast-dialog">
+            <div class="broadcast-dialog-shell">
+              <div class="broadcast-dialog-head">
+                <div>
+                  <h3>Usar template salvo</h3>
+                  <p class="muted">Escolha um texto pronto para preencher a mensagem da campanha.</p>
+                </div>
+                <button class="broadcast-dialog-close" data-broadcast-dialog-close type="button" aria-label="Fechar">X</button>
+              </div>
+
+              <p id="broadcastTemplatePickerStatus" class="status-text muted"></p>
+              <div id="broadcastTemplatePickerList" class="broadcast-template-picker"></div>
+
+              <div class="broadcast-dialog-actions">
+                <button class="ghost-btn" data-broadcast-dialog-close type="button">Fechar</button>
+              </div>
+            </div>
+          </dialog>
+
+          <dialog id="broadcastLogsDialog" class="broadcast-dialog">
+            <div class="broadcast-dialog-shell">
+              <div class="broadcast-dialog-head">
+                <div>
+                  <h3 id="broadcastLogsTitle">Logs da campanha</h3>
+                  <p id="broadcastLogsStatus" class="muted">Selecione uma campanha para acompanhar os detalhes.</p>
+                </div>
+                <button class="broadcast-dialog-close" data-broadcast-dialog-close type="button" aria-label="Fechar">X</button>
+              </div>
+
+              <div id="broadcastLogsTable"></div>
+
+              <div class="broadcast-dialog-actions">
+                <button class="ghost-btn" data-broadcast-dialog-close type="button">Fechar</button>
+              </div>
+            </div>
+          </dialog>
+
+          <dialog id="broadcastConfirmDialog" class="broadcast-dialog">
+            <div class="broadcast-dialog-shell broadcast-confirm-shell">
+              <div class="broadcast-dialog-head">
+                <div>
+                  <h3 id="broadcastConfirmTitle">Confirmar acao</h3>
+                  <p class="muted">Revise esta acao antes de continuar.</p>
+                </div>
+                <button id="broadcastConfirmCloseBtn" class="broadcast-dialog-close" type="button" aria-label="Fechar">X</button>
+              </div>
+
+              <p id="broadcastConfirmMessage" class="broadcast-confirm-message">Deseja continuar com esta acao?</p>
+
+              <div class="broadcast-dialog-actions">
+                <button id="broadcastConfirmCancelBtn" class="ghost-btn" type="button">Cancelar</button>
+                <button id="broadcastConfirmSubmitBtn" class="primary-btn broadcast-confirm-submit-btn" type="button" data-tone="danger">Confirmar</button>
+              </div>
+            </div>
+          </dialog>
+        </article>
       </section>
     </main>
   </div>
 
   <script src="/assets/ui/custom-select.js?v=20260327a"></script>
-  <script type="module" src="/assets/admin/app.js?v=20260330a"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260330b"></script>
 </body>
 </html>
