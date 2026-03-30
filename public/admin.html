@@ -1784,9 +1784,13 @@
                       <textarea
                         name="whatsapp_mensagem_novo_pedido"
                         rows="6"
+                        maxlength="1000"
                         placeholder="Ex.: Oi {cliente_nome}, recebemos seu pedido #{pedido_id}. Acompanhe seu pedido: {pedido_tracking_url}"
                       ></textarea>
-                      <small>Use <code>{pedido_tracking_url}</code> para enviar o link publico de acompanhamento junto da confirmacao.</small>
+                      <div class="whatsapp-copy-card-meta">
+                        <small>Use <code>{pedido_tracking_url}</code> para enviar o link publico de acompanhamento junto da confirmacao.</small>
+                        <span id="whatsappNewOrderMessageCount" class="whatsapp-char-counter" aria-live="polite">0/1000</span>
+                      </div>
                     </label>
 
                     <label class="whatsapp-copy-card">
@@ -1795,9 +1799,13 @@
                       <textarea
                         name="whatsapp_mensagem_status"
                         rows="6"
+                        maxlength="1000"
                         placeholder="Ex.: Oi {cliente_nome}, seu pedido #{pedido_id} teve uma nova atualização. {status_mensagem}"
                       ></textarea>
-                      <small>Use <code>{status_mensagem}</code> para o sistema adaptar o texto em cada etapa sem deixar a mensagem repetitiva.</small>
+                      <div class="whatsapp-copy-card-meta">
+                        <small>Use <code>{status_mensagem}</code> para o sistema adaptar o texto em cada etapa sem deixar a mensagem repetitiva.</small>
+                        <span id="whatsappStatusMessageCount" class="whatsapp-char-counter" aria-live="polite">0/1000</span>
+                      </div>
                     </label>
                   </div>
 
@@ -1984,8 +1992,11 @@
 
                   <label class="broadcast-field">
                     <strong>Mensagem</strong>
-                    <textarea id="broadcastCampaignMessage" name="message" placeholder="Escreva a mensagem que sera enviada no WhatsApp." maxlength="4000" required></textarea>
-                    <span class="broadcast-field-hint">Use um tom direto e humano. O disparo respeita um intervalo aleatorio de 3 a 6 segundos entre mensagens.</span>
+                    <textarea id="broadcastCampaignMessage" name="message" placeholder="Escreva a mensagem que sera enviada no WhatsApp." maxlength="4000" data-soft-limit="1024" required></textarea>
+                    <div class="broadcast-field-meta">
+                      <span class="broadcast-field-hint">Use um tom direto e humano. Para evitar cortes no WhatsApp, prefira ficar ate 1024 caracteres.</span>
+                      <span id="broadcastCampaignMessageCount" class="broadcast-char-counter" aria-live="polite">0/4000</span>
+                    </div>
                   </label>
 
                   <div class="broadcast-compose-actions">
@@ -2104,7 +2115,11 @@
 
               <label class="broadcast-field">
                 <strong>Conteudo</strong>
-                <textarea name="content" maxlength="4000" placeholder="Escreva aqui a mensagem padrao do template." required></textarea>
+                <textarea name="content" maxlength="4000" data-soft-limit="1024" placeholder="Escreva aqui a mensagem padrao do template." required></textarea>
+                <div class="broadcast-field-meta">
+                  <span class="broadcast-field-hint">Templates longos demais tambem podem sofrer cortes. O recomendado e ficar ate 1024 caracteres.</span>
+                  <span id="broadcastTemplateContentCount" class="broadcast-char-counter" aria-live="polite">0/4000</span>
+                </div>
               </label>
 
               <p id="broadcastTemplateDialogStatus" class="status-text muted"></p>

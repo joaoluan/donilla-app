@@ -67,6 +67,7 @@ const ROUTE_PATTERNS = {
   broadcastCampaignLogs: compileRoutePattern('/admin/broadcast/campaigns/:id/logs'),
   broadcastCampaignStart: compileRoutePattern('/admin/broadcast/campaigns/:id/start'),
   broadcastCampaignCancel: compileRoutePattern('/admin/broadcast/campaigns/:id/cancel'),
+  broadcastCampaignRetryFailed: compileRoutePattern('/admin/broadcast/campaigns/:id/retry-failed'),
 }
 
 function createRouter(prisma, deps = {}) {
@@ -403,7 +404,7 @@ function createRouter(prisma, deps = {}) {
     if (broadcastListMembersMatch) {
       if (method === 'GET') {
         requireRole(req, 'admin')
-        return broadcast.listMembers(broadcastListMembersMatch.id)
+        return broadcast.listMembers(url, broadcastListMembersMatch.id)
       }
 
       if (method === 'POST') {
@@ -475,7 +476,7 @@ function createRouter(prisma, deps = {}) {
     if (broadcastCampaignLogsMatch) {
       if (method === 'GET') {
         requireRole(req, 'admin')
-        return broadcast.campaignLogs(broadcastCampaignLogsMatch.id)
+        return broadcast.campaignLogs(url, broadcastCampaignLogsMatch.id)
       }
     }
 
@@ -492,6 +493,14 @@ function createRouter(prisma, deps = {}) {
       if (method === 'POST') {
         requireRole(req, 'admin')
         return broadcast.cancelCampaign(broadcastCampaignCancelMatch.id)
+      }
+    }
+
+    const broadcastCampaignRetryFailedMatch = matchRoute(path, ROUTE_PATTERNS.broadcastCampaignRetryFailed)
+    if (broadcastCampaignRetryFailedMatch) {
+      if (method === 'POST') {
+        requireRole(req, 'admin')
+        return broadcast.retryFailedCampaign(broadcastCampaignRetryFailedMatch.id)
       }
     }
 

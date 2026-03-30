@@ -371,6 +371,29 @@
   color: var(--admin-text-primary);
 }
 
+.broadcast-field-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.broadcast-char-counter {
+  flex: 0 0 auto;
+  color: var(--admin-text-tertiary);
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.broadcast-char-counter.warning {
+  color: #f59e0b;
+}
+
+.broadcast-char-counter.danger {
+  color: #f87171;
+}
+
 .broadcast-field input,
 .broadcast-field textarea,
 .broadcast-field select {
@@ -404,6 +427,10 @@
 .broadcast-field-hint {
   color: var(--admin-text-secondary);
   font-size: 0.82rem;
+}
+
+.broadcast-field-meta .broadcast-field-hint {
+  flex: 1 1 auto;
 }
 
 .broadcast-compose-actions {
@@ -511,6 +538,20 @@
 }
 
 .broadcast-inline-note {
+  color: var(--admin-text-secondary);
+  font-size: 0.84rem;
+}
+
+.broadcast-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.broadcast-pagination-summary {
   color: var(--admin-text-secondary);
   font-size: 0.84rem;
 }

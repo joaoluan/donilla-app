@@ -6313,6 +6313,34 @@ button {
   gap: 10px;
 }
 
+.whatsapp-copy-card-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.whatsapp-copy-card-meta small {
+  flex: 1 1 auto;
+}
+
+.whatsapp-char-counter {
+  flex: 0 0 auto;
+  color: var(--slate-500);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.whatsapp-char-counter.warning {
+  color: #b45309;
+}
+
+.whatsapp-char-counter.danger {
+  color: #b91c1c;
+}
+
 .whatsapp-admin-test-block {
   margin-top: 4px;
 }

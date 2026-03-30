@@ -2603,6 +2603,7 @@ async function loadStoreSettings() {
   renderSettingsOverview();
   clearStatus(whatsappSettingsStatusEl);
   clearStatus(whatsappTestStatusEl);
+  document.dispatchEvent(new CustomEvent('admin:store-settings-loaded', { detail: { config } }));
   return config;
 }
 

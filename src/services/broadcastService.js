@@ -31,6 +31,8 @@ const INTERACTION_STATUS = {
 const DEFAULT_MIN_DELAY_MS = 2 * 60 * 1000
 const DEFAULT_MAX_DELAY_MS = 3 * 60 * 1000
 const DEFAULT_REPLY_TIMEOUT_MS = 24 * 60 * 60 * 1000
+const DEFAULT_PAGE_LIMIT = 100
+const MAX_PAGE_LIMIT = 100
 const MAX_TIMEOUT_MS = 2_147_483_647
 
 function createBroadcastService(prisma, deps = {}) {
@@ -161,6 +163,40 @@ function createBroadcastService(prisma, deps = {}) {
   function trimNullable(value) {
     const normalized = String(value || '').trim()
     return normalized || null
+  }
+
+  function truncateToMaxLength(value, max) {
+    const normalized = String(value || '').trim()
+    if (!normalized) return ''
+    if (!Number.isInteger(max) || max <= 0 || normalized.length <= max) {
+      return normalized
+    }
+
+    return normalized.slice(0, max)
+  }
+
+  function normalizePagination(options = {}) {
+    return {
+      limit: Math.max(1, Math.min(MAX_PAGE_LIMIT, toNumber(options.limit, DEFAULT_PAGE_LIMIT))),
+      offset: Math.max(0, toNumber(options.offset, 0)),
+    }
+  }
+
+  function buildPaginationMeta(total, limit, offset, loadedCount) {
+    const safeTotal = Math.max(0, toNumber(total))
+    const safeLimit = Math.max(1, toNumber(limit, DEFAULT_PAGE_LIMIT))
+    const safeOffset = Math.max(0, toNumber(offset))
+    const safeLoadedCount = Math.max(0, toNumber(loadedCount))
+    const nextOffset = safeOffset + safeLoadedCount
+
+    return {
+      total: safeTotal,
+      limit: safeLimit,
+      offset: safeOffset,
+      loaded: safeLoadedCount,
+      has_more: nextOffset < safeTotal,
+      next_offset: nextOffset < safeTotal ? nextOffset : null,
+    }
   }
 
   function dedupeStrings(values = []) {
@@ -316,6 +352,23 @@ function createBroadcastService(prisma, deps = {}) {
       interaction_status: trimNullable(row.interaction_status),
       created_at: row.created_at || null,
     }
+  }
+
+  function buildRetryListName(sourceCampaignName, reference = nowProvider()) {
+    const stamp = new Date(reference).toISOString().slice(0, 16).replace('T', ' ').replace(':', 'h')
+    return truncateToMaxLength(`Falhas - ${trimNullable(sourceCampaignName) || 'Campanha'} - ${stamp}`, 255)
+  }
+
+  function buildRetryListDescription(sourceCampaignId, retryCount, reference = nowProvider()) {
+    const stamp = new Date(reference).toISOString()
+    return truncateToMaxLength(
+      `Lista gerada automaticamente a partir das falhas da campanha #${toNumber(sourceCampaignId)} em ${stamp}. Contatos reaproveitados: ${toNumber(retryCount)}.`,
+      2000,
+    )
+  }
+
+  function buildRetryCampaignName(sourceCampaignName) {
+    return truncateToMaxLength(`Reenvio - ${trimNullable(sourceCampaignName) || 'Campanha'}`, 255)
   }
 
   function campaignLogSummaryJoinSql() {
@@ -812,9 +865,24 @@ function createBroadcastService(prisma, deps = {}) {
     return { removed: true, id: listId }
   }
 
-  async function listMembers(listId) {
+  async function countListMembers(listId) {
+    const rows = await query(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM broadcast_list_members
+        WHERE list_id = $1
+      `,
+      listId,
+    )
+
+    return toNumber(rows?.[0]?.total)
+  }
+
+  async function listMembers(listId, options = {}) {
     await normalizeLegacyMemberPhonesOnce()
     await ensureListExists(listId)
+    const { limit, offset } = normalizePagination(options)
+    const total = await countListMembers(listId)
 
     const rows = await query(
       `
@@ -822,11 +890,19 @@ function createBroadcastService(prisma, deps = {}) {
         FROM broadcast_list_members
         WHERE list_id = $1
         ORDER BY COALESCE(NULLIF(TRIM(client_name), ''), client_phone) ASC, id ASC
+        LIMIT $2
+        OFFSET $3
       `,
       listId,
+      limit,
+      offset,
     )
 
-    return (rows || []).map(mapMember)
+    const items = (rows || []).map(mapMember)
+    return {
+      items,
+      meta: buildPaginationMeta(total, limit, offset, items.length),
+    }
   }
 
   async function addMember(listId, payload) {
@@ -940,11 +1016,9 @@ function createBroadcastService(prisma, deps = {}) {
       listId,
     )
 
-    const members = await listMembers(listId)
-
     return {
       imported_count: toNumber(inserted),
-      total_members: members.length,
+      total_members: await countListMembers(listId),
     }
   }
 
@@ -1043,8 +1117,23 @@ function createBroadcastService(prisma, deps = {}) {
     return mapCampaign(row)
   }
 
-  async function getCampaignLogs(campaignId) {
+  async function countCampaignLogs(campaignId) {
+    const rows = await query(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM broadcast_logs
+        WHERE campaign_id = $1
+      `,
+      campaignId,
+    )
+
+    return toNumber(rows?.[0]?.total)
+  }
+
+  async function getCampaignLogs(campaignId, options = {}) {
     await ensureCampaignExists(campaignId)
+    const { limit, offset } = normalizePagination(options)
+    const total = await countCampaignLogs(campaignId)
 
     const rows = await query(
       `
@@ -1067,11 +1156,19 @@ function createBroadcastService(prisma, deps = {}) {
         LEFT JOIN broadcast_interactions i ON i.log_id = l.id
         WHERE l.campaign_id = $1
         ORDER BY l.id ASC
+        LIMIT $2
+        OFFSET $3
       `,
       campaignId,
+      limit,
+      offset,
     )
 
-    return (rows || []).map(mapLog)
+    const items = (rows || []).map(mapLog)
+    return {
+      items,
+      meta: buildPaginationMeta(total, limit, offset, items.length),
+    }
   }
 
   async function prepareCampaignRun(campaignId, { preserveScheduledAt = false } = {}) {
@@ -1707,6 +1804,102 @@ function createBroadcastService(prisma, deps = {}) {
     return getCampaign(campaignId)
   }
 
+  async function retryFailedCampaign(campaignId) {
+    const sourceCampaign = await ensureCampaignExists(campaignId)
+
+    if ([CAMPAIGN_STATUS.running, CAMPAIGN_STATUS.awaiting_reply].includes(sourceCampaign.status) || runningCampaigns.has(campaignId)) {
+      throw new AppError(409, 'Aguarde a campanha terminar antes de reenviar as falhas.')
+    }
+
+    const failedRows = await query(
+      `
+        SELECT phone, client_name
+        FROM broadcast_logs
+        WHERE campaign_id = $1
+          AND status = $2
+          AND COALESCE(NULLIF(TRIM(phone), ''), '') <> ''
+        ORDER BY id DESC
+      `,
+      campaignId,
+      LOG_STATUS.failed,
+    )
+
+    const contactsByPhone = new Map()
+    for (const row of failedRows || []) {
+      const phone = normalizeMemberPhone(row.phone)
+      if (!phone || contactsByPhone.has(phone)) continue
+      contactsByPhone.set(phone, {
+        phone,
+        name: trimNullable(row.client_name),
+      })
+    }
+
+    const contacts = Array.from(contactsByPhone.values())
+    if (!contacts.length) {
+      throw new AppError(409, 'Esta campanha nao possui falhas para reenviar.')
+    }
+
+    const reference = nowProvider()
+    const retryListName = buildRetryListName(sourceCampaign.name, reference)
+    const retryListDescription = buildRetryListDescription(campaignId, contacts.length, reference)
+    const retryCampaignName = buildRetryCampaignName(sourceCampaign.name)
+
+    const created = await prisma.$transaction(async (tx) => {
+      const listRows = await tx.$queryRawUnsafe(
+        `
+          INSERT INTO broadcast_lists (name, description)
+          VALUES ($1, $2)
+          RETURNING id, name, description, created_at
+        `,
+        retryListName,
+        retryListDescription,
+      )
+
+      const list = mapList({ ...(listRows?.[0] || {}), member_count: contacts.length })
+
+      const membersValuesSql = contacts
+        .map((_, index) => `($1, $${index * 2 + 2}, $${index * 2 + 3})`)
+        .join(', ')
+
+      await tx.$executeRawUnsafe(
+        `
+          INSERT INTO broadcast_list_members (list_id, client_phone, client_name)
+          VALUES ${membersValuesSql}
+        `,
+        list.id,
+        ...contacts.flatMap((contact) => [contact.phone, contact.name]),
+      )
+
+      const campaignRows = await tx.$queryRawUnsafe(
+        `
+          INSERT INTO broadcast_campaigns (name, message, list_id, status, scheduled_at)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id, name, message, list_id, status, scheduled_at, started_at, finished_at, total_contacts, sent_count, failed_count, created_at
+        `,
+        retryCampaignName,
+        trimNullable(sourceCampaign.message) || '',
+        list.id,
+        CAMPAIGN_STATUS.draft,
+        null,
+      )
+
+      return {
+        list,
+        campaign: {
+          ...mapCampaign(campaignRows?.[0] || {}),
+          list_name: list.name,
+        },
+      }
+    })
+
+    return {
+      source_campaign_id: campaignId,
+      retry_contacts_count: contacts.length,
+      created_list: created.list,
+      created_campaign: created.campaign,
+    }
+  }
+
   async function removeCampaign(campaignId) {
     const campaign = await ensureCampaignExists(campaignId)
 
@@ -1752,6 +1945,7 @@ function createBroadcastService(prisma, deps = {}) {
     startCampaign,
     processIncomingReply,
     cancelCampaign,
+    retryFailedCampaign,
     removeCampaign,
   }
 }

@@ -3,6 +3,7 @@ const {
   parseListId,
   parseTemplateId,
   parseCampaignId,
+  parseBroadcastPaginationQuery,
   parseMemberPhone,
   validateCreateBroadcastList,
   validateAddBroadcastMember,
@@ -30,10 +31,11 @@ function broadcastController(service) {
       return { statusCode: 200, data }
     },
 
-    async listMembers(idParam) {
+    async listMembers(url, idParam) {
       const listId = parseListId(idParam)
-      const data = await service.listMembers(listId)
-      return { statusCode: 200, data }
+      const query = parseBroadcastPaginationQuery(url)
+      const result = await service.listMembers(listId, query)
+      return { statusCode: 200, data: result.items, meta: result.meta }
     },
 
     async addMember(req, idParam) {
@@ -93,10 +95,11 @@ function broadcastController(service) {
       return { statusCode: 200, data }
     },
 
-    async campaignLogs(idParam) {
+    async campaignLogs(url, idParam) {
       const id = parseCampaignId(idParam)
-      const data = await service.getCampaignLogs(id)
-      return { statusCode: 200, data }
+      const query = parseBroadcastPaginationQuery(url)
+      const result = await service.getCampaignLogs(id, query)
+      return { statusCode: 200, data: result.items, meta: result.meta }
     },
 
     async startCampaign(idParam) {
@@ -109,6 +112,12 @@ function broadcastController(service) {
       const id = parseCampaignId(idParam)
       const data = await service.cancelCampaign(id)
       return { statusCode: 200, data }
+    },
+
+    async retryFailedCampaign(idParam) {
+      const id = parseCampaignId(idParam)
+      const data = await service.retryFailedCampaign(id)
+      return { statusCode: 201, data }
     },
 
     async removeCampaign(idParam) {

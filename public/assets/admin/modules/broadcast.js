@@ -18,6 +18,7 @@ const LOG_STATUS_LABELS = {
 };
 
 const POLL_INTERVAL_MS = 5000;
+const DEFAULT_PAGE_LIMIT = 100;
 
 function clampTab(value) {
   return ['lists', 'templates', 'compose', 'campaigns'].includes(value) ? value : 'lists';
@@ -48,6 +49,7 @@ export function bindBroadcastSection(ctx) {
   const campaignStatusEl = document.getElementById('broadcastCampaignFormStatus');
   const campaignListSelectEl = document.getElementById('broadcastCampaignList');
   const campaignMessageEl = document.getElementById('broadcastCampaignMessage');
+  const campaignMessageCountEl = document.getElementById('broadcastCampaignMessageCount');
   const campaignScheduleEl = document.getElementById('broadcastCampaignScheduledAt');
   const useTemplateBtnEl = document.getElementById('broadcastUseTemplateBtn');
 
@@ -71,6 +73,8 @@ export function bindBroadcastSection(ctx) {
   const templateDialogEl = document.getElementById('broadcastTemplateDialog');
   const templateFormEl = document.getElementById('broadcastTemplateForm');
   const templateDialogStatusEl = document.getElementById('broadcastTemplateDialogStatus');
+  const templateContentEl = templateFormEl?.elements?.content || null;
+  const templateContentCountEl = document.getElementById('broadcastTemplateContentCount');
 
   const templatePickerDialogEl = document.getElementById('broadcastTemplatePickerDialog');
   const templatePickerListEl = document.getElementById('broadcastTemplatePickerList');
@@ -92,9 +96,13 @@ export function bindBroadcastSection(ctx) {
     activeTab: 'lists',
     lists: [],
     members: [],
+    membersMeta: null,
     templates: [],
     campaigns: [],
     selectedListId: null,
+    logs: [],
+    logsMeta: null,
+    logsCampaign: null,
     logsCampaignId: null,
     loadPromise: null,
     pollTimer: null,
@@ -175,6 +183,57 @@ export function bindBroadcastSection(ctx) {
 
   function escapeHtml(value) {
     return helpers.escapeHtml(String(value || ''));
+  }
+
+  function buildPaginationQuery({ limit = DEFAULT_PAGE_LIMIT, offset = 0 } = {}) {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    params.set('offset', String(offset));
+    return params.toString();
+  }
+
+  function mergePaginationMeta(rawMeta, loadedCount, fallbackLimit = DEFAULT_PAGE_LIMIT) {
+    const total = Number(rawMeta?.total || 0);
+    const limit = Number(rawMeta?.limit || fallbackLimit) || fallbackLimit;
+    const loaded = Math.max(0, Number(loadedCount || 0));
+    return {
+      total,
+      limit,
+      offset: 0,
+      loaded,
+      has_more: loaded < total,
+      next_offset: loaded < total ? loaded : null,
+    };
+  }
+
+  function bindCharacterCounter(inputEl, counterEl) {
+    if (!inputEl || !counterEl) return () => {};
+
+    const render = () => {
+      const hardLimit = Number.parseInt(String(inputEl.getAttribute('maxlength') || ''), 10);
+      const softLimit = Number.parseInt(String(inputEl.dataset.softLimit || ''), 10);
+      const currentLength = String(inputEl.value || '').length;
+      const warningThreshold = Number.isFinite(softLimit) && softLimit > 0
+        ? softLimit
+        : (Number.isFinite(hardLimit) && hardLimit > 0 ? Math.max(1, Math.floor(hardLimit * 0.9)) : null);
+
+      counterEl.textContent = Number.isFinite(hardLimit) && hardLimit > 0
+        ? `${currentLength}/${hardLimit}`
+        : String(currentLength);
+      counterEl.classList.toggle('warning', warningThreshold !== null && currentLength >= warningThreshold && (!Number.isFinite(hardLimit) || currentLength < hardLimit));
+      counterEl.classList.toggle('danger', Number.isFinite(hardLimit) && hardLimit > 0 && currentLength >= hardLimit);
+    };
+
+    inputEl.addEventListener('input', render);
+    return render;
+  }
+
+  const syncCampaignMessageCounter = bindCharacterCounter(campaignMessageEl, campaignMessageCountEl);
+  const syncTemplateContentCounter = bindCharacterCounter(templateContentEl, templateContentCountEl);
+
+  function syncBroadcastMessageCounters() {
+    syncCampaignMessageCounter();
+    syncTemplateContentCounter();
   }
 
   function setStatus(target, message, type = 'muted') {
@@ -354,6 +413,7 @@ export function bindBroadcastSection(ctx) {
 
   function renderMembers() {
     const currentList = localState.lists.find((list) => Number(list.id || 0) === Number(localState.selectedListId || 0)) || null;
+    const totalMembers = Number(localState.membersMeta?.total ?? currentList?.member_count ?? localState.members.length ?? 0);
 
     if (membersTitleEl) {
       membersTitleEl.textContent = currentList ? `Membros de ${currentList.name}` : 'Membros da lista';
@@ -423,6 +483,13 @@ export function bindBroadcastSection(ctx) {
             `).join('')}
           </tbody>
         </table>
+      </div>
+      <div class="broadcast-pagination">
+        <span class="broadcast-pagination-summary">Exibindo ${localState.members.length} de ${totalMembers} contato(s).</span>
+        ${localState.membersMeta?.has_more
+          ? '<button class="ghost-btn" type="button" data-broadcast-load-more-members="true">Carregar mais</button>'
+          : ''
+        }
       </div>
     `;
   }
@@ -514,6 +581,10 @@ export function bindBroadcastSection(ctx) {
                       ? `<button class="ghost-btn" type="button" data-broadcast-delete-campaign="${campaign.id}">Excluir</button>`
                       : ''
                     }
+                    ${Number(campaign.failed_count || 0) > 0 && !['running', 'awaiting_reply'].includes(campaign.status)
+                      ? `<button class="ghost-btn" type="button" data-broadcast-retry-failed-campaign="${campaign.id}">Reenviar falhas</button>`
+                      : ''
+                    }
                     <button class="ghost-btn" type="button" data-broadcast-view-logs="${campaign.id}">Ver logs</button>
                   </div>
                 </td>
@@ -525,7 +596,10 @@ export function bindBroadcastSection(ctx) {
     `;
   }
 
-  function renderLogs(campaign, logs = []) {
+  function renderLogs() {
+    const campaign = localState.logsCampaign;
+    const logs = Array.isArray(localState.logs) ? localState.logs : [];
+
     if (logsTitleEl) {
       logsTitleEl.textContent = campaign
         ? `Logs da campanha ${campaign.name}`
@@ -591,16 +665,30 @@ export function bindBroadcastSection(ctx) {
           </tbody>
         </table>
       </div>
+      <div class="broadcast-pagination">
+        <span class="broadcast-pagination-summary">Exibindo ${logs.length} de ${Number(localState.logsMeta?.total || logs.length)} log(s).</span>
+        ${localState.logsMeta?.has_more
+          ? '<button class="ghost-btn" type="button" data-broadcast-load-more-logs="true">Carregar mais</button>'
+          : ''
+        }
+      </div>
     `;
   }
 
   function resetUiForSignedOut() {
     localState.lists = [];
     localState.members = [];
+    localState.membersMeta = null;
     localState.templates = [];
     localState.campaigns = [];
+    localState.logs = [];
+    localState.logsMeta = null;
+    localState.logsCampaign = null;
     localState.selectedListId = null;
     localState.logsCampaignId = null;
+    campaignFormEl?.reset();
+    templateFormEl?.reset();
+    syncBroadcastMessageCounters();
     updateOverview();
     updateCampaignListOptions();
     renderTemplatePicker();
@@ -608,7 +696,7 @@ export function bindBroadcastSection(ctx) {
     renderMembers();
     renderTemplates();
     renderCampaigns();
-    renderLogs(null, []);
+    renderLogs();
     setStatus(listsStatusEl, 'Faça login para carregar listas de disparo.', 'muted');
     setStatus(membersStatusEl, 'Faça login para gerenciar contatos.', 'muted');
     setStatus(templatesStatusEl, 'Faça login para visualizar templates.', 'muted');
@@ -672,10 +760,11 @@ export function bindBroadcastSection(ctx) {
   }
 
   async function loadMembers(listId, options = {}) {
-    const { silent = false } = options;
+    const { silent = false, append = false } = options;
 
     if (!listId) {
       localState.members = [];
+      localState.membersMeta = null;
       renderMembers();
       return;
     }
@@ -684,12 +773,20 @@ export function bindBroadcastSection(ctx) {
       setStatus(membersStatusEl, 'Carregando contatos da lista...', 'muted');
     }
 
-    localState.members = await request(`/admin/broadcast/lists/${listId}/members`);
+    const limit = Number(localState.membersMeta?.limit || DEFAULT_PAGE_LIMIT) || DEFAULT_PAGE_LIMIT;
+    const offset = append ? localState.members.length : 0;
+    const result = await request(
+      `/admin/broadcast/lists/${listId}/members?${buildPaginationQuery({ limit, offset })}`,
+      { envelope: true },
+    );
+    const items = Array.isArray(result?.data) ? result.data : [];
+    localState.members = append ? localState.members.concat(items) : items;
+    localState.membersMeta = mergePaginationMeta(result?.meta, localState.members.length, limit);
     renderLists();
     renderMembers();
 
     if (!silent) {
-      setStatus(membersStatusEl, `${localState.members.length} contato(s) carregado(s).`, 'ok');
+      setStatus(membersStatusEl, `${localState.members.length} de ${Number(localState.membersMeta?.total || localState.members.length)} contato(s) carregado(s).`, 'ok');
     }
   }
 
@@ -730,7 +827,7 @@ export function bindBroadcastSection(ctx) {
   }
 
   async function loadCampaignLogs(campaignId, options = {}) {
-    const { open = false, silent = false } = options;
+    const { open = false, silent = false, append = false } = options;
 
     if (!campaignId) return;
 
@@ -738,13 +835,25 @@ export function bindBroadcastSection(ctx) {
       setStatus(logsStatusEl, 'Carregando logs da campanha...', 'muted');
     }
 
-    const [campaign, logs] = await Promise.all([
+    const isSameCampaign = Number(localState.logsCampaignId || 0) === Number(campaignId || 0);
+    const limit = append
+      ? Number(localState.logsMeta?.limit || DEFAULT_PAGE_LIMIT) || DEFAULT_PAGE_LIMIT
+      : Math.max(Number(isSameCampaign ? localState.logs.length : 0), DEFAULT_PAGE_LIMIT);
+    const offset = append ? localState.logs.length : 0;
+    const [campaign, logsResult] = await Promise.all([
       request(`/admin/broadcast/campaigns/${campaignId}`),
-      request(`/admin/broadcast/campaigns/${campaignId}/logs`),
+      request(
+        `/admin/broadcast/campaigns/${campaignId}/logs?${buildPaginationQuery({ limit, offset })}`,
+        { envelope: true },
+      ),
     ]);
 
+    const logs = Array.isArray(logsResult?.data) ? logsResult.data : [];
     localState.logsCampaignId = Number(campaignId || 0) || null;
-    renderLogs(campaign, Array.isArray(logs) ? logs : []);
+    localState.logsCampaign = campaign || null;
+    localState.logs = append ? localState.logs.concat(logs) : logs;
+    localState.logsMeta = mergePaginationMeta(logsResult?.meta, localState.logs.length, limit);
+    renderLogs();
     updatePolling();
 
     if (open) {
@@ -842,6 +951,7 @@ export function bindBroadcastSection(ctx) {
     const template = localState.templates.find((item) => Number(item.id || 0) === Number(templateId || 0));
     if (!template || !campaignMessageEl) return;
     campaignMessageEl.value = template.content || '';
+    syncBroadcastMessageCounters();
     closeDialog(templatePickerDialogEl);
     setActiveTab('compose');
     setStatus(campaignStatusEl, `Template "${template.name}" aplicado na campanha.`, 'ok');
@@ -926,6 +1036,7 @@ export function bindBroadcastSection(ctx) {
         if (Number(localState.selectedListId || 0) === listId) {
           localState.selectedListId = null;
           localState.members = [];
+          localState.membersMeta = null;
         }
         await loadLists({ silent: true, preserveSelection: false });
         setStatus(listsStatusEl, 'Lista removida com sucesso.', 'ok');
@@ -936,6 +1047,18 @@ export function bindBroadcastSection(ctx) {
   });
 
   membersListEl?.addEventListener('click', async (event) => {
+    const loadMoreButton = event.target.closest('[data-broadcast-load-more-members]');
+    if (loadMoreButton && localState.selectedListId) {
+      loadMoreButton.disabled = true;
+      try {
+        await loadMembers(localState.selectedListId, { append: true });
+      } catch (error) {
+        setStatus(membersStatusEl, error.message, 'err');
+        loadMoreButton.disabled = false;
+      }
+      return;
+    }
+
     const removeButton = event.target.closest('[data-broadcast-remove-member]');
     if (!removeButton || !localState.selectedListId) return;
 
@@ -989,6 +1112,7 @@ export function bindBroadcastSection(ctx) {
     const startButton = event.target.closest('[data-broadcast-start-campaign]');
     const cancelButton = event.target.closest('[data-broadcast-cancel-campaign]');
     const deleteButton = event.target.closest('[data-broadcast-delete-campaign]');
+    const retryFailedButton = event.target.closest('[data-broadcast-retry-failed-campaign]');
     const logsButton = event.target.closest('[data-broadcast-view-logs]');
 
     if (startButton) {
@@ -1051,14 +1175,51 @@ export function bindBroadcastSection(ctx) {
           method: 'DELETE',
         });
         if (Number(localState.logsCampaignId || 0) === campaignId) {
+          localState.logs = [];
+          localState.logsMeta = null;
+          localState.logsCampaign = null;
           localState.logsCampaignId = null;
-          renderLogs(null, []);
+          renderLogs();
           closeDialog(logsDialogEl);
         }
         await loadCampaigns({ silent: true });
         setStatus(campaignsStatusEl, 'Campanha removida com sucesso.', 'ok');
       } catch (error) {
         setStatus(campaignsStatusEl, error.message, 'err');
+      }
+      return;
+    }
+
+    if (retryFailedButton) {
+      const campaignId = Number(retryFailedButton.dataset.broadcastRetryFailedCampaign || 0);
+      const campaign = localState.campaigns.find((item) => Number(item.id || 0) === campaignId);
+      if (!campaignId || !await confirmAction({
+        title: 'Reenviar falhas',
+        message: `Criar uma nova campanha em rascunho apenas com as falhas da campanha "${campaign?.name || 'selecionada'}"?`,
+        confirmLabel: 'Criar reenvio',
+        tone: 'primary',
+      })) return;
+
+      retryFailedButton.disabled = true;
+      setStatus(campaignsStatusEl, 'Criando nova campanha com as falhas...', 'muted');
+
+      try {
+        const result = await request(`/admin/broadcast/campaigns/${campaignId}/retry-failed`, {
+          method: 'POST',
+        });
+        await Promise.all([
+          loadCampaigns({ silent: true }),
+          loadLists({ silent: true }),
+        ]);
+        setStatus(
+          campaignsStatusEl,
+          `Nova campanha "${result?.created_campaign?.name || 'Reenvio'}" criada com ${Number(result?.retry_contacts_count || 0)} contato(s). Revise e inicie quando quiser.`,
+          'ok',
+        );
+      } catch (error) {
+        setStatus(campaignsStatusEl, error.message, 'err');
+      } finally {
+        retryFailedButton.disabled = false;
       }
       return;
     }
@@ -1145,6 +1306,7 @@ export function bindBroadcastSection(ctx) {
         body: payload,
       });
       templateFormEl.reset();
+      syncBroadcastMessageCounters();
       closeDialog(templateDialogEl);
       await loadTemplates({ silent: true });
       setStatus(templatesStatusEl, 'Template salvo com sucesso.', 'ok');
@@ -1203,6 +1365,7 @@ export function bindBroadcastSection(ctx) {
       if (campaignListSelectEl && localState.selectedListId) {
         campaignListSelectEl.value = String(localState.selectedListId);
       }
+      syncBroadcastMessageCounters();
       await loadCampaigns({ silent: true });
       setStatus(campaignStatusEl, successMessage, 'ok');
       setActiveTab('campaigns');
@@ -1257,6 +1420,7 @@ export function bindBroadcastSection(ctx) {
   document.getElementById('broadcastNewTemplateBtn')?.addEventListener('click', () => {
     resetDialogStatus();
     templateFormEl?.reset();
+    syncBroadcastMessageCounters();
     openDialog(templateDialogEl);
   });
 
@@ -1278,8 +1442,23 @@ export function bindBroadcastSection(ctx) {
   });
 
   logsDialogEl?.addEventListener('close', () => {
+    localState.logs = [];
+    localState.logsMeta = null;
+    localState.logsCampaign = null;
     localState.logsCampaignId = null;
     updatePolling();
+  });
+
+  logsTableEl?.addEventListener('click', async (event) => {
+    const loadMoreButton = event.target.closest('[data-broadcast-load-more-logs]');
+    if (!loadMoreButton || !localState.logsCampaignId) return;
+    loadMoreButton.disabled = true;
+    try {
+      await loadCampaignLogs(localState.logsCampaignId, { append: true });
+    } catch (error) {
+      setStatus(logsStatusEl, error.message, 'err');
+      loadMoreButton.disabled = false;
+    }
   });
 
   document.addEventListener('admin:view-change', (event) => {
@@ -1311,6 +1490,7 @@ export function bindBroadcastSection(ctx) {
 
   bindDialogCloseButtons();
   setActiveTab('lists');
+  syncBroadcastMessageCounters();
   resetUiForSignedOut();
 
   api.loadBroadcastData = loadBroadcastData;

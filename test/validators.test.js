@@ -29,7 +29,10 @@ const {
   validateUpdateOrderStatus,
 } = require('../src/validators/publicOrderValidator')
 const { validateUpdateStoreSettings } = require('../src/validators/storeSettingsValidator')
-const { parseMemberPhone } = require('../src/validators/broadcastValidator')
+const {
+  parseBroadcastPaginationQuery,
+  parseMemberPhone,
+} = require('../src/validators/broadcastValidator')
 const {
   validateCreateDeliveryFee,
   validateUpdateDeliveryFee,
@@ -213,6 +216,22 @@ test('parseTrackingToken deve rejeitar token invalido', () => {
   assert.throws(
     () => parseTrackingToken('pedido-41'),
     (error) => error instanceof AppError && error.message === 'Token de rastreio invalido.',
+  )
+})
+
+test('parseBroadcastPaginationQuery deve aplicar limites padrao para listas e logs de disparo', () => {
+  const query = parseBroadcastPaginationQuery(mockUrl('/admin/broadcast/lists/21/members'))
+
+  assert.deepEqual(query, {
+    limit: 100,
+    offset: 0,
+  })
+})
+
+test('parseBroadcastPaginationQuery deve rejeitar paginacao invalida no modulo de disparos', () => {
+  assert.throws(
+    () => parseBroadcastPaginationQuery(mockUrl('/admin/broadcast/campaigns/7/logs?limit=999&offset=-1')),
+    (error) => error instanceof AppError && error.message === 'Parametros de paginacao invalidos.',
   )
 })
 

@@ -3,6 +3,11 @@ const { AppError } = require('../utils/errors')
 const { digitsOnly, normalizeWhatsAppPhone } = require('../utils/phone')
 
 const positiveInt = z.coerce.number().int().positive()
+const nonNegativeInt = z.coerce.number().int().min(0)
+const paginationSchema = z.object({
+  limit: positiveInt.max(100).default(100),
+  offset: nonNegativeInt.default(0),
+})
 
 function decodeRouteParam(value) {
   try {
@@ -126,10 +131,20 @@ function validateCreateBroadcastCampaign(input = {}) {
   }
 }
 
+function parseBroadcastPaginationQuery(url) {
+  const parsed = paginationSchema.safeParse(Object.fromEntries(url.searchParams.entries()))
+  if (!parsed.success) {
+    throw new AppError(400, 'Parametros de paginacao invalidos.')
+  }
+
+  return parsed.data
+}
+
 module.exports = {
   parseListId,
   parseTemplateId,
   parseCampaignId,
+  parseBroadcastPaginationQuery,
   parseMemberPhone,
   validateCreateBroadcastList,
   validateAddBroadcastMember,

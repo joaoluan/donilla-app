@@ -3,7 +3,40 @@ export function bindSettingsSection(ctx) {
   const bindEvent = (target, eventName, handler) => target?.addEventListener?.(eventName, handler);
   const settingsTabButtons = Array.from(document.querySelectorAll('[data-settings-tab]'));
   const settingsPanels = Array.from(document.querySelectorAll('[data-settings-panel]'));
+  const whatsappNewOrderMessageEl = dom.whatsappSettingsFormEl?.elements?.whatsapp_mensagem_novo_pedido || null;
+  const whatsappStatusMessageEl = dom.whatsappSettingsFormEl?.elements?.whatsapp_mensagem_status || null;
+  const whatsappNewOrderMessageCountEl = document.getElementById('whatsappNewOrderMessageCount');
+  const whatsappStatusMessageCountEl = document.getElementById('whatsappStatusMessageCount');
   let activeSettingsTab = 'operacao';
+
+  function bindCharacterCounter(inputEl, counterEl) {
+    if (!inputEl || !counterEl) return () => {};
+
+    const render = () => {
+      const hardLimit = Number.parseInt(String(inputEl.getAttribute('maxlength') || ''), 10);
+      const currentLength = String(inputEl.value || '').length;
+      const warningThreshold = Number.isFinite(hardLimit) && hardLimit > 0
+        ? Math.max(1, Math.floor(hardLimit * 0.9))
+        : null;
+
+      counterEl.textContent = Number.isFinite(hardLimit) && hardLimit > 0
+        ? `${currentLength}/${hardLimit}`
+        : String(currentLength);
+      counterEl.classList.toggle('warning', warningThreshold !== null && currentLength >= warningThreshold && currentLength < hardLimit);
+      counterEl.classList.toggle('danger', Number.isFinite(hardLimit) && hardLimit > 0 && currentLength >= hardLimit);
+    };
+
+    bindEvent(inputEl, 'input', render);
+    return render;
+  }
+
+  const syncWhatsAppNewOrderCounter = bindCharacterCounter(whatsappNewOrderMessageEl, whatsappNewOrderMessageCountEl);
+  const syncWhatsAppStatusCounter = bindCharacterCounter(whatsappStatusMessageEl, whatsappStatusMessageCountEl);
+
+  function syncWhatsAppMessageCounters() {
+    syncWhatsAppNewOrderCounter();
+    syncWhatsAppStatusCounter();
+  }
 
   function parseOptionalInteger(value) {
     const normalized = String(value ?? '').trim();
@@ -68,6 +101,11 @@ export function bindSettingsSection(ctx) {
   });
 
   setActiveSettingsTab('operacao');
+  syncWhatsAppMessageCounters();
+
+  document.addEventListener('admin:store-settings-loaded', () => {
+    syncWhatsAppMessageCounters();
+  });
 
   bindEvent(dom.settingsFormEl, 'change', (event) => {
     const target = event.target;
