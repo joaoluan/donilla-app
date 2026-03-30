@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Donilla - Flow Builder</title>
-    <link rel="stylesheet" href="/assets/admin/flows.css?v=20260330e" />
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('donilla_admin_theme') === 'light' ? 'light' : 'dark';
+          document.documentElement.dataset.adminTheme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch (error) {
+          document.documentElement.dataset.adminTheme = 'dark';
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/assets/admin/flows.css?v=20260330f" />
   </head>
   <body class="flow-admin-body">
     <main class="flow-page-shell">
@@ -22,6 +34,9 @@
           </p>
         </div>
         <div class="flow-topbar-actions">
+          <button class="flow-btn-ghost" type="button" data-theme-toggle>
+            <span data-theme-toggle-label>Tema claro</span>
+          </button>
           <button id="refreshFlowsBtn" class="flow-btn-ghost" type="button">Atualizar</button>
           <button id="newStarterFlowBtn" class="flow-btn" type="button">Fluxo comercial pronto</button>
           <button id="importLegacyFlowBtn" class="flow-btn-ghost" type="button">Importar legado</button>
@@ -121,6 +136,7 @@
 
     <div id="flowToast" class="flow-toast hidden" data-tone="ok" aria-live="polite"></div>
 
+    <script src="/assets/admin/theme.js?v=20260330a"></script>
     <script type="module" src="/assets/admin/flows-list.js?v=20260330c"></script>
     <script>
       document.addEventListener('click', function (event) {

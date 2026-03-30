@@ -4,8 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
-  <link rel="stylesheet" href="/styles.css?v=20260330b" />
-  <link rel="stylesheet" href="/assets/admin/broadcast.css?v=20260330a" />
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('donilla_admin_theme') === 'light' ? 'light' : 'dark';
+        document.documentElement.dataset.adminTheme = theme;
+        document.documentElement.style.colorScheme = theme;
+      } catch (error) {
+        document.documentElement.dataset.adminTheme = 'dark';
+        document.documentElement.style.colorScheme = 'dark';
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="/styles.css?v=20260330c" />
+  <link rel="stylesheet" href="/assets/admin/broadcast.css?v=20260330b" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -739,6 +751,26 @@
         </section>
 
         <section class="admin-nav-group admin-nav-group-secondary" aria-label="Atalhos da loja">
+          <button class="sidebar-nav-action admin-nav-link admin-nav-link-secondary" type="button" data-theme-toggle>
+            <span class="admin-nav-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 3v2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M12 18.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M4.64 4.64l1.77 1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M17.59 17.59l1.77 1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M3 12h2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M18.5 12H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M4.64 19.36l1.77-1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M17.59 6.41l1.77-1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"></circle>
+              </svg>
+            </span>
+            <span class="admin-nav-link-copy">
+              <span class="admin-nav-link-label" data-theme-toggle-label>Tema claro</span>
+              <small data-theme-toggle-hint>Usar visual claro</small>
+            </span>
+          </button>
+
           <a href="/" class="admin-nav-link admin-nav-link-secondary">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
@@ -2207,6 +2239,7 @@
   </div>
 
   <script src="/assets/ui/custom-select.js?v=20260327a"></script>
+  <script src="/assets/admin/theme.js?v=20260330a"></script>
   <script type="module" src="/assets/admin/app.js?v=20260330b"></script>
 </body>
 </html>

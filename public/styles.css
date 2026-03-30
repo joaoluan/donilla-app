@@ -1277,6 +1277,148 @@
   min-height: 320px;
 }
 
+html[data-admin-theme="light"] .page-admin {
+  --admin-main-bg:
+    radial-gradient(circle at top left, rgba(255, 177, 75, 0.22) 0%, rgba(255, 177, 75, 0) 30%),
+    radial-gradient(circle at top right, rgba(29, 139, 95, 0.18) 0%, rgba(29, 139, 95, 0) 34%),
+    linear-gradient(180deg, #faf4eb 0%, #f4ecdf 100%);
+  --admin-card-bg: rgba(255, 252, 246, 0.78);
+  --admin-card-border: rgba(85, 64, 37, 0.12);
+  --admin-text-primary: #1e2b26;
+  --admin-text-secondary: #6e6c63;
+  --admin-text-tertiary: rgba(110, 108, 99, 0.82);
+  --admin-gold: #c9a46a;
+  --admin-gold-soft: #d9b95e;
+  --admin-green: #2f6b55;
+  --admin-danger: #c85e5e;
+  --custom-select-bg: rgba(255, 255, 255, 0.96);
+  --custom-select-bg-hover: #f7ecda;
+  --custom-select-text: #1e2b26;
+  --custom-select-border: rgba(85, 64, 37, 0.22);
+  --custom-select-focus: rgba(29, 139, 95, 0.14);
+  --custom-select-selected: #2f6b55;
+  background: var(--admin-main-bg);
+  color: var(--admin-text-primary);
+}
+
+html[data-admin-theme="light"] .page-admin .admin-main {
+  background: var(--admin-main-bg);
+}
+
+html[data-admin-theme="light"] .page-admin .dashboard-portal-head,
+html[data-admin-theme="light"] .page-admin :is(.customers-admin-top-card, .catalog-admin-top-card, .orders-admin-top-card, .admin-settings-top-card) {
+  border-color: rgba(85, 64, 37, 0.12);
+  background: linear-gradient(145deg, rgba(255, 251, 244, 0.96), rgba(247, 236, 217, 0.92));
+  box-shadow: 0 24px 60px rgba(44, 31, 12, 0.12);
+}
+
+html[data-admin-theme="light"] .page-admin :is(.customers-admin-overview-card, .catalog-admin-overview-card, .orders-admin-overview-card, .admin-settings-overview-card) {
+  background: rgba(255, 252, 246, 0.78);
+  box-shadow: 0 18px 40px rgba(44, 31, 12, 0.08);
+}
+
+html[data-admin-theme="light"] .page-admin :is(.customers-admin-filter-card, .customers-admin-list-card, .customers-admin-detail-card, .orders-admin-panel, .menu-admin-card, .admin-settings-panel) {
+  background: rgba(255, 251, 245, 0.8);
+  box-shadow: 0 18px 44px rgba(44, 31, 12, 0.08);
+}
+
+html[data-admin-theme="light"] .page-admin :is(.catalog-admin-toolbar, .customers-admin-toolbar, .orders-admin-toolbar, .menu-admin-toolbar) {
+  border-color: rgba(85, 64, 37, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+html[data-admin-theme="light"] .page-admin :is(.customers-admin-tab, .catalog-admin-tab, .orders-admin-tab, .admin-settings-tab) {
+  border-color: rgba(85, 64, 37, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--admin-text-secondary);
+}
+
+html[data-admin-theme="light"] .page-admin :is(.customers-admin-tab, .catalog-admin-tab, .orders-admin-tab, .admin-settings-tab):hover {
+  border-color: rgba(201, 164, 106, 0.42);
+  color: var(--admin-text-primary);
+}
+
+html[data-admin-theme="light"] .page-admin .dashboard-panel .ghost-btn,
+html[data-admin-theme="light"] .page-admin .admin-panel-view:not(.dashboard-panel) .ghost-btn {
+  border-color: rgba(85, 64, 37, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--admin-text-primary);
+}
+
+html[data-admin-theme="light"] .page-admin .dashboard-panel .ghost-btn:hover,
+html[data-admin-theme="light"] .page-admin .admin-panel-view:not(.dashboard-panel) .ghost-btn:hover {
+  border-color: rgba(201, 164, 106, 0.42);
+}
+
+html[data-admin-theme="light"] .page-admin .dashboard-action-btn.primary-btn,
+html[data-admin-theme="light"] .page-admin .admin-panel-view:not(.dashboard-panel) .primary-btn {
+  border-color: transparent;
+  background: linear-gradient(135deg, #2f6b55 0%, #21473a 100%);
+  color: #fff;
+}
+
+html[data-admin-theme="light"] .page-admin .dashboard-action-btn.primary-btn:hover,
+html[data-admin-theme="light"] .page-admin .admin-panel-view:not(.dashboard-panel) .primary-btn:hover {
+  background: #21473a;
+  color: #fff;
+}
+
+html[data-admin-theme="light"] .page-admin .dashboard-filter-controls :is(select, input[type="date"]),
+html[data-admin-theme="light"] .page-admin :is(.customers-admin-toolbar, .catalog-admin-toolbar, .orders-admin-toolbar, .menu-admin-toolbar, .menu-admin-form, .settings-form) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea),
+html[data-admin-theme="light"] .page-admin :is(.customers-admin-toolbar, .catalog-admin-toolbar, .orders-admin-toolbar, .menu-admin-toolbar, .menu-admin-form, .settings-form) .custom-select-trigger {
+  border-color: rgba(85, 64, 37, 0.18);
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--admin-text-primary);
+  color-scheme: light;
+}
+
+html[data-admin-theme="light"] .page-admin :is(.catalog-empty-state, .catalog-admin-preview-empty, .crm-detail-empty, .catalog-admin-category-metric, .crm-inline-pill, .crm-profile-fact, .crm-detail-card, .crm-profile-card, .crm-order-card, .crm-customer-card, .catalog-admin-category-card, .catalog-admin-product-card, .menu-admin-item, .order-card, .order-summary-pill, .order-items-panel, .store-hours-row, .whatsapp-toggle-card, .whatsapp-admin-note, .whatsapp-admin-card-block, .whatsapp-copy-card, .whatsapp-advanced-panel, .dashboard-queue-card, .dashboard-queue-empty) {
+  border-color: rgba(85, 64, 37, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 28px rgba(44, 31, 12, 0.06);
+}
+
+html[data-admin-theme="light"] .page-admin .dashboard-queue-card:hover {
+  border-color: rgba(201, 164, 106, 0.42);
+  background: rgba(247, 236, 217, 0.88);
+}
+
+html[data-admin-theme="light"] .page-admin .orders-arrival-notice {
+  border-color: rgba(47, 107, 85, 0.18);
+  background: linear-gradient(180deg, rgba(239, 248, 242, 0.96) 0%, rgba(228, 241, 233, 0.96) 100%);
+  box-shadow: 0 14px 28px rgba(44, 31, 12, 0.08);
+}
+
+html[data-admin-theme="light"] .page-admin .catalog-admin-product-media {
+  background: linear-gradient(120deg, #f4eadb 0%, #e8d6b8 100%);
+}
+
+html[data-admin-theme="light"] .page-admin .catalog-admin-product-media-fallback {
+  color: #305344;
+}
+
+html[data-admin-theme="light"] .page-admin .whatsapp-hero-card {
+  background:
+    radial-gradient(circle at top right, rgba(47, 107, 85, 0.14) 0%, rgba(47, 107, 85, 0) 42%),
+    linear-gradient(145deg, rgba(255, 251, 244, 0.96), rgba(247, 236, 217, 0.92));
+}
+
+html[data-admin-theme="light"] .page-admin .whatsapp-hero-eyebrow {
+  background: rgba(47, 107, 85, 0.12);
+  color: #2f6b55;
+}
+
+html[data-admin-theme="light"] .page-admin .admin-settings-panel details {
+  border-color: rgba(85, 64, 37, 0.12);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+html[data-admin-theme="light"] .page-admin [data-theme-toggle][aria-pressed="true"] {
+  border-color: rgba(47, 107, 85, 0.18);
+  background: rgba(47, 107, 85, 0.08);
+  color: var(--admin-text-primary);
+}
+
 @media (max-width: 880px) {
   .page-admin .admin-layout:not(.logged-out) {
     min-height: 100vh;

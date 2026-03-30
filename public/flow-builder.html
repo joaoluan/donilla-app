@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Donilla - Editor de Fluxo</title>
-    <link rel="stylesheet" href="/assets/admin/flows.css?v=20260330e" />
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('donilla_admin_theme') === 'light' ? 'light' : 'dark';
+          document.documentElement.dataset.adminTheme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch (error) {
+          document.documentElement.dataset.adminTheme = 'dark';
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="/assets/admin/flows.css?v=20260330f" />
   </head>
   <body class="flow-admin-body">
     <main class="flow-page-shell">
@@ -22,6 +34,9 @@
           </p>
         </div>
         <div class="flow-topbar-actions">
+          <button class="flow-btn-ghost" type="button" data-theme-toggle>
+            <span data-theme-toggle-label>Tema claro</span>
+          </button>
           <button id="builderUnpublishBtn" class="flow-btn-ghost hidden" type="button">Despublicar</button>
           <button id="builderSaveBtn" class="flow-btn-ghost" type="button">Salvar rascunho</button>
           <button id="builderPublishBtn" class="flow-btn" type="button">Publicar fluxo</button>
@@ -107,6 +122,7 @@
     <div id="builderAddMenu" class="builder-add-menu hidden"></div>
     <div id="builderToast" class="flow-toast hidden" data-tone="ok" aria-live="polite"></div>
 
+    <script src="/assets/admin/theme.js?v=20260330a"></script>
     <script type="module" src="/assets/admin/flow-builder.js?v=20260330d"></script>
   </body>
 </html>
