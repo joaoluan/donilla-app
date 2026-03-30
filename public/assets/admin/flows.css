@@ -1,34 +1,34 @@
 :root {
-  --flow-bg: #f4ecdf;
-  --flow-bg-strong: #ead9bf;
-  --flow-surface: rgba(255, 250, 242, 0.84);
-  --flow-card: #fffaf2;
-  --flow-card-strong: #fff5e5;
-  --flow-ink: #1e2b26;
-  --flow-muted: #6e6c63;
-  --flow-line: rgba(85, 64, 37, 0.12);
-  --flow-line-strong: rgba(85, 64, 37, 0.22);
-  --flow-accent: #1d8b5f;
-  --flow-accent-strong: #136747;
-  --flow-highlight: #ffb14b;
-  --flow-danger: #b94848;
-  --flow-info: #225e7c;
-  --flow-shadow: 0 24px 60px rgba(44, 31, 12, 0.12);
+  --flow-bg: #141514;
+  --flow-bg-strong: #171816;
+  --flow-surface: rgba(255, 255, 255, 0.04);
+  --flow-card: rgba(47, 45, 43, 0.96);
+  --flow-card-strong: rgba(43, 41, 39, 0.98);
+  --flow-ink: #f5f4ef;
+  --flow-muted: rgba(255, 255, 255, 0.62);
+  --flow-line: rgba(255, 255, 255, 0.08);
+  --flow-line-strong: rgba(255, 255, 255, 0.14);
+  --flow-accent: #2f6b55;
+  --flow-accent-strong: #21473a;
+  --flow-highlight: #d9b95e;
+  --flow-danger: #e37b7b;
+  --flow-info: #7eb6d4;
+  --flow-shadow: 0 24px 56px rgba(8, 10, 9, 0.24);
   --flow-radius-xl: 28px;
   --flow-radius-lg: 22px;
   --flow-radius-md: 18px;
   --flow-radius-sm: 14px;
-  --node-trigger: #214a3e;
-  --node-message: #2e5f89;
-  --node-menu: #b57113;
-  --node-condition: #7a4aa2;
-  --node-wait: #7a5533;
-  --node-tag: #2f7c55;
-  --node-input: #225e7c;
-  --node-order: #7f5134;
-  --node-observation: #8a3c58;
-  --node-handoff: #9d4a46;
-  --node-end: #575c62;
+  --node-trigger: #6ab197;
+  --node-message: #7eb6d4;
+  --node-menu: #e0a84f;
+  --node-condition: #b58ae0;
+  --node-wait: #d29d63;
+  --node-tag: #68be8c;
+  --node-input: #8cc3df;
+  --node-order: #c88a5c;
+  --node-observation: #cf7d9c;
+  --node-handoff: #d2837d;
+  --node-end: #98a0a8;
 }
 
 * {
@@ -45,9 +45,9 @@ body.flow-admin-body {
   color: var(--flow-ink);
   font-family: "Segoe UI", "Helvetica Neue", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(255, 177, 75, 0.22), transparent 30%),
-    radial-gradient(circle at top right, rgba(29, 139, 95, 0.18), transparent 34%),
-    linear-gradient(180deg, #faf4eb 0%, var(--flow-bg) 100%);
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.14) 0%, rgba(217, 185, 94, 0) 24%),
+    radial-gradient(circle at 8% 4%, rgba(52, 199, 89, 0.08) 0%, rgba(52, 199, 89, 0) 22%),
+    linear-gradient(180deg, #141514 0%, #171816 100%);
 }
 
 a {
@@ -72,6 +72,8 @@ button {
 }
 
 .flow-topbar {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -79,12 +81,28 @@ button {
   padding: 28px 30px;
   border: 1px solid var(--flow-line);
   border-radius: var(--flow-radius-xl);
-  background: linear-gradient(145deg, rgba(255, 251, 244, 0.96), rgba(247, 236, 217, 0.92));
+  background:
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.12) 0%, rgba(217, 185, 94, 0) 36%),
+    radial-gradient(circle at -10% 0%, rgba(52, 199, 89, 0.08) 0%, rgba(52, 199, 89, 0) 32%),
+    linear-gradient(180deg, rgba(49, 47, 45, 0.98) 0%, rgba(43, 41, 39, 0.98) 100%);
   box-shadow: var(--flow-shadow);
   backdrop-filter: blur(14px);
 }
 
+.flow-topbar::after {
+  content: "";
+  position: absolute;
+  inset: auto -42px -72px auto;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(201, 164, 106, 0.16) 0%, rgba(201, 164, 106, 0) 72%);
+  pointer-events: none;
+}
+
 .flow-topbar-copy {
+  position: relative;
+  z-index: 1;
   max-width: 760px;
 }
 
@@ -93,7 +111,7 @@ button {
   align-items: center;
   gap: 10px;
   margin-bottom: 14px;
-  color: var(--flow-accent-strong);
+  color: var(--flow-highlight);
   font-weight: 700;
   text-decoration: none;
 }
@@ -104,8 +122,8 @@ button {
   gap: 8px;
   padding: 7px 12px;
   border-radius: 999px;
-  color: var(--flow-accent-strong);
-  background: rgba(29, 139, 95, 0.1);
+  color: var(--flow-highlight);
+  background: rgba(217, 185, 94, 0.14);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -127,6 +145,8 @@ button {
 }
 
 .flow-topbar-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -161,15 +181,15 @@ button {
 }
 
 .flow-btn-ghost {
-  color: var(--flow-ink);
+  color: var(--flow-muted);
   border-color: var(--flow-line-strong);
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .flow-btn-danger {
   color: var(--flow-danger);
-  border-color: rgba(185, 72, 72, 0.28);
-  background: rgba(185, 72, 72, 0.08);
+  border-color: rgba(227, 123, 123, 0.28);
+  background: rgba(227, 123, 123, 0.08);
 }
 
 .flow-overview-grid {
@@ -183,8 +203,8 @@ button {
   padding: 18px 20px;
   border: 1px solid var(--flow-line);
   border-radius: var(--flow-radius-lg);
-  background: rgba(255, 252, 246, 0.78);
-  box-shadow: 0 18px 40px rgba(44, 31, 12, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+  box-shadow: none;
 }
 
 .flow-metric-card span {
@@ -216,7 +236,7 @@ button {
 .flow-card {
   border: 1px solid var(--flow-line);
   border-radius: var(--flow-radius-xl);
-  background: rgba(255, 251, 245, 0.8);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.025));
   box-shadow: var(--flow-shadow);
   backdrop-filter: blur(14px);
 }
@@ -259,7 +279,7 @@ button {
 .flow-table th,
 .flow-table td {
   padding: 16px 24px;
-  border-bottom: 1px solid rgba(85, 64, 37, 0.08);
+  border-bottom: 1px solid var(--flow-line);
   text-align: left;
   vertical-align: top;
 }
@@ -296,7 +316,7 @@ button {
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(34, 94, 124, 0.12);
+  background: rgba(126, 182, 212, 0.12);
   color: var(--flow-info);
   font-size: 0.76rem;
   font-weight: 800;
@@ -319,14 +339,14 @@ button {
   padding: 0 12px;
   border: 1px solid var(--flow-line-strong);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--flow-ink);
 }
 
 .flow-inline-btn-danger {
   color: var(--flow-danger);
-  border-color: rgba(185, 72, 72, 0.22);
-  background: rgba(185, 72, 72, 0.06);
+  border-color: rgba(227, 123, 123, 0.22);
+  background: rgba(227, 123, 123, 0.08);
 }
 
 .flow-inline-btn:disabled,
@@ -352,18 +372,18 @@ button {
 }
 
 .flow-status-badge-draft {
-  color: #5d615f;
-  background: rgba(87, 92, 98, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .flow-status-badge-published {
-  color: #0f6c46;
-  background: rgba(29, 139, 95, 0.14);
+  color: #9ee0bb;
+  background: rgba(47, 107, 85, 0.18);
 }
 
 .flow-status-badge-archived {
-  color: #9b5e0b;
-  background: rgba(255, 177, 75, 0.18);
+  color: #f2d68d;
+  background: rgba(217, 185, 94, 0.16);
 }
 
 .flow-card-body {
@@ -392,7 +412,7 @@ button {
   padding: 26px;
   border: 1px dashed var(--flow-line-strong);
   border-radius: var(--flow-radius-lg);
-  background: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--flow-muted);
   text-align: center;
 }
@@ -406,7 +426,7 @@ button {
   padding: 16px 18px;
   border: 1px solid var(--flow-line);
   border-radius: var(--flow-radius-md);
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .active-session-card strong {
@@ -434,7 +454,7 @@ button {
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(34, 94, 124, 0.1);
+  background: rgba(126, 182, 212, 0.12);
   color: var(--flow-info);
   font-size: 0.78rem;
   font-weight: 700;
@@ -457,8 +477,10 @@ button {
   padding: 24px;
   border: 1px solid var(--flow-line);
   border-radius: var(--flow-radius-xl);
-  background: linear-gradient(180deg, #fffaf3 0%, #fff3e0 100%);
-  box-shadow: 0 30px 70px rgba(30, 22, 10, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.12) 0%, rgba(217, 185, 94, 0) 36%),
+    linear-gradient(180deg, rgba(49, 47, 45, 0.98) 0%, rgba(43, 41, 39, 0.98) 100%);
+  box-shadow: 0 30px 70px rgba(8, 10, 9, 0.32);
 }
 
 .flow-dialog-panel h2 {
@@ -497,9 +519,17 @@ button {
   padding: 12px 14px;
   border: 1px solid var(--flow-line-strong);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--flow-ink);
   resize: vertical;
+  color-scheme: dark;
+}
+
+.flow-field input::placeholder,
+.flow-field textarea::placeholder,
+.builder-field input::placeholder,
+.builder-field textarea::placeholder {
+  color: var(--flow-muted);
 }
 
 .builder-field textarea,
@@ -550,8 +580,10 @@ button {
   padding: 18px;
   border: 1px solid var(--flow-line);
   border-radius: var(--flow-radius-xl);
-  background: rgba(255, 250, 242, 0.78);
-  box-shadow: 0 16px 40px rgba(44, 31, 12, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.1) 0%, rgba(217, 185, 94, 0) 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+  box-shadow: none;
 }
 
 .flow-guide-card {
@@ -559,10 +591,12 @@ button {
   gap: 8px;
   margin-top: 16px;
   padding: 18px 20px;
-  border: 1px solid rgba(34, 94, 124, 0.16);
+  border: 1px solid rgba(126, 182, 212, 0.22);
   border-radius: var(--flow-radius-lg);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(223, 239, 247, 0.78));
-  box-shadow: 0 16px 34px rgba(34, 94, 124, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(126, 182, 212, 0.12) 0%, rgba(126, 182, 212, 0) 32%),
+    linear-gradient(180deg, rgba(28, 36, 41, 0.98), rgba(24, 31, 36, 0.98));
+  box-shadow: none;
 }
 
 .flow-guide-card strong {
@@ -603,8 +637,8 @@ button {
   padding: 18px;
   border: 1px solid var(--flow-line);
   border-radius: var(--flow-radius-xl);
-  background: rgba(255, 252, 246, 0.8);
-  box-shadow: 0 18px 44px rgba(44, 31, 12, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.025));
+  box-shadow: none;
 }
 
 .builder-panel-head {
@@ -635,7 +669,7 @@ button {
   border: 1px solid var(--flow-line);
   border-left-width: 6px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.03);
   text-align: left;
 }
 
@@ -693,7 +727,7 @@ button {
   grid-template-rows: auto minmax(0, 1fr);
   border: 1px solid var(--flow-line);
   border-radius: var(--flow-radius-xl);
-  background: rgba(255, 251, 246, 0.8);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.025));
   box-shadow: var(--flow-shadow);
   overflow: hidden;
 }
@@ -705,7 +739,9 @@ button {
   gap: 16px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--flow-line);
-  background: linear-gradient(180deg, rgba(255, 249, 238, 0.92), rgba(249, 239, 223, 0.72));
+  background:
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.08) 0%, rgba(217, 185, 94, 0) 28%),
+    linear-gradient(180deg, rgba(49, 47, 45, 0.98), rgba(43, 41, 39, 0.98));
 }
 
 .builder-canvas-toolbar strong {
@@ -727,8 +763,9 @@ button {
   min-height: 820px;
   overflow: auto;
   background:
-    radial-gradient(circle at 20px 20px, rgba(29, 139, 95, 0.12) 1.4px, transparent 0) 0 0 / 28px 28px,
-    linear-gradient(180deg, rgba(255, 252, 246, 0.94) 0%, rgba(246, 234, 213, 0.92) 100%);
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.08) 0%, rgba(217, 185, 94, 0) 24%),
+    radial-gradient(circle at 20px 20px, rgba(255, 255, 255, 0.06) 1.2px, transparent 0) 0 0 / 28px 28px,
+    linear-gradient(180deg, rgba(24, 26, 24, 0.98) 0%, rgba(20, 21, 20, 0.98) 100%);
 }
 
 .builder-connections {
@@ -781,12 +818,12 @@ button {
   inset: auto 24px 24px auto;
   max-width: 280px;
   padding: 16px 18px;
-  border: 1px solid rgba(34, 94, 124, 0.16);
+  border: 1px solid var(--flow-line-strong);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(28, 31, 29, 0.86);
   color: var(--flow-muted);
   line-height: 1.55;
-  box-shadow: 0 14px 26px rgba(32, 28, 22, 0.09);
+  box-shadow: 0 14px 26px rgba(8, 10, 9, 0.22);
 }
 
 .flow-node {
@@ -794,10 +831,10 @@ button {
   width: 264px;
   min-height: 124px;
   padding: 18px 18px 18px;
-  border: 1px solid rgba(30, 43, 38, 0.1);
+  border: 1px solid var(--flow-line-strong);
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 244, 231, 0.96));
-  box-shadow: 0 18px 36px rgba(44, 31, 12, 0.12);
+  background: linear-gradient(180deg, rgba(43, 41, 39, 0.96), rgba(34, 33, 31, 0.96));
+  box-shadow: 0 18px 36px rgba(8, 10, 9, 0.28);
   user-select: none;
   z-index: 2;
 }
@@ -805,8 +842,8 @@ button {
 .flow-node.selected {
   border-color: rgba(34, 94, 124, 0.38);
   box-shadow:
-    0 0 0 3px rgba(34, 94, 124, 0.12),
-    0 24px 44px rgba(33, 30, 23, 0.15);
+    0 0 0 3px rgba(126, 182, 212, 0.12),
+    0 24px 44px rgba(8, 10, 9, 0.3);
 }
 
 .flow-node.dragging {
@@ -950,7 +987,7 @@ button {
 .flow-node-divider {
   height: 1px;
   margin: 12px 0;
-  background: rgba(85, 64, 37, 0.08);
+  background: var(--flow-line);
 }
 
 .flow-node-options {
@@ -966,8 +1003,8 @@ button {
   min-height: 34px;
   padding: 0 12px;
   border-radius: 12px;
-  background: rgba(255, 177, 75, 0.12);
-  color: #8e5609;
+  background: rgba(217, 185, 94, 0.14);
+  color: #f2d68d;
   font-size: 0.9rem;
 }
 
@@ -1036,15 +1073,15 @@ button {
   transform: translateX(-50%);
   min-height: 24px;
   padding: 0 10px;
-  border: 1px solid rgba(36, 94, 124, 0.12);
+  border: 1px solid var(--flow-line-strong);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.97);
-  color: #5f4c2f;
+  background: rgba(25, 26, 25, 0.96);
+  color: var(--flow-ink);
   font-size: 0.7rem;
   font-weight: 800;
   line-height: 24px;
   white-space: nowrap;
-  box-shadow: 0 10px 20px rgba(44, 31, 12, 0.08);
+  box-shadow: 0 10px 20px rgba(8, 10, 9, 0.22);
 }
 
 .node-port-output:hover,
@@ -1066,7 +1103,7 @@ button {
   border: 1px dashed var(--flow-line-strong);
   border-radius: 18px;
   color: var(--flow-muted);
-  background: rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.03);
   line-height: 1.6;
 }
 
@@ -1097,7 +1134,7 @@ button {
   padding: 12px;
   border: 1px solid var(--flow-line);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .builder-option-card-head {
@@ -1113,14 +1150,14 @@ button {
   padding: 0 12px;
   border: 1px solid var(--flow-line-strong);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--flow-ink);
 }
 
 .builder-mini-btn-danger {
   color: var(--flow-danger);
-  border-color: rgba(185, 72, 72, 0.22);
-  background: rgba(185, 72, 72, 0.06);
+  border-color: rgba(227, 123, 123, 0.22);
+  background: rgba(227, 123, 123, 0.08);
 }
 
 .builder-context-menu,
@@ -1131,8 +1168,8 @@ button {
   padding: 8px;
   border: 1px solid var(--flow-line);
   border-radius: 18px;
-  background: rgba(255, 251, 245, 0.96);
-  box-shadow: 0 26px 50px rgba(25, 20, 14, 0.2);
+  background: rgba(24, 26, 24, 0.96);
+  box-shadow: 0 26px 50px rgba(8, 10, 9, 0.32);
   backdrop-filter: blur(14px);
 }
 
@@ -1152,7 +1189,7 @@ button {
 }
 
 .builder-menu-btn:hover {
-  background: rgba(29, 139, 95, 0.08);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .builder-menu-btn small {
@@ -1225,7 +1262,7 @@ button {
   padding: 12px;
   border: 1px solid var(--flow-line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .builder-variable-card code {

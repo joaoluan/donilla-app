@@ -63,8 +63,9 @@
   overflow-x: hidden;
   overflow-y: auto;
   background:
-    radial-gradient(circle at top left, rgba(217, 185, 94, 0.12) 0%, rgba(217, 185, 94, 0) 20%),
-    linear-gradient(135deg, #e9ece5 0%, #dce2d9 46%, #d2d9d1 100%);
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.14) 0%, rgba(217, 185, 94, 0) 24%),
+    radial-gradient(circle at 8% 4%, rgba(52, 199, 89, 0.08) 0%, rgba(52, 199, 89, 0) 22%),
+    linear-gradient(180deg, #141514 0%, #171816 100%);
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
   color: var(--admin-text-primary);
 }
@@ -367,7 +368,10 @@
 
 .page-admin .admin-main {
   padding: 0;
-  background: var(--admin-main-bg);
+  background:
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.08) 0%, rgba(217, 185, 94, 0) 22%),
+    radial-gradient(circle at 12% 0%, rgba(52, 199, 89, 0.05) 0%, rgba(52, 199, 89, 0) 18%),
+    linear-gradient(180deg, #141514 0%, #171816 100%);
   min-height: 100vh;
   overflow: visible;
 }
@@ -412,7 +416,24 @@
   gap: 16px;
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--admin-card-border);
-  background: var(--admin-main-header);
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.12) 0%, rgba(217, 185, 94, 0) 36%),
+    radial-gradient(circle at -10% 0%, rgba(52, 199, 89, 0.08) 0%, rgba(52, 199, 89, 0) 32%),
+    linear-gradient(180deg, rgba(49, 47, 45, 0.98) 0%, rgba(43, 41, 39, 0.98) 100%);
+}
+
+.page-admin .dashboard-portal-head::after,
+.page-admin :is(.customers-admin-top-card, .catalog-admin-top-card, .orders-admin-top-card, .admin-settings-top-card)::after {
+  content: "";
+  position: absolute;
+  inset: auto -42px -72px auto;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(201, 164, 106, 0.16) 0%, rgba(201, 164, 106, 0) 72%);
+  pointer-events: none;
 }
 
 .page-admin .dashboard-portal-copy {
@@ -821,10 +842,15 @@
 }
 
 .page-admin :is(.customers-admin-top-card, .catalog-admin-top-card, .orders-admin-top-card, .admin-settings-top-card) {
+  position: relative;
+  overflow: hidden;
   padding: 20px 22px 18px;
   border-radius: 24px;
   border: 1px solid var(--admin-card-border);
-  background: linear-gradient(180deg, rgba(49, 47, 45, 0.98) 0%, rgba(43, 41, 39, 0.98) 100%);
+  background:
+    radial-gradient(circle at top right, rgba(217, 185, 94, 0.12) 0%, rgba(217, 185, 94, 0) 36%),
+    radial-gradient(circle at -10% 0%, rgba(52, 199, 89, 0.08) 0%, rgba(52, 199, 89, 0) 32%),
+    linear-gradient(180deg, rgba(49, 47, 45, 0.98) 0%, rgba(43, 41, 39, 0.98) 100%);
   box-shadow: none;
   display: grid;
   gap: 14px;
@@ -928,7 +954,7 @@
   border: 1px solid var(--admin-card-border);
   border-radius: 22px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.025) 100%);
   box-shadow: none;
 }
 
