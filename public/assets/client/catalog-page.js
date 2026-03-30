@@ -1,6 +1,6 @@
 import { brl, escapeHtml, normalizeLocationText, formatDeliveryWindow } from '../shared/utils.js?v=20260328b'
-import { initCart } from './cart-module.js?v=20260328a'
-import { initCatalog } from './catalog-module.js?v=20260328a'
+import { initCart } from './cart-module.js?v=20260329a'
+import { initCatalog } from './catalog-module.js?v=20260329a'
 
 const menuSectionsEl = document.getElementById('menuSections');
 const categoryTabsEl = document.getElementById('categoryTabs');
@@ -39,6 +39,7 @@ const PAYMENT_STATUS_LABELS = {
 };
 
 const CUSTOMER_SESSION_KEY = 'donilla_customer_session';
+const MENU_REFRESH_INTERVAL_MS = 60000;
 const cartController = initCart({
   cartItemsEl,
   cartCountEl,
@@ -48,6 +49,9 @@ const cartController = initCart({
 }, {
   formatCurrency: brl,
   escapeHtml,
+  onChange(snapshot) {
+    updateCheckoutAvailability(snapshot, loadCustomerSession());
+  },
 });
 const catalogController = initCatalog({
   menuSectionsEl,
@@ -69,6 +73,8 @@ let storeConfig = {
   taxa_entrega_padrao: 0,
   taxas_entrega_locais: [],
 };
+let menuRefreshPromise = null;
+let menuRefreshTimerId = 0;
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -178,6 +184,62 @@ function loadCustomerSession() {
   }
 }
 
+function updateCheckoutAvailability(snapshot = null, session = loadCustomerSession()) {
+  const cartSnapshot = snapshot || cartController.getSnapshot();
+  const hasSession = Boolean(session?.cliente_session_token && session?.nome && session?.telefone);
+  const hasItems = Number(cartSnapshot?.count || 0) > 0;
+  checkoutBtnEl.disabled = !hasSession || !lojaAberta || !hasItems;
+}
+
+function buildCartRemovalNotice(removedItems, { reviewRequired = false } = {}) {
+  const total = removedItems.length;
+  if (!total) return '';
+
+  const itemLabel = total === 1 ? 'item' : 'itens';
+  const actionLabel = total === 1 ? 'saiu' : 'saíram';
+  const names = removedItems
+    .map((item) => String(item?.nome_doce || '').trim())
+    .filter(Boolean);
+  const preview = names.length
+    ? `: ${names.slice(0, 2).join(', ')}${names.length > 2 ? '...' : ''}.`
+    : '.';
+
+  return `Removemos ${total} ${itemLabel} do carrinho porque ${actionLabel} do cardápio${preview}${reviewRequired ? ' Confira o carrinho antes de finalizar.' : ''}`;
+}
+
+function applyMenuSnapshot(menu) {
+  catalogController.setCategories(Array.isArray(menu) ? menu : []);
+  return cartController.syncCatalog(catalogController.getProductById);
+}
+
+async function refreshMenu({ announceRemoved = false, statusType = 'muted', reviewRequired = false } = {}) {
+  if (!menuRefreshPromise) {
+    menuRefreshPromise = (async () => {
+      const response = await fetch('/public/menu');
+      const menu = await parseResponse(response);
+      return applyMenuSnapshot(menu);
+    })().finally(() => {
+      menuRefreshPromise = null;
+    });
+  }
+
+  const removedItems = await menuRefreshPromise;
+  if (announceRemoved && removedItems.length) {
+    setStatus(orderStatusEl, buildCartRemovalNotice(removedItems, { reviewRequired }), statusType);
+  }
+
+  return removedItems;
+}
+
+function startMenuRefreshSync() {
+  if (menuRefreshTimerId) return;
+
+  menuRefreshTimerId = window.setInterval(() => {
+    if (document.visibilityState === 'hidden') return;
+    refreshMenu({ announceRemoved: true }).catch(() => {});
+  }, MENU_REFRESH_INTERVAL_MS);
+}
+
 function clearCustomerSession() {
   localStorage.removeItem(CUSTOMER_SESSION_KEY);
   checkoutFormEl.reset();
@@ -209,7 +271,7 @@ function syncCustomerSession() {
   if (!session || !session.cliente_session_token || !session.nome || !session.telefone) {
     updateDeliveryFeeUi(null);
     setStatus(orderStatusEl, 'Sessão não encontrada. Faça login para continuar.', 'muted');
-    checkoutBtnEl.disabled = true;
+    updateCheckoutAvailability(null, null);
     return;
   }
 
@@ -217,12 +279,12 @@ function syncCustomerSession() {
   updateDeliveryFeeUi(session);
 
   if (!lojaAberta) {
-    checkoutBtnEl.disabled = true;
+    updateCheckoutAvailability(null, session);
     setStatus(orderStatusEl, 'Loja fechada no momento. Finalização indisponível.', 'err');
     return;
   }
 
-  checkoutBtnEl.disabled = false;
+  updateCheckoutAvailability(null, session);
   setStatus(orderStatusEl, '', 'muted');
 
   if (!endereco || !endereco.rua || !endereco.numero || !endereco.bairro) {
@@ -359,7 +421,8 @@ async function init() {
     const menu = await parseResponse(menuRes);
 
     updateStoreHeader(store || {});
-    catalogController.setCategories(Array.isArray(menu) ? menu : []);
+    applyMenuSnapshot(menu);
+    startMenuRefreshSync();
   } catch (error) {
     catalogController.renderError(error.message || 'Erro ao carregar cardápio.');
   }
@@ -378,6 +441,15 @@ checkoutFormEl.addEventListener('submit', async (event) => {
     setStatus(orderStatusEl, 'Sessão não encontrada. Faça login para continuar.', 'err');
     window.location.href = '/';
     return;
+  }
+
+  try {
+    const removedItems = await refreshMenu({ announceRemoved: true, statusType: 'err', reviewRequired: true });
+    if (removedItems.length) {
+      return;
+    }
+  } catch {
+    // Se a atualização falhar, o backend ainda valida produtos inativos no checkout.
   }
 
   const { items } = cartController.getSnapshot();
@@ -445,6 +517,15 @@ checkoutFormEl.addEventListener('submit', async (event) => {
 
     setStatus(orderStatusEl, error.message, 'err');
   }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  refreshMenu({ announceRemoved: true }).catch(() => {});
+});
+
+window.addEventListener('focus', () => {
+  refreshMenu({ announceRemoved: true }).catch(() => {});
 });
 
 init();

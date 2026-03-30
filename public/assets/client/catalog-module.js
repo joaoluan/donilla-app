@@ -4,8 +4,19 @@ function normalizeCategoryId(value) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function normalizeProducts(products = []) {
+  return Array.isArray(products) ? products.filter(Boolean) : [];
+}
+
 function normalizeCategories(categories = []) {
-  return Array.isArray(categories) ? categories : [];
+  return Array.isArray(categories)
+    ? categories
+        .map((category) => ({
+          ...category,
+          produtos: normalizeProducts(category?.produtos),
+        }))
+        .filter((category) => category.produtos.length > 0)
+    : [];
 }
 
 export function initCatalog(dom, {

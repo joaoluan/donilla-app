@@ -142,6 +142,9 @@ let highlightedOrderId = null;
 const REGISTER_TOTAL_STEPS = 2;
 const CUSTOMER_PASSWORD_RULE_MESSAGE =
   'A senha deve ter pelo menos 6 caracteres, com 1 letra maiuscula, 1 minuscula e 1 numero.';
+const MENU_REFRESH_INTERVAL_MS = 60000;
+let menuRefreshPromise = null;
+let menuRefreshTimerId = 0;
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '').trim();
@@ -730,6 +733,127 @@ function getCurrentSession() {
   return loadSession();
 }
 
+function normalizeMenuCategories(menu = []) {
+  return Array.isArray(menu)
+    ? menu
+        .map((categoria) => ({
+          ...categoria,
+          produtos: Array.isArray(categoria?.produtos) ? categoria.produtos.filter(Boolean) : [],
+        }))
+        .filter((categoria) => categoria.produtos.length > 0)
+    : [];
+}
+
+function setCategorias(nextCategorias) {
+  categorias = normalizeMenuCategories(nextCategorias);
+
+  if (activeCategory !== 'all' && !categorias.some((categoria) => categoria.id === activeCategory)) {
+    activeCategory = 'all';
+  }
+
+  renderCategoryTabs();
+  renderMenu();
+}
+
+function findCatalogProductById(produtoId) {
+  const normalizedId = Number(produtoId || 0);
+  if (!Number.isFinite(normalizedId) || normalizedId <= 0) return null;
+
+  for (const categoria of categorias) {
+    const produtos = Array.isArray(categoria?.produtos) ? categoria.produtos : [];
+    const produto = produtos.find((item) => item.id === normalizedId);
+    if (produto) return produto;
+  }
+
+  return null;
+}
+
+function cartItemChanged(current, next) {
+  return (
+    String(current?.nome_doce || '') !== String(next?.nome_doce || '')
+    || Number(current?.preco || 0) !== Number(next?.preco || 0)
+    || String(current?.descricao || '') !== String(next?.descricao || '')
+    || String(current?.imagem_url || '') !== String(next?.imagem_url || '')
+    || String(current?.estoque_disponivel ?? '') !== String(next?.estoque_disponivel ?? '')
+    || Boolean(current?.ativo !== false) !== Boolean(next?.ativo !== false)
+  );
+}
+
+function syncCartWithCatalog() {
+  if (carrinho.size === 0) return [];
+
+  const removedItems = [];
+  let changed = false;
+
+  carrinho.forEach((item, itemId) => {
+    const latest = findCatalogProductById(itemId);
+    if (!latest || latest.ativo === false) {
+      carrinho.delete(itemId);
+      removedItems.push(item);
+      changed = true;
+      return;
+    }
+
+    const nextItem = { ...item, ...latest, quantidade: item.quantidade };
+    if (cartItemChanged(item, nextItem)) {
+      carrinho.set(itemId, nextItem);
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    renderCart();
+    syncOrderPanel(getCurrentSession());
+  }
+
+  return removedItems;
+}
+
+function buildCartRemovalNotice(removedItems, { reviewRequired = false } = {}) {
+  const total = removedItems.length;
+  if (!total) return '';
+
+  const itemLabel = total === 1 ? 'item' : 'itens';
+  const actionLabel = total === 1 ? 'saiu' : 'saíram';
+  const names = removedItems
+    .map((item) => String(item?.nome_doce || '').trim())
+    .filter(Boolean);
+  const preview = names.length
+    ? `: ${names.slice(0, 2).join(', ')}${names.length > 2 ? '...' : ''}.`
+    : '.';
+
+  return `Removemos ${total} ${itemLabel} do carrinho porque ${actionLabel} do cardápio${preview}${reviewRequired ? ' Confira o carrinho antes de finalizar.' : ''}`;
+}
+
+async function refreshMenu({ announceRemoved = false, statusType = 'muted', reviewRequired = false } = {}) {
+  if (!menuRefreshPromise) {
+    menuRefreshPromise = (async () => {
+      const response = await fetch('/public/menu');
+      const menu = await parseResponse(response);
+      setCategorias(menu);
+      return syncCartWithCatalog();
+    })().finally(() => {
+      menuRefreshPromise = null;
+    });
+  }
+
+  const removedItems = await menuRefreshPromise;
+  if (announceRemoved && removedItems.length) {
+    setStatus(orderStatusEl, buildCartRemovalNotice(removedItems, { reviewRequired }), statusType);
+  }
+
+  return removedItems;
+}
+
+function startMenuRefreshLoop() {
+  if (menuRefreshTimerId) return;
+
+  menuRefreshTimerId = window.setInterval(() => {
+    if (document.visibilityState === 'hidden' || !storeInitialized) return;
+    refreshMenu({ announceRemoved: true }).catch(() => {});
+  }, MENU_REFRESH_INTERVAL_MS);
+}
+
 function applyActivePanel(panelId) {
   panelPedidosEl.classList.toggle('hidden', panelId !== 'panelPedidos');
   panelCarrinhoEl.classList.toggle('hidden', panelId !== 'panelCarrinho');
@@ -816,7 +940,7 @@ async function initStore() {
     const store = await parseResponse(storeRes);
     const menu = await parseResponse(menuRes);
 
-    categorias = Array.isArray(menu) ? menu : [];
+    setCategorias(menu);
 
     storeConfig = {
       loja_aberta: Boolean(store?.loja_aberta),
@@ -844,11 +968,12 @@ async function initStore() {
       storeNoticeEl.classList.add('hidden');
     }
 
-    renderCategoryTabs();
-    renderMenu();
+    syncCartWithCatalog();
     renderCart();
     syncOrderPanel(getCurrentSession());
+    startMenuRefreshLoop();
   } catch (error) {
+    storeInitialized = false;
     if (!menuSectionsEl) return;
     menuSectionsEl.innerHTML = `<p class="err">${escapeHtml(error.message || 'Erro ao carregar cardápio.')}</p>`;
   }
@@ -856,7 +981,10 @@ async function initStore() {
 
 let storeInitialized = false;
 function initStoreIfNeeded() {
-  if (storeInitialized) return;
+  if (storeInitialized) {
+    refreshMenu({ announceRemoved: true }).catch(() => {});
+    return;
+  }
   storeInitialized = true;
   initStore();
 }
@@ -1005,9 +1133,7 @@ function renderCart() {
 }
 
 function addToCart(produtoId) {
-  const produto = categorias
-    .flatMap((categoria) => categoria.produtos)
-    .find((item) => item.id === produtoId);
+  const produto = findCatalogProductById(produtoId);
 
   if (!produto) return;
   if (!productAvailable(produto)) {
@@ -1624,6 +1750,15 @@ async function handleOrderSubmit(event) {
     return;
   }
 
+  try {
+    const removedItems = await refreshMenu({ announceRemoved: true, statusType: 'err', reviewRequired: true });
+    if (removedItems.length) {
+      return;
+    }
+  } catch {
+    // Se a atualização falhar, o backend ainda valida produtos inativos no checkout.
+  }
+
   const { itens } = totalsFromCart();
   if (itens.length === 0) {
     setStatus(orderStatusEl, 'Adicione itens ao carrinho.', 'err');
@@ -1826,6 +1961,16 @@ cartItemsEl.addEventListener('click', (event) => {
 });
 
 checkoutFormEl.addEventListener('submit', handleOrderSubmit);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !storeInitialized) return;
+  refreshMenu({ announceRemoved: true }).catch(() => {});
+});
+
+window.addEventListener('focus', () => {
+  if (!storeInitialized) return;
+  refreshMenu({ announceRemoved: true }).catch(() => {});
+});
 
 syncSessionUI();
 consumeCheckoutFeedback();

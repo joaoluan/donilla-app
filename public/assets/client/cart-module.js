@@ -11,6 +11,17 @@ function cloneCartItem(item, quantidade) {
   };
 }
 
+function cartItemChanged(current, next) {
+  return (
+    String(current?.nome_doce || '') !== String(next?.nome_doce || '')
+    || Number(current?.preco || 0) !== Number(next?.preco || 0)
+    || String(current?.descricao || '') !== String(next?.descricao || '')
+    || String(current?.imagem_url || '') !== String(next?.imagem_url || '')
+    || String(current?.estoque_disponivel ?? '') !== String(next?.estoque_disponivel ?? '')
+    || Boolean(current?.ativo !== false) !== Boolean(next?.ativo !== false)
+  );
+}
+
 export function initCart(dom, {
   formatCurrency,
   escapeHtml,
@@ -114,6 +125,35 @@ export function initCart(dom, {
     return true;
   }
 
+  function syncCatalog(resolveItem) {
+    if (typeof resolveItem !== 'function' || cart.size === 0) return [];
+
+    const removedItems = [];
+    let changed = false;
+
+    cart.forEach((current, itemId) => {
+      const latest = resolveItem(itemId);
+      if (!latest || latest.ativo === false) {
+        cart.delete(itemId);
+        removedItems.push(current);
+        changed = true;
+        return;
+      }
+
+      const nextItem = cloneCartItem({ ...current, ...latest }, current.quantidade);
+      if (cartItemChanged(current, nextItem)) {
+        cart.set(itemId, nextItem);
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      sync();
+    }
+
+    return removedItems;
+  }
+
   function clear() {
     cart.clear();
     sync();
@@ -155,5 +195,6 @@ export function initCart(dom, {
     getSnapshot,
     setDeliveryFee,
     setItemQuantity,
+    syncCatalog,
   };
 }
