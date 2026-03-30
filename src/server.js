@@ -19,6 +19,7 @@ const {
 const ADMIN_STATIC_ROUTE = { type: 'file', fileName: 'admin.html' }
 const PUBLIC_DIR = pathLib.join(process.cwd(), 'public')
 const PUBLIC_ASSETS_DIR = pathLib.join(PUBLIC_DIR, 'assets')
+const PUBLIC_TRACKING_PAGE_PATTERN = /^\/pedido\/[^/]+$/
 const STATIC_ROUTES = {
   '/': { type: 'file', fileName: 'cliente-login.html' },
   '/loja': { type: 'file', fileName: 'cliente-login.html' },
@@ -154,6 +155,11 @@ async function serveStatic(req, res, routePath) {
   const assetPath = resolvePublicAssetPath(routePath)
   if (assetPath) {
     return streamStaticFile(res, assetPath, resolveStaticContentType(assetPath), corsHeaders)
+  }
+
+  if (PUBLIC_TRACKING_PAGE_PATTERN.test(routePath)) {
+    const trackingPagePath = pathLib.join(PUBLIC_DIR, 'pedido.html')
+    return streamStaticFile(res, trackingPagePath, resolveStaticContentType(trackingPagePath), corsHeaders)
   }
 
   const route = STATIC_ROUTES[routePath]

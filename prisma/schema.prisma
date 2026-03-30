@@ -86,6 +86,7 @@ model pedidos {
   metodo_pagamento     String         @db.VarChar(50)
   status_pagamento     String?        @default("pendente") @db.VarChar(50)
   id_transacao_gateway String?        @unique @db.VarChar(255)
+  tracking_token       String         @unique @db.VarChar(64)
   asaas_payment_id     String?        @db.VarChar(255)
   pago_em              DateTime?      @db.Timestamp(6)
   expira_em            DateTime?      @db.Timestamp(6)

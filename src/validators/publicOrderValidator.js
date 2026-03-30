@@ -79,6 +79,14 @@ function parseOrderId(value) {
   return id
 }
 
+function parseTrackingToken(value) {
+  const token = String(value || '').trim().toLowerCase()
+  if (!/^[a-f0-9]{32,64}$/.test(token)) {
+    throw new AppError(400, 'Token de rastreio invalido.')
+  }
+  return token
+}
+
 function toRawPhone(value) {
   return String(value || '').replace(/\D/g, '').trim()
 }
@@ -145,6 +153,7 @@ module.exports = {
   CUSTOMER_PASSWORD_RULE_MESSAGE,
   isStrongCustomerPassword,
   parseOrderId,
+  parseTrackingToken,
   validateCustomerLookup,
   validateCreateOrder,
   validateUpdateOrderStatus,

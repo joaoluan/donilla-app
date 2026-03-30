@@ -1651,6 +1651,166 @@ button {
   background: radial-gradient(circle at 15% 0%, #f7f0e5 0%, #edf3ef 42%, #e2ede6 100%);
 }
 
+.page-order-tracking {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--slate-900);
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+}
+
+.order-tracking-shell {
+  padding: 28px 12px 48px;
+  display: grid;
+  gap: 18px;
+}
+
+.order-tracking-hero {
+  display: grid;
+  gap: 8px;
+}
+
+.order-tracking-hero .customer-auth-kicker {
+  color: rgba(244, 234, 219, 0.82);
+}
+
+.order-tracking-card {
+  padding: clamp(18px, 4vw, 28px);
+  border-radius: 24px;
+  border: 1px solid rgba(46, 84, 58, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 20px 52px rgba(17, 24, 39, 0.12);
+}
+
+.order-tracking-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.order-tracking-overline {
+  display: block;
+  color: var(--slate-500);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.order-tracking-card-head h2 {
+  margin: 4px 0 0;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  color: var(--slate-900);
+}
+
+.order-tracking-chips {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.order-tracking-chip {
+  border: 1px solid transparent;
+}
+
+.order-tracking-chip.is-neutral {
+  background: rgba(75, 85, 99, 0.1);
+  color: var(--slate-700);
+}
+
+.order-tracking-chip.is-warning {
+  background: rgba(180, 83, 9, 0.12);
+  color: var(--warning);
+}
+
+.order-tracking-chip.is-accent {
+  background: rgba(47, 107, 85, 0.14);
+  color: var(--ifood-red-strong);
+}
+
+.order-tracking-chip.is-positive {
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--success);
+}
+
+.order-tracking-chip.is-negative {
+  background: rgba(185, 28, 28, 0.1);
+  color: var(--danger);
+}
+
+.order-tracking-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.order-tracking-metric {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(209, 213, 219, 0.8);
+  background: linear-gradient(180deg, rgba(249, 250, 251, 0.98), rgba(243, 244, 246, 0.86));
+}
+
+.order-tracking-metric span {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--slate-500);
+}
+
+.order-tracking-metric strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1rem;
+  color: var(--slate-900);
+}
+
+.order-tracking-note {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--ifood-red-soft);
+  border: 1px solid rgba(47, 107, 85, 0.12);
+}
+
+.order-tracking-note strong {
+  display: block;
+  color: var(--ifood-red-strong);
+}
+
+.order-tracking-note p {
+  margin: 8px 0 0;
+  color: var(--slate-700);
+}
+
+.order-tracking-actions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.page-order-tracking .status-text.ok {
+  color: var(--success);
+}
+
+.page-order-tracking .status-text.err {
+  color: var(--danger);
+}
+
+@media (max-width: 720px) {
+  .order-tracking-card-head {
+    flex-direction: column;
+  }
+
+  .order-tracking-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .order-tracking-actions > * {
+    flex: 1 1 100%;
+  }
+}
+
 .client-topbar {
   position: sticky;
   top: 0;

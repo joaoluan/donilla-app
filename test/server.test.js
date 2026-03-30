@@ -148,6 +148,10 @@ test('rotas web canonicas devem servir as paginas corretas', async () => {
   const adminConfigResponse = await requestApp(app, { url: '/admin/configuracoes' })
   assert.equal(adminConfigResponse.statusCode, 200)
   assert.match(adminConfigResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
+
+  const trackingResponse = await requestApp(app, { url: '/pedido/41' })
+  assert.equal(trackingResponse.statusCode, 200)
+  assert.match(trackingResponse.body, /<title>Donilla - Acompanhar Pedido<\/title>/)
 })
 
 test('assets do admin modularizado devem ser servidos como javascript', async () => {
@@ -246,6 +250,11 @@ test('client Prisma gerado deve incluir campos de horario automatico da loja', (
   const fieldNames = model.fields.map((field) => field.name)
   assert.ok(fieldNames.includes('horario_automatico_ativo'))
   assert.ok(fieldNames.includes('horario_funcionamento'))
+
+  const ordersModel = Prisma.dmmf.datamodel.models.find((entry) => entry.name === 'pedidos')
+  assert.ok(ordersModel)
+  const orderFieldNames = ordersModel.fields.map((field) => field.name)
+  assert.ok(orderFieldNames.includes('tracking_token'))
 })
 
 test('aliases legados devem redirecionar para a loja principal', async () => {
@@ -296,6 +305,7 @@ test('rotas /api de checkout e pedidos expõem o contrato minimo', async () => {
     createOrder: null,
     orderDetail: null,
     orderStatus: null,
+    publicTracking: null,
     retryCheckout: null,
     webhook: null,
   }
@@ -313,6 +323,10 @@ test('rotas /api de checkout e pedidos expõem o contrato minimo', async () => {
       getOrderStatusSummary(id, token) {
         calls.orderStatus = { token, id }
         return Promise.resolve({ id, status_pagamento: 'pendente', status_entrega: 'pendente' })
+      },
+      getPublicOrderTracking(id, trackingToken) {
+        calls.publicTracking = { id, trackingToken }
+        return Promise.resolve({ id, tracking_path: `/pedido/${id}?token=${trackingToken}` })
       },
       retryAsaasCheckout(token, id) {
         calls.retryCheckout = { token, id }
@@ -359,6 +373,17 @@ test('rotas /api de checkout e pedidos expõem o contrato minimo', async () => {
   assert.equal(statusResponse.statusCode, 200)
   assert.deepEqual(calls.orderStatus, { token: 'sessao-cliente', id: 41 })
 
+  const publicTrackingResponse = await requestApp(app, {
+    method: 'GET',
+    url: '/public/orders/41/tracking?token=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  })
+
+  assert.equal(publicTrackingResponse.statusCode, 200)
+  assert.deepEqual(calls.publicTracking, {
+    id: 41,
+    trackingToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  })
+
   const retryResponse = await requestApp(app, {
     method: 'POST',
     url: '/api/checkout/41/retry',
@@ -401,6 +426,7 @@ test('rotas dinamicas fazem match estrito e rejeitam segmentos extras', async ()
   const calls = {
     orderDetail: [],
     orderStatus: [],
+    publicTracking: [],
     retryCheckout: [],
     orderAudit: [],
   }
@@ -426,6 +452,10 @@ test('rotas dinamicas fazem match estrito e rejeitam segmentos extras', async ()
       getOrderStatusSummary(id, token) {
         calls.orderStatus.push({ token, id })
         return Promise.resolve({ id, status_pagamento: 'pendente', status_entrega: 'pendente' })
+      },
+      getPublicOrderTracking(id, trackingToken) {
+        calls.publicTracking.push({ id, trackingToken })
+        return Promise.resolve({ id, tracking_path: `/pedido/${id}?token=${trackingToken}` })
       },
       retryAsaasCheckout(token, id) {
         calls.retryCheckout.push({ token, id })
@@ -479,6 +509,28 @@ test('rotas dinamicas fazem match estrito e rejeitam segmentos extras', async ()
 
     assert.equal(duplicatedSlashOrderStatusResponse.statusCode, 404)
     assert.deepEqual(calls.orderStatus, [{ token: 'sessao-cliente', id: 41 }])
+
+    const validPublicTrackingResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/public/orders/41/tracking?token=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    })
+
+    assert.equal(validPublicTrackingResponse.statusCode, 200)
+    assert.deepEqual(calls.publicTracking, [{
+      id: 41,
+      trackingToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    }])
+
+    const malformedPublicTrackingResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/public/orders/41/tracking/extra?token=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    })
+
+    assert.equal(malformedPublicTrackingResponse.statusCode, 404)
+    assert.deepEqual(calls.publicTracking, [{
+      id: 41,
+      trackingToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    }])
 
     const validRetryResponse = await requestApp(app, {
       method: 'POST',
@@ -708,6 +760,56 @@ test('checkout create deve aplicar rate limit dedicado', async () => {
   assert.equal(lastResponse.headers['RateLimit-Policy'], '10;w=60')
   assert.equal(lastResponse.headers['Retry-After'], '60')
   assert.match(lastResponse.body, /Muitas tentativas/i)
+})
+
+test('namespace publico deve aplicar rate limit generico nas rotas /public/*', async () => {
+  const app = createApp({}, {
+    storeService: {
+      getStore() {
+        return Promise.resolve({ id: 1, nome_loja: 'Donilla' })
+      },
+    },
+  })
+
+  let lastResponse = null
+
+  for (let attempt = 0; attempt < 61; attempt += 1) {
+    lastResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/public/store',
+      headers: {
+        'x-forwarded-for': '198.51.100.33',
+      },
+    })
+  }
+
+  assert.equal(lastResponse.statusCode, 429)
+  assert.equal(lastResponse.headers['RateLimit-Limit'], '60')
+  assert.equal(lastResponse.headers['RateLimit-Policy'], '60;w=60')
+  assert.equal(lastResponse.headers['Retry-After'], '60')
+  assert.match(lastResponse.body, /API publica/i)
+})
+
+test('namespace de checkout deve aplicar rate limit generico em /api/checkout/*', async () => {
+  const app = createApp({})
+
+  let lastResponse = null
+
+  for (let attempt = 0; attempt < 31; attempt += 1) {
+    lastResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/api/checkout/probe',
+      headers: {
+        'x-forwarded-for': '198.51.100.34',
+      },
+    })
+  }
+
+  assert.equal(lastResponse.statusCode, 429)
+  assert.equal(lastResponse.headers['RateLimit-Limit'], '30')
+  assert.equal(lastResponse.headers['RateLimit-Policy'], '30;w=60')
+  assert.equal(lastResponse.headers['Retry-After'], '60')
+  assert.match(lastResponse.body, /checkout/i)
 })
 
 test('status resumido do pedido deve aplicar rate limit dedicado', async () => {

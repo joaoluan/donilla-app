@@ -237,6 +237,8 @@ Resposta:
     "status_pagamento": "pendente",
     "valor_total": "53.3",
     "checkout_url": "https://sandbox.asaas.com/checkoutSession/show?id=chk_123",
+    "tracking_path": "/pedido/4?token=abc123",
+    "tracking_url": "https://seu-dominio.com/pedido/4?token=abc123",
     "criado_em": "2026-02-26T03:50:24.176Z"
   }
 }
@@ -248,6 +250,15 @@ Consulta status do pedido.
 Quando existir checkout pendente do Asaas, a API tambem pode devolver:
 - `id_transacao_gateway`
 - `checkout_url`
+
+### GET `/public/orders/:id/tracking?token=...`
+Consulta o status publico do pedido para a pagina `/pedido/:id`.
+
+Quando existir checkout pendente do Asaas, a API tambem pode devolver:
+- `id_transacao_gateway`
+- `checkout_url`
+- `tracking_path`
+- `tracking_url`
 
 ### POST `/api/webhooks/asaas`
 Webhook server-to-server do Asaas Checkout.
@@ -402,6 +413,11 @@ Exemplo:
   "whatsapp_mensagem_status": "Oi {cliente_nome}! Seu pedido #{pedido_id} agora esta como {status_entrega_label}."
 }
 ```
+
+Variaveis uteis para o template de novo pedido:
+- `pedido_tracking_url`
+- `pedido_tracking_path`
+- `pedido_tracking_callout`
 
 ### POST `/admin/whatsapp/test`
 Dispara uma mensagem de teste para validar a integração do bot sem precisar criar um pedido real.

@@ -1,6 +1,7 @@
 const { parseJsonBody } = require('../utils/http')
 const {
   parseOrderId,
+  parseTrackingToken,
   validateCreateOrder,
   validateCreateCustomer,
   validateCustomerLookup,
@@ -59,6 +60,13 @@ function publicController(service) {
       const id = parseOrderId(idParam)
       const token = getCustomerSessionToken(req)
       const data = await service.getOrderStatusSummary(id, token)
+      return { statusCode: 200, data }
+    },
+
+    async publicOrderTracking(url, idParam) {
+      const id = parseOrderId(idParam)
+      const trackingToken = parseTrackingToken(url.searchParams.get('token'))
+      const data = await service.getPublicOrderTracking(id, trackingToken)
       return { statusCode: 200, data }
     },
 

@@ -10,6 +10,7 @@ const DEFAULT_WHATSAPP_NEW_ORDER_TEMPLATE =
     'Oi {cliente_nome}, recebemos seu pedido #{pedido_id}.',
     'Entrega prevista: {previsao_entrega}.',
     'Total do pedido: {valor_total}.',
+    'Acompanhe seu pedido: {pedido_tracking_url}',
     'Qualquer novidade, avisamos por aqui.',
   ].join('\n')
 
@@ -28,6 +29,12 @@ const LEGACY_WHATSAPP_NEW_ORDER_TEMPLATES = [
     'Previsao de entrega: {previsao_entrega}',
     'Itens: {itens_resumo}',
     'Se precisar, e so responder esta mensagem.',
+  ].join('\n'),
+  [
+    'Oi {cliente_nome}, recebemos seu pedido #{pedido_id}.',
+    'Entrega prevista: {previsao_entrega}.',
+    'Total do pedido: {valor_total}.',
+    'Qualquer novidade, avisamos por aqui.',
   ].join('\n'),
 ]
 

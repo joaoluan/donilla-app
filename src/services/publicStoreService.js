@@ -4,6 +4,11 @@ const { hashPassword, verifyPassword } = require('../utils/password')
 const { cleanLocationField, resolveDeliveryFee } = require('../utils/deliveryFees')
 const { normalizeStoreSettings, toPublicStoreSettings } = require('../utils/storeSettings')
 const { resolveStoreAvailability } = require('../utils/storeHours')
+const {
+  buildPublicOrderTrackingPath,
+  buildPublicOrderTrackingUrl,
+  generateOrderTrackingToken,
+} = require('../utils/orderTracking')
 const { createOrderAuditService } = require('./orderAuditService')
 const {
   isStrongCustomerPassword,
@@ -198,7 +203,7 @@ function buildOrderOwnershipWhere(id, session) {
 }
 
 function mapOrderSummary(order) {
-  return {
+  return attachTrackingLinks({
     id: order.id,
     metodo_pagamento: order.metodo_pagamento,
     status_entrega: order.status_entrega,
@@ -221,7 +226,22 @@ function mapOrderSummary(order) {
           }
         : null,
     })),
+  }, order)
+}
+
+function attachTrackingLinks(target, order) {
+  const trackingPath = buildPublicOrderTrackingPath(order?.id, order?.tracking_token)
+  const trackingUrl = buildPublicOrderTrackingUrl(order?.id, order?.tracking_token)
+
+  if (trackingPath) {
+    target.tracking_path = trackingPath
   }
+
+  if (trackingUrl) {
+    target.tracking_url = trackingUrl
+  }
+
+  return target
 }
 
 function buildNotificationOrderData({
@@ -233,6 +253,7 @@ function buildNotificationOrderData({
   metodo_pagamento,
 }) {
   return {
+    ...attachTrackingLinks({}, pedido),
     id: pedido.id,
     status_entrega: pedido.status_entrega,
     status_pagamento: pedido.status_pagamento,
@@ -400,7 +421,7 @@ function publicStoreService(prisma, deps = {}) {
   }
 
   function buildOrderResponse(order) {
-    const response = {
+    const response = attachTrackingLinks({
       id: order.id,
       metodo_pagamento: order.metodo_pagamento,
       status_entrega: order.status_entrega,
@@ -409,7 +430,7 @@ function publicStoreService(prisma, deps = {}) {
       valor_entrega: order.valor_entrega,
       valor_total: order.valor_total,
       criado_em: order.criado_em,
-    }
+    }, order)
 
     if (order.id_transacao_gateway) {
       response.id_transacao_gateway = order.id_transacao_gateway
@@ -423,12 +444,12 @@ function publicStoreService(prisma, deps = {}) {
   }
 
   function buildOrderStatusSummary(order) {
-    const response = {
+    const response = attachTrackingLinks({
       id: order.id,
       metodo_pagamento: order.metodo_pagamento,
       status_entrega: order.status_entrega,
       status_pagamento: order.status_pagamento,
-    }
+    }, order)
 
     if (order.id_transacao_gateway) {
       response.id_transacao_gateway = order.id_transacao_gateway
@@ -552,6 +573,7 @@ function publicStoreService(prisma, deps = {}) {
           metodo_pagamento: metodoPagamento,
           status_pagamento: statusPagamento,
           status_entrega: 'pendente',
+          tracking_token: generateOrderTrackingToken(),
         },
       })
 
@@ -1357,6 +1379,21 @@ function publicStoreService(prisma, deps = {}) {
       assertOrderBelongsToSession(pedido, session)
 
       return buildOrderStatusSummary(pedido)
+    },
+
+    async getPublicOrderTracking(id, trackingToken) {
+      const pedido = await prisma.pedidos.findFirst({
+        where: {
+          id,
+          tracking_token: trackingToken,
+        },
+      })
+
+      if (!pedido) {
+        throw new AppError(404, 'Pedido nao encontrado.')
+      }
+
+      return buildOrderResponse(pedido)
     },
 
     async getCustomerOrders(rawSessionToken) {

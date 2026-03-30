@@ -1,5 +1,6 @@
 const { AppError } = require('../utils/errors')
 const { normalizeWhatsAppPhone } = require('../utils/phone')
+const { buildPublicOrderTrackingPath, buildPublicOrderTrackingUrl } = require('../utils/orderTracking')
 const { normalizeStoreSettings } = require('../utils/storeSettings')
 const { assertSafeExternalUrl } = require('../utils/security')
 
@@ -92,10 +93,16 @@ function buildStatusMessage(status, { previsaoEntrega }) {
 }
 
 function renderTemplate(template, variables) {
-  return String(template || '').replace(/\{([a-z_]+)\}/gi, (_, key) => {
-    const value = variables[key]
-    return value === undefined || value === null ? '' : String(value)
-  })
+  return String(template || '')
+    .split('\n')
+    .map((line) =>
+      line.replace(/\{([a-z_]+)\}/gi, (_, key) => {
+        const value = variables[key]
+        return value === undefined || value === null ? '' : String(value)
+      }).trim(),
+    )
+    .filter(Boolean)
+    .join('\n')
 }
 
 function buildVariables(config, order, previousStatus = null) {
@@ -103,6 +110,8 @@ function buildVariables(config, order, previousStatus = null) {
   const endereco = order?.endereco || null
   const currentStatus = order?.status_entrega || null
   const previsaoEntrega = formatDeliveryWindow(config.tempo_entrega_minutos, config.tempo_entrega_max_minutos)
+  const trackingPath = order?.tracking_path || buildPublicOrderTrackingPath(order?.id, order?.tracking_token)
+  const trackingUrl = order?.tracking_url || buildPublicOrderTrackingUrl(order?.id, order?.tracking_token)
 
   return {
     cliente_nome: cliente.nome || 'Cliente',
@@ -124,6 +133,9 @@ function buildVariables(config, order, previousStatus = null) {
     tempo_entrega_max: config.tempo_entrega_max_minutos,
     previsao_entrega: previsaoEntrega,
     status_mensagem: buildStatusMessage(currentStatus, { previsaoEntrega }),
+    pedido_tracking_path: trackingPath || '',
+    pedido_tracking_url: trackingUrl || '',
+    pedido_tracking_callout: trackingUrl ? `Acompanhe seu pedido: ${trackingUrl}` : '',
   }
 }
 

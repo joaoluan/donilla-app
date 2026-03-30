@@ -77,6 +77,10 @@ function createOrderPrismaMock(options = {}) {
       return false
     }
 
+    if (where.tracking_token !== undefined && order.tracking_token !== where.tracking_token) {
+      return false
+    }
+
     const customerPhone = where?.clientes?.is?.telefone_whatsapp
     if (customerPhone !== undefined && order?.clientes?.telefone_whatsapp !== customerPhone) {
       return false
@@ -446,6 +450,51 @@ test('createOrder deve criar pedido pix aguardando pagamento de forma persistent
     assert.equal(calls.orderAuditCreate[0].origem, 'customer')
   } finally {
     process.env.JWT_SECRET = originalSecret
+  }
+})
+
+test('createOrder deve gerar link publico de rastreio para o pedido', async () => {
+  const originalSecret = process.env.JWT_SECRET
+  const originalAppUrl = process.env.APP_URL
+  process.env.JWT_SECRET = 'test-secret'
+  process.env.APP_URL = 'https://app.donilla.test'
+
+  const { prisma, calls } = createOrderPrismaMock()
+  const service = publicStoreService(prisma)
+
+  const sessionToken = signToken(
+    {
+      purpose: 'customer_session',
+      customer_id: null,
+      telefone_whatsapp: '11999999999',
+      nome: 'Maria Tracking',
+      endereco: {
+        rua: 'Rua das Flores',
+        numero: '20',
+        bairro: 'Centro',
+        cidade: 'Sapiranga',
+      },
+    },
+    process.env.JWT_SECRET,
+    3600,
+  )
+
+  try {
+    const result = await service.createOrder({
+      cliente_session_token: sessionToken,
+      metodo_pagamento: 'pix',
+      itens: [{ produto_id: 1, quantidade: 1 }],
+    })
+
+    assert.match(calls.pedidoCreate.tracking_token, /^[a-f0-9]{48}$/)
+    assert.equal(result.tracking_path, `/pedido/41?token=${calls.pedidoCreate.tracking_token}`)
+    assert.equal(result.tracking_url, `https://app.donilla.test/pedido/41?token=${calls.pedidoCreate.tracking_token}`)
+  } finally {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET
+    else process.env.JWT_SECRET = originalSecret
+
+    if (originalAppUrl === undefined) delete process.env.APP_URL
+    else process.env.APP_URL = originalAppUrl
   }
 })
 
@@ -892,6 +941,72 @@ test('getOrderStatusSummary deve retornar 404 quando o pedido pertence a outro c
   } finally {
     process.env.JWT_SECRET = originalSecret
   }
+})
+
+test('getPublicOrderTracking deve retornar status quando o token de rastreio confere', async () => {
+  const originalAppUrl = process.env.APP_URL
+  process.env.APP_URL = 'https://app.donilla.test'
+
+  const { prisma, orders } = createOrderPrismaMock()
+  orders.set(41, {
+    id: 41,
+    tracking_token: 'a'.repeat(48),
+    metodo_pagamento: 'asaas_checkout',
+    status_pagamento: 'pendente',
+    status_entrega: 'preparando',
+    valor_entrega: '8.00',
+    valor_total: '32.00',
+    criado_em: '2026-03-16T18:00:00.000Z',
+    id_transacao_gateway: 'chk_test_123',
+  })
+
+  const service = publicStoreService(prisma, {
+    asaas: {
+      buildCheckoutUrl(id) {
+        return `https://sandbox.asaas.com/checkoutSession/show?id=${id}`
+      },
+    },
+  })
+
+  try {
+    const result = await service.getPublicOrderTracking(41, 'a'.repeat(48))
+
+    assert.deepEqual(result, {
+      id: 41,
+      metodo_pagamento: 'asaas_checkout',
+      status_entrega: 'preparando',
+      status_pagamento: 'pendente',
+      observacoes: null,
+      valor_entrega: '8.00',
+      valor_total: '32.00',
+      criado_em: '2026-03-16T18:00:00.000Z',
+      tracking_path: `/pedido/41?token=${'a'.repeat(48)}`,
+      tracking_url: `https://app.donilla.test/pedido/41?token=${'a'.repeat(48)}`,
+      id_transacao_gateway: 'chk_test_123',
+      checkout_url: 'https://sandbox.asaas.com/checkoutSession/show?id=chk_test_123',
+    })
+  } finally {
+    if (originalAppUrl === undefined) delete process.env.APP_URL
+    else process.env.APP_URL = originalAppUrl
+  }
+})
+
+test('getPublicOrderTracking deve retornar 404 quando o token de rastreio nao confere', async () => {
+  const { prisma, orders } = createOrderPrismaMock()
+  orders.set(41, {
+    id: 41,
+    tracking_token: 'a'.repeat(48),
+    metodo_pagamento: 'pix',
+    status_pagamento: 'pendente',
+    status_entrega: 'pendente',
+  })
+
+  const service = publicStoreService(prisma)
+
+  await assert.rejects(
+    () => service.getPublicOrderTracking(41, 'b'.repeat(48)),
+    /Pedido nao encontrado/,
+  )
 })
 
 test('getCustomerOrder deve validar ownership pelo telefone quando a sessao nao tem customer_id', async () => {

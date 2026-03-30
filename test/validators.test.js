@@ -22,6 +22,7 @@ const {
 } = require('../src/validators/adminQueryValidator')
 const {
   parseOrderId,
+  parseTrackingToken,
   validateCustomerLookup,
   validateCreateOrder,
   validateCreateCustomer,
@@ -200,6 +201,18 @@ test('parseOrderId deve rejeitar ids com sufixo invalido', () => {
   assert.throws(
     () => parseOrderId('1abc'),
     (error) => error instanceof AppError && error.message === 'ID de pedido invalido.',
+  )
+})
+
+test('parseTrackingToken deve aceitar token hexadecimal de rastreio', () => {
+  const token = parseTrackingToken('A'.repeat(48))
+  assert.equal(token, 'a'.repeat(48))
+})
+
+test('parseTrackingToken deve rejeitar token invalido', () => {
+  assert.throws(
+    () => parseTrackingToken('pedido-41'),
+    (error) => error instanceof AppError && error.message === 'Token de rastreio invalido.',
   )
 })
 

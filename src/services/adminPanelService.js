@@ -1,6 +1,7 @@
 const { AppError } = require('../utils/errors')
 const { cleanLocationField } = require('../utils/deliveryFees')
 const { getDefaultStoreSettings, normalizeStoreSettings } = require('../utils/storeSettings')
+const { buildPublicOrderTrackingPath, buildPublicOrderTrackingUrl } = require('../utils/orderTracking')
 const { STORE_OPERATION_TIMEZONE, resolveStoreAvailability } = require('../utils/storeHours')
 const { assertSafeExternalUrl } = require('../utils/security')
 const { scoreSearchMatch } = require('../utils/search')
@@ -836,6 +837,8 @@ function toNotificationOrderData(order) {
     metodo_pagamento: order.metodo_pagamento,
     observacoes: order.observacoes || null,
     criado_em: order.criado_em,
+    tracking_path: buildPublicOrderTrackingPath(order.id, order.tracking_token),
+    tracking_url: buildPublicOrderTrackingUrl(order.id, order.tracking_token),
     cliente: order.clientes
       ? {
           id: order.clientes.id,

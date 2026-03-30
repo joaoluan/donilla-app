@@ -25,6 +25,7 @@ test('buildPayload aplica variaveis do pedido na mensagem', () => {
         nome: 'Maria',
         telefone_whatsapp: '11999990000',
       },
+      tracking_url: 'https://app.donilla.test/pedido/77?token=abc123',
       endereco: {
         rua: 'Rua A',
         numero: '10',
@@ -40,6 +41,11 @@ test('buildPayload aplica variaveis do pedido na mensagem', () => {
   assert.equal(payload.variables.previsao_entrega, '20 a 30 min')
   assert.equal(payload.variables.itens_resumo, '2x Brigadeiro')
   assert.equal(payload.variables.status_pagamento_label, 'Pago')
+  assert.equal(payload.variables.pedido_tracking_url, 'https://app.donilla.test/pedido/77?token=abc123')
+  assert.equal(
+    payload.variables.pedido_tracking_callout,
+    'Acompanhe seu pedido: https://app.donilla.test/pedido/77?token=abc123',
+  )
 })
 
 test('buildPayload monta mensagem contextual para status atualizado', () => {
@@ -205,6 +211,7 @@ test('notifyOrderCreated usa transporte WhatsApp configurado', async () => {
       status_entrega: 'pendente',
       valor_total: '59.90',
       valor_entrega: '7.00',
+      tracking_url: 'https://app.donilla.test/pedido/10?token=trk_10',
       cliente: {
         nome: 'Maria',
         telefone_whatsapp: '11999990000',
@@ -219,5 +226,6 @@ test('notifyOrderCreated usa transporte WhatsApp configurado', async () => {
   assert.equal(messageCalls[0].to, '5511999990000')
   assert.match(messageCalls[0].body, /Oi Maria, recebemos seu pedido #10/)
   assert.match(messageCalls[0].body, /Entrega prevista: 30 a 45 min/)
+  assert.match(messageCalls[0].body, /Acompanhe seu pedido: https:\/\/app\.donilla\.test\/pedido\/10\?token=trk_10/)
   assert.match(messageCalls[0].body, /Qualquer novidade, avisamos por aqui/)
 })

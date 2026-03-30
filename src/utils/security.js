@@ -38,6 +38,14 @@ const NO_STORE_HEADERS = Object.freeze({
   Pragma: 'no-cache',
 })
 
+function matchesPathPrefix(path, prefix) {
+  const normalizedPath = String(path || '').trim()
+  const normalizedPrefix = String(prefix || '').trim().replace(/\/+$/, '')
+
+  if (!normalizedPath || !normalizedPrefix) return false
+  return normalizedPath === normalizedPrefix || normalizedPath.startsWith(`${normalizedPrefix}/`)
+}
+
 const RATE_LIMIT_RULES = [
   {
     key: 'auth-login',
@@ -85,7 +93,7 @@ const RATE_LIMIT_RULES = [
     key: 'order-status-summary',
     methods: ['GET'],
     matcher(path) {
-      return /^\/api\/orders\/\d+\/status$/.test(path) || /^\/public\/orders\/\d+$/.test(path)
+      return /^\/api\/orders\/\d+\/status$/.test(path) || /^\/public\/orders\/\d+(?:\/tracking)?$/.test(path)
     },
     maxRequests: 30,
     windowMs: 60 * 1000,
@@ -106,6 +114,26 @@ const RATE_LIMIT_RULES = [
     maxRequests: 30,
     windowMs: 10 * 60 * 1000,
     message: 'Muitas consultas. Tente novamente em instantes.',
+  },
+  {
+    key: 'public-namespace',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    matcher(path) {
+      return matchesPathPrefix(path, '/public')
+    },
+    maxRequests: 60,
+    windowMs: 60 * 1000,
+    message: 'Muitas requisicoes na API publica. Tente novamente em instantes.',
+  },
+  {
+    key: 'checkout-namespace',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    matcher(path) {
+      return matchesPathPrefix(path, '/api/checkout')
+    },
+    maxRequests: 30,
+    windowMs: 60 * 1000,
+    message: 'Muitas requisicoes no checkout. Tente novamente em instantes.',
   },
 ]
 
@@ -354,44 +382,55 @@ function getClientIp(req) {
   return remoteAddress || forwardedAddress || 'unknown'
 }
 
+function matchesRateLimitRule(rule, method, path) {
+  if (!rule.methods.includes(method)) return false
+  if (typeof rule.matcher === 'function') return rule.matcher(path)
+  return rule.paths.includes(path)
+}
+
 function createRateLimitGuard() {
   const state = new Map()
 
   return function checkRateLimit(req, method, path) {
-    const rule = RATE_LIMIT_RULES.find((candidate) => {
-      if (!candidate.methods.includes(method)) return false
-      if (typeof candidate.matcher === 'function') return candidate.matcher(path)
-      return candidate.paths.includes(path)
-    })
+    const matchedRules = RATE_LIMIT_RULES.filter((candidate) => matchesRateLimitRule(candidate, method, path))
+    if (matchedRules.length === 0) return null
 
-    if (!rule) return null
-
-    const key = `${rule.key}:${getClientIp(req)}`
+    const clientIp = getClientIp(req)
     const now = Date.now()
-    const current = state.get(key)
 
-    if (!current || current.resetAt <= now) {
-      state.set(key, {
-        count: 1,
-        resetAt: now + rule.windowMs,
-      })
-      return null
-    }
+    for (const rule of matchedRules) {
+      const key = `${rule.key}:${clientIp}`
+      const current = state.get(key)
 
-    if (current.count >= rule.maxRequests) {
-      const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000))
-      return {
-        message: rule.message || 'Muitas requisicoes. Tente novamente em instantes.',
-        retryAfterSeconds,
-        limit: rule.maxRequests,
-        remaining: 0,
-        resetAfterSeconds: retryAfterSeconds,
-        policy: `${rule.maxRequests};w=${Math.ceil(rule.windowMs / 1000)}`,
+      if (current && current.resetAt > now && current.count >= rule.maxRequests) {
+        const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000))
+        return {
+          message: rule.message || 'Muitas requisicoes. Tente novamente em instantes.',
+          retryAfterSeconds,
+          limit: rule.maxRequests,
+          remaining: 0,
+          resetAfterSeconds: retryAfterSeconds,
+          policy: `${rule.maxRequests};w=${Math.ceil(rule.windowMs / 1000)}`,
+        }
       }
     }
 
-    current.count += 1
-    state.set(key, current)
+    for (const rule of matchedRules) {
+      const key = `${rule.key}:${clientIp}`
+      const current = state.get(key)
+
+      if (!current || current.resetAt <= now) {
+        state.set(key, {
+          count: 1,
+          resetAt: now + rule.windowMs,
+        })
+        continue
+      }
+
+      current.count += 1
+      state.set(key, current)
+    }
+
     return null
   }
 }

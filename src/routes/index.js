@@ -46,6 +46,7 @@ function matchRoute(path, pattern) {
 const ROUTE_PATTERNS = {
   publicCustomerOrder: compileRoutePattern('/public/customer/orders/:id'),
   publicOrderStatus: compileRoutePattern('/public/orders/:id'),
+  publicOrderTracking: compileRoutePattern('/public/orders/:id/tracking'),
   apiOrderStatus: compileRoutePattern('/api/orders/:id/status'),
   apiOrderDetail: compileRoutePattern('/api/orders/:id'),
   apiCheckoutRetry: compileRoutePattern('/api/checkout/:id/retry'),
@@ -163,6 +164,11 @@ function createRouter(prisma, deps = {}) {
     const publicOrderStatusMatch = matchRoute(path, ROUTE_PATTERNS.publicOrderStatus)
     if (publicOrderStatusMatch) {
       if (method === 'GET') return pub.orderStatus(publicOrderStatusMatch.id, req)
+    }
+
+    const publicOrderTrackingMatch = matchRoute(path, ROUTE_PATTERNS.publicOrderTracking)
+    if (publicOrderTrackingMatch) {
+      if (method === 'GET') return pub.publicOrderTracking(url, publicOrderTrackingMatch.id)
     }
 
     const apiOrderStatusMatch = matchRoute(path, ROUTE_PATTERNS.apiOrderStatus)

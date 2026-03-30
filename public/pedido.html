@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Donilla - Acompanhar Pedido</title>
+  <link rel="stylesheet" href="/styles.css?v=20260330a" />
+</head>
+<body class="page-client page-order-tracking">
+  <header class="client-topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-logo" aria-hidden="true">D</span>
+        <div>
+          <strong>Donilla</strong>
+          <small>acompanhe seu pedido</small>
+        </div>
+      </div>
+      <a class="ghost-btn" href="/loja">Voltar para a loja</a>
+    </div>
+  </header>
+
+  <main class="client-shell order-tracking-shell">
+    <section class="store-hero order-tracking-hero">
+      <span class="customer-auth-kicker">Rastreio publico</span>
+      <h1>Acompanhe seu pedido</h1>
+      <p id="trackingLead">Abra este link sempre que quiser ver o andamento do pedido sem precisar pedir status no WhatsApp.</p>
+    </section>
+
+    <section class="card admin-card order-tracking-card">
+      <div class="order-tracking-card-head">
+        <div>
+          <small class="order-tracking-overline">Pedido</small>
+          <h2 id="trackingOrderHeading">Carregando...</h2>
+        </div>
+
+        <div class="hero-chips order-tracking-chips">
+          <span id="trackingDeliveryChip" class="info-chip order-tracking-chip">Entrega --</span>
+          <span id="trackingPaymentChip" class="info-chip order-tracking-chip">Pagamento --</span>
+        </div>
+      </div>
+
+      <p id="trackingStatus" class="status-text muted">Validando link de acompanhamento...</p>
+
+      <div class="order-tracking-grid">
+        <article class="order-tracking-metric">
+          <span>Numero</span>
+          <strong id="trackingOrderId">--</strong>
+        </article>
+        <article class="order-tracking-metric">
+          <span>Criado em</span>
+          <strong id="trackingCreatedAt">--</strong>
+        </article>
+        <article class="order-tracking-metric">
+          <span>Total</span>
+          <strong id="trackingTotal">--</strong>
+        </article>
+        <article class="order-tracking-metric">
+          <span>Pagamento</span>
+          <strong id="trackingPaymentLabel">--</strong>
+        </article>
+      </div>
+
+      <div class="order-tracking-note">
+        <strong>Resumo</strong>
+        <p id="trackingSummary">Consultando os dados do pedido...</p>
+      </div>
+
+      <div class="order-tracking-actions">
+        <a id="trackingCheckoutBtn" class="primary-btn hidden" href="#" target="_blank" rel="noreferrer">Continuar pagamento</a>
+        <button id="trackingRefreshBtn" class="ghost-btn" type="button">Atualizar agora</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/assets/client/order-tracking-page.js?v=20260330a"></script>
+</body>
+</html>

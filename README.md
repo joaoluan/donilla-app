@@ -120,11 +120,12 @@ Fluxo implementado:
 - `POST /api/checkout/create` com `metodo_pagamento: "asaas_checkout"`
 - backend cria o pedido local
 - backend cria o checkout no Asaas
-- resposta devolve `checkout_url` e `id_transacao_gateway`
+- resposta devolve `checkout_url`, `id_transacao_gateway` e `tracking_path`
 - frontend redireciona o cliente para o checkout hospedado
 - `POST /api/webhooks/asaas` valida `asaas-access-token`, registra `event.id`, responde `200` rapido e processa em segundo plano
 - `GET /api/orders/:id` devolve o detalhe do pedido do cliente
 - `GET /api/orders/:id/status` devolve o status resumido do pedido do cliente
+- `GET /public/orders/:id/tracking?token=...` devolve o status publico do pedido para a pagina `/pedido/:id`
 - `POST /api/checkout/:orderId/retry` recria checkout pendente do pedido
 - `GET /admin/orders/:id/audit` devolve a trilha interna de auditoria do pedido para o painel admin
 
@@ -167,7 +168,7 @@ O projeto agora tem um bot nativo de WhatsApp integrado ao WPPConnect Server.
 
 Fluxos automáticos:
 
-- pedido criado: o backend notifica o cliente
+- pedido criado: o backend notifica o cliente e pode incluir o link de acompanhamento
 - status atualizado no painel: o backend notifica o cliente
 - mensagens recebidas no WhatsApp: o bot responde `status 123`, `pedido 123` e `ultimo pedido`
 - campanhas de disparo: o sistema envia uma saudacao randômica, espera a resposta do cliente por ate 24h e so entao libera a mensagem principal
@@ -208,7 +209,9 @@ Payload interno que o backend usa para montar notificações:
     "cliente_nome": "Cliente",
     "pedido_id": 15,
     "status_entrega_label": "Pendente",
-    "valor_total": "R$ 49,90"
+    "valor_total": "R$ 49,90",
+    "pedido_tracking_url": "https://seu-dominio.com/pedido/15?token=abc123",
+    "pedido_tracking_callout": "Acompanhe seu pedido: https://seu-dominio.com/pedido/15?token=abc123"
   },
   "order": {
     "id": 15
@@ -225,5 +228,6 @@ Antes de subir a API, aplique também:
 - `prisma/sql/20260323_add_asaas_webhook_events.sql`
 - `prisma/sql/20260323_add_pedidos_auditoria.sql`
 - `prisma/sql/20260325_add_store_hours_schedule.sql`
+- `prisma/sql/20260330_add_order_tracking_token.sql`
 - `prisma/sql/20260330_add_broadcast_module.sql`
 - `prisma/sql/20260330_add_broadcast_human_behavior.sql`
