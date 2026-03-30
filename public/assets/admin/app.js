@@ -2589,14 +2589,14 @@ async function loadStoreSettings() {
 function renderWhatsAppBotPauseState(isPaused) {
   const paused = Boolean(isPaused);
   settingsFormEl.elements.whatsapp_bot_pausado.checked = paused;
-  whatsappBotPauseBtnEl.textContent = paused ? 'Retomar bot' : 'Pausar bot';
+  whatsappBotPauseBtnEl.textContent = paused ? 'Retomar envios' : 'Pausar envios';
   whatsappBotPauseMetaEl.textContent = paused
-    ? 'Bot pausado no admin.'
-    : 'Bot em funcionamento normal.';
+    ? 'Envios automáticos pausados.'
+    : 'Mensagens funcionando normalmente.';
   whatsappBotPauseStatusEl.className = 'status-text muted';
   whatsappBotPauseStatusEl.textContent = paused
-    ? 'As respostas e automações do WhatsApp estão pausadas até você retomar.'
-    : 'O bot responde normalmente e segue as demais configurações salvas.';
+    ? 'As mensagens automáticas ficam paradas até você retomar os envios.'
+    : 'As mensagens automáticas seguem ativas conforme as configurações salvas.';
 }
 
 function describeWhatsAppSessionState(data) {
@@ -2606,15 +2606,15 @@ function describeWhatsAppSessionState(data) {
   const normalized = String(sourceValue ?? '').trim().toUpperCase();
 
   if (!configured) {
-    return 'WPPConnect não configurado no servidor.';
+    return 'A integração do WhatsApp ainda não foi configurada.';
   }
 
   if (normalized === 'CONNECTED') {
-    return 'Conectado e pronto para enviar mensagens.';
+    return 'Número conectado e pronto para enviar mensagens.';
   }
 
   if (normalized === 'CLOSED' || normalized === 'DISCONNECTED' || normalized === 'FALSE') {
-    return 'Desconectado. Inicie a sessão e leia o QR Code para conectar o número.';
+    return 'Número desconectado. Inicie a conexão e leia o QR Code.';
   }
 
   if (normalized.includes('QRCODE') || normalized.includes('QR')) {
@@ -2622,24 +2622,19 @@ function describeWhatsAppSessionState(data) {
   }
 
   if (normalized.includes('START') || normalized.includes('OPEN') || normalized.includes('INIT')) {
-    return 'Sessão em inicialização no WPPConnect.';
+    return 'Preparando a conexão do número.';
   }
 
   if (sourceValue) {
     return String(sourceValue);
   }
 
-  return 'WPPConnect configurado.';
+  return 'Integração pronta para uso.';
 }
 
 function renderWhatsAppSessionState(data) {
-  const configured = Boolean(data?.configured);
-  const webhookUrl = data?.webhook_url || null;
   const connectedState = describeWhatsAppSessionState(data);
-
-  whatsappSessionMetaEl.textContent = webhookUrl
-    ? `${connectedState}${configured ? ` Webhook interno: ${webhookUrl}` : ''}`
-    : String(connectedState);
+  whatsappSessionMetaEl.textContent = String(connectedState);
 }
 
 async function loadWhatsAppSessionStatus() {

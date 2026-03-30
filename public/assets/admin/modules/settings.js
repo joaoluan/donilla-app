@@ -145,15 +145,15 @@ export function bindSettingsSection(ctx) {
 
   bindEvent(dom.whatsappSessionStatusBtnEl, 'click', async () => {
     if (!state.accessToken) {
-      helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de consultar a sessão.', 'err');
+      helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de verificar a conexão.', 'err');
       return;
     }
 
-    helpers.setStatus(dom.whatsappSessionStatusEl, 'Consultando sessão do WhatsApp...', 'muted');
+    helpers.setStatus(dom.whatsappSessionStatusEl, 'Verificando a conexão do número...', 'muted');
 
     try {
       await api.loadWhatsAppSessionStatus();
-      helpers.setStatus(dom.whatsappSessionStatusEl, 'Consulta concluída. Se a sessão estiver conectada, o número já pode enviar mensagens.', 'ok');
+      helpers.setStatus(dom.whatsappSessionStatusEl, 'Verificação concluída. Se o número já estiver conectado, as mensagens podem ser enviadas.', 'ok');
     } catch (error) {
       helpers.setStatus(dom.whatsappSessionStatusEl, error.message, 'err');
     }
@@ -161,12 +161,12 @@ export function bindSettingsSection(ctx) {
 
   bindEvent(dom.whatsappSessionStartBtnEl, 'click', async () => {
     if (!state.accessToken) {
-      helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de iniciar a sessão.', 'err');
+      helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de conectar o número.', 'err');
       return;
     }
 
     dom.whatsappSessionStartBtnEl.disabled = true;
-    helpers.setStatus(dom.whatsappSessionStatusEl, 'Solicitando início da sessão no WPPConnect...', 'muted');
+    helpers.setStatus(dom.whatsappSessionStatusEl, 'Preparando a conexão do número...', 'muted');
 
     try {
       const response = await fetch('/admin/whatsapp/session/start', {
@@ -176,7 +176,7 @@ export function bindSettingsSection(ctx) {
 
       const data = await helpers.parseResponse(response);
       api.renderWhatsAppSessionState(data);
-      helpers.setStatus(dom.whatsappSessionStatusEl, 'Sessão preparada no WPPConnect. Agora clique em Buscar QR Code e escaneie no celular da loja.', 'ok');
+      helpers.setStatus(dom.whatsappSessionStatusEl, 'Conexão iniciada. Agora carregue o QR Code e escaneie com o celular da loja.', 'ok');
     } catch (error) {
       helpers.setStatus(dom.whatsappSessionStatusEl, error.message, 'err');
     } finally {
@@ -186,12 +186,12 @@ export function bindSettingsSection(ctx) {
 
   bindEvent(dom.whatsappSessionQrBtnEl, 'click', async () => {
     if (!state.accessToken) {
-      helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de buscar o QR Code.', 'err');
+      helpers.setStatus(dom.whatsappSessionStatusEl, 'Faça login antes de carregar o QR Code.', 'err');
       return;
     }
 
     dom.whatsappSessionQrBtnEl.disabled = true;
-    helpers.setStatus(dom.whatsappSessionStatusEl, 'Buscando QR Code da sessão...', 'muted');
+    helpers.setStatus(dom.whatsappSessionStatusEl, 'Carregando QR Code...', 'muted');
 
     try {
       const data = await api.loadWhatsAppQrCode();

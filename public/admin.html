@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Donilla - Portal de Controle</title>
-  <link rel="stylesheet" href="/styles.css?v=20260327a" />
+  <link rel="stylesheet" href="/styles.css?v=20260329a" />
   <style>
     .crm-customer-list {
       display: grid;
@@ -1617,131 +1617,160 @@
                 </section>
 
                 <section class="admin-settings-panel hidden" data-settings-panel="whatsapp">
-                  <section class="delivery-fee-admin-section">
+                  <section class="delivery-fee-admin-section whatsapp-settings-section">
                     <header class="section-head stacked-section-head">
                       <div>
                         <h3>WhatsApp da loja</h3>
+                        <p class="muted">Conecte o número, ligue as mensagens automáticas e ajuste os textos da loja.</p>
                       </div>
                     </header>
 
-                    <div class="whatsapp-admin-guide">
-                      <article class="whatsapp-admin-note whatsapp-admin-note-primary">
-                        <h4>Modo recomendado</h4>
-                        <p>A Donilla usa o WPPConnect do próprio servidor para enviar mensagens automáticas e responder consultas simples no WhatsApp. Esse é o modo principal desta tela.</p>
-                      </article>
-
-                      <article class="whatsapp-admin-note">
-                        <h4>O que precisa estar pronto</h4>
-                        <p><code>WPP_SERVER_URL</code> aponta para o WPPConnect, <code>WPP_SESSION_NAME</code> define a sessão, <code>WPP_SECRET_KEY</code> autentica a integração e <code>APP_BASE_URL</code> informa a URL pública deste backend. O webhook interno usado pelo sistema será <code>/whatsapp/webhook</code>.</p>
-                      </article>
-
-                      <article class="whatsapp-admin-note">
-                        <h4>Passo a passo</h4>
-                        <ol>
-                          <li>Consulte a sessão para ver o estado atual.</li>
-                          <li>Inicie a sessão no WPPConnect.</li>
-                          <li>Busque o QR Code e escaneie no celular da loja.</li>
-                          <li>Ative as mensagens automáticas e envie um teste.</li>
-                        </ol>
-                      </article>
-                    </div>
-
-                    <label class="toggle-line">
-                      <input type="checkbox" name="whatsapp_ativo" />
-                      <span>Ativar mensagens automáticas de novo pedido e atualização de status</span>
-                    </label>
-
-                    <input type="checkbox" name="whatsapp_bot_pausado" hidden />
-
-                    <article class="whatsapp-admin-card-block">
-                      <div class="whatsapp-admin-card-head">
-                        <strong>Pausa do bot</strong>
-                        <span id="whatsappBotPauseMeta" class="muted">Bot em funcionamento normal.</span>
+                    <article class="whatsapp-hero-card">
+                      <div class="whatsapp-hero-copy">
+                        <span class="whatsapp-hero-eyebrow">Atendimento automático</span>
+                        <h4>Uma área mais simples para deixar o WhatsApp pronto para vender.</h4>
+                        <p>Faça a conexão do número, teste o envio e personalize as mensagens sem precisar navegar por detalhes técnicos.</p>
                       </div>
 
-                      <div class="split-2">
-                        <button id="whatsappBotPauseBtn" class="ghost-btn" type="button">Pausar bot</button>
-                        <p id="whatsappBotPauseStatus" class="status-text muted" style="margin: 0;">O teste manual continua disponível para validar a integração.</p>
+                      <div class="whatsapp-hero-steps" aria-label="Passos rápidos">
+                        <span class="whatsapp-hero-step">1. Verificar conexão</span>
+                        <span class="whatsapp-hero-step">2. Ler o QR Code</span>
+                        <span class="whatsapp-hero-step">3. Enviar um teste</span>
                       </div>
                     </article>
+
+                    <div class="whatsapp-control-grid">
+                      <label class="whatsapp-toggle-card">
+                        <div class="whatsapp-toggle-copy">
+                          <strong>Mensagens automáticas</strong>
+                          <span class="muted">Ativa avisos de novo pedido e atualização de status para o cliente.</span>
+                        </div>
+                        <input type="checkbox" name="whatsapp_ativo" />
+                      </label>
+
+                      <input type="checkbox" name="whatsapp_bot_pausado" hidden />
+
+                      <article class="whatsapp-admin-card-block">
+                        <div class="whatsapp-admin-card-head">
+                          <strong>Pausa rápida</strong>
+                          <span id="whatsappBotPauseMeta" class="muted">Mensagens funcionando normalmente.</span>
+                        </div>
+
+                        <p class="whatsapp-card-copy">Se precisar, pause os envios automáticos sem desligar toda a configuração.</p>
+
+                        <div class="split-2">
+                          <button id="whatsappBotPauseBtn" class="ghost-btn" type="button">Pausar envios</button>
+                          <p id="whatsappBotPauseStatus" class="status-text muted" style="margin: 0;">O teste manual continua disponível mesmo com a pausa ativa.</p>
+                        </div>
+                      </article>
+                    </div>
 
                     <div class="whatsapp-admin-actions">
                       <article class="whatsapp-admin-card-block">
                         <div class="whatsapp-admin-card-head">
                           <strong>Conexão do número</strong>
-                          <span id="whatsappSessionMeta" class="muted">Sessão ainda não consultada.</span>
+                          <span id="whatsappSessionMeta" class="muted">Ainda não verificamos a conexão.</span>
                         </div>
 
-                        <div class="split-2">
-                          <button id="whatsappSessionStatusBtn" class="ghost-btn" type="button">Consultar sessão</button>
-                          <button id="whatsappSessionStartBtn" class="ghost-btn" type="button">Iniciar sessão</button>
-                        </div>
+                        <p class="whatsapp-card-copy">Use estes botões para checar o número, iniciar a conexão e carregar o QR Code.</p>
 
                         <div class="split-2">
-                          <button id="whatsappSessionQrBtn" class="ghost-btn" type="button">Buscar QR Code</button>
-                          <span class="whatsapp-admin-inline-tip">Depois de iniciar, carregue o QR Code para escanear no WhatsApp do número da loja.</span>
+                          <button id="whatsappSessionStatusBtn" class="ghost-btn" type="button">Ver conexão</button>
+                          <button id="whatsappSessionStartBtn" class="ghost-btn" type="button">Conectar número</button>
+                        </div>
+
+                        <div class="split-2 whatsapp-session-row">
+                          <button id="whatsappSessionQrBtn" class="ghost-btn" type="button">Carregar QR Code</button>
+                          <span class="whatsapp-admin-inline-tip">Escaneie com o celular que atende a loja.</span>
                         </div>
 
                         <p id="whatsappSessionStatus" class="status-text muted"></p>
                       </article>
 
-                      <article class="whatsapp-admin-card-block">
+                      <article class="whatsapp-admin-card-block whatsapp-qr-card">
                         <div class="whatsapp-admin-card-head">
-                          <strong>QR Code para parear</strong>
-                          <span class="muted">Leia com o celular da loja</span>
+                          <strong>QR Code</strong>
+                          <span class="muted">Pareamento do aparelho</span>
                         </div>
 
-                        <img id="whatsappQrPreview" class="hidden" alt="QR Code do WhatsApp" style="max-width: 260px; border-radius: 1rem; border: 1px solid rgba(15, 23, 42, 0.12);" />
+                        <p class="whatsapp-card-copy">Quando o QR aparecer, abra o WhatsApp do celular da loja e faça a leitura.</p>
+
+                        <img id="whatsappQrPreview" class="whatsapp-qr-preview hidden" alt="QR Code do WhatsApp" />
                       </article>
                     </div>
-
-                    <details>
-                      <summary>Integração externa opcional</summary>
-                      <p class="muted" style="margin-top: 0.75rem;">Use apenas se o envio das mensagens ficar em outro bot ou servidor seu.</p>
-                      <div class="settings-form" style="margin-top: 0.75rem;">
-                        <input name="whatsapp_webhook_url" type="url" placeholder="URL do webhook externo que vai receber os eventos da Donilla" />
-                        <input name="whatsapp_webhook_secret" placeholder="Secret opcional enviado no header x-donilla-bot-secret" />
-                      </div>
-                    </details>
 
                     <div class="whatsapp-copy-grid">
                       <label class="whatsapp-copy-card">
                         <strong>Mensagem de novo pedido</strong>
-                        <span class="muted">Essa é a mensagem enviada assim que o pedido entra no painel.</span>
+                        <span class="muted">Primeira mensagem que o cliente recebe quando entra um pedido.</span>
                         <textarea
                           name="whatsapp_mensagem_novo_pedido"
                           rows="6"
-                          placeholder="Ex.: Oi {cliente_nome}, recebemos seu pedido #{pedido_id}."
+                          placeholder="Ex.: Oi {cliente_nome}, recebemos seu pedido #{pedido_id} e já estamos cuidando dele."
                         ></textarea>
-                        <small>Prefira um texto leve e acolhedor. O ideal é confirmar o pedido e informar apenas o essencial, sem repetir muitos detalhes.</small>
+                        <small>Escreva curto e acolhedor. O ideal é confirmar o recebimento e passar segurança.</small>
                       </label>
 
                       <label class="whatsapp-copy-card">
-                        <strong>Mensagem de atualização de status</strong>
-                        <span class="muted">Essa é a mensagem enviada quando o status do pedido muda no painel.</span>
+                        <strong>Mensagem de atualização</strong>
+                        <span class="muted">Mensagem usada para avisar o andamento do pedido.</span>
                         <textarea
                           name="whatsapp_mensagem_status"
                           rows="6"
-                          placeholder="Ex.: Oi {cliente_nome}, passando para te atualizar sobre o pedido #{pedido_id}. {status_mensagem}"
+                          placeholder="Ex.: Oi {cliente_nome}, seu pedido #{pedido_id} teve uma nova atualização. {status_mensagem}"
                         ></textarea>
-                        <small>Evite repetir status, total e prazo em toda atualizacao. Use <code>{status_mensagem}</code> para deixar o sistema adaptar o texto automaticamente em cada etapa.</small>
+                        <small>Use <code>{status_mensagem}</code> para o sistema adaptar o texto em cada etapa sem deixar a mensagem repetitiva.</small>
                       </label>
                     </div>
 
-                    <p class="muted"><b>Variáveis disponíveis nas mensagens:</b> <code>{cliente_nome}</code>, <code>{cliente_telefone}</code>, <code>{pedido_id}</code>, <code>{status_entrega_label}</code>, <code>{status_pagamento_label}</code>, <code>{status_anterior_label}</code>, <code>{status_mensagem}</code>, <code>{valor_total}</code>, <code>{valor_entrega}</code>, <code>{metodo_pagamento}</code>, <code>{observacoes}</code>, <code>{endereco_resumo}</code>, <code>{itens_resumo}</code>, <code>{tempo_entrega_min}</code>, <code>{tempo_entrega_max}</code> e <code>{previsao_entrega}</code>. Você pode usar quebras de linha normalmente.</p>
-
                     <div class="whatsapp-admin-card-block whatsapp-admin-test-block">
                       <div class="whatsapp-admin-card-head">
-                        <strong>Teste antes de usar</strong>
-                        <span class="muted">Valide o envio manualmente</span>
+                        <strong>Teste de envio</strong>
+                        <span class="muted">Confira antes de colocar em uso</span>
                       </div>
 
+                      <p class="whatsapp-card-copy">Envie uma mensagem para um número seu e veja se a experiência ficou do jeito que você quer.</p>
+
                       <div class="split-2">
-                        <input id="whatsappTestPhone" type="tel" placeholder="Telefone para teste, de preferência com DDI. Ex.: 5551999999999" />
+                        <input id="whatsappTestPhone" type="tel" placeholder="Telefone com DDI. Ex.: 5551999999999" />
                         <button id="whatsappTestBtn" class="ghost-btn" type="button">Enviar teste</button>
                       </div>
                     </div>
                     <p id="whatsappTestStatus" class="status-text muted"></p>
+
+                    <details class="whatsapp-advanced-panel">
+                      <summary>Opções avançadas</summary>
+
+                      <div class="whatsapp-advanced-content">
+                        <p class="muted">Use esta parte apenas se você tiver uma integração externa própria para tratar mensagens.</p>
+
+                        <div class="settings-form">
+                          <input name="whatsapp_webhook_url" type="url" placeholder="URL do seu webhook externo" />
+                          <input name="whatsapp_webhook_secret" placeholder="Chave secreta opcional do webhook" />
+                        </div>
+
+                        <div class="whatsapp-variable-list" aria-label="Variáveis disponíveis nas mensagens">
+                          <code>{cliente_nome}</code>
+                          <code>{cliente_telefone}</code>
+                          <code>{pedido_id}</code>
+                          <code>{status_entrega_label}</code>
+                          <code>{status_pagamento_label}</code>
+                          <code>{status_anterior_label}</code>
+                          <code>{status_mensagem}</code>
+                          <code>{valor_total}</code>
+                          <code>{valor_entrega}</code>
+                          <code>{metodo_pagamento}</code>
+                          <code>{observacoes}</code>
+                          <code>{endereco_resumo}</code>
+                          <code>{itens_resumo}</code>
+                          <code>{tempo_entrega_min}</code>
+                          <code>{tempo_entrega_max}</code>
+                          <code>{previsao_entrega}</code>
+                        </div>
+
+                        <p class="muted whatsapp-variable-help">Você pode usar essas variáveis dentro dos textos acima e também quebrar linha normalmente.</p>
+                      </div>
+                    </details>
                   </section>
                 </section>
 

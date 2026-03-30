@@ -972,8 +972,11 @@
 .page-admin .section-head h3,
 .page-admin .store-hours-admin-head h3,
 .page-admin .whatsapp-admin-note h4,
+.page-admin .whatsapp-hero-copy h4,
 .page-admin .whatsapp-admin-card-head strong,
 .page-admin .whatsapp-copy-card strong,
+.page-admin .whatsapp-toggle-copy strong,
+.page-admin .whatsapp-advanced-panel summary,
 .page-admin .menu-admin-card h3,
 .page-admin .catalog-admin-category-title h4,
 .page-admin .catalog-admin-product-head strong,
@@ -993,7 +996,10 @@
 .page-admin .store-hours-admin-head p,
 .page-admin .whatsapp-admin-note p,
 .page-admin .whatsapp-admin-note ol,
+.page-admin .whatsapp-hero-copy p,
 .page-admin .whatsapp-admin-inline-tip,
+.page-admin .whatsapp-card-copy,
+.page-admin .whatsapp-variable-help,
 .page-admin .crm-order-card-items,
 .page-admin .crm-order-card-note,
 .page-admin .crm-profile-copy p,
@@ -1021,12 +1027,26 @@
 .page-admin .order-summary-pill,
 .page-admin .order-items-panel,
 .page-admin .store-hours-row,
+.page-admin .whatsapp-hero-card,
+.page-admin .whatsapp-toggle-card,
 .page-admin .whatsapp-admin-note,
 .page-admin .whatsapp-admin-card-block,
-.page-admin .whatsapp-copy-card {
+.page-admin .whatsapp-copy-card,
+.page-admin .whatsapp-advanced-panel {
   border: 1px solid var(--admin-card-border);
   background: rgba(255, 255, 255, 0.04);
   box-shadow: none;
+}
+
+.page-admin .whatsapp-hero-card {
+  background:
+    radial-gradient(circle at top right, rgba(52, 199, 89, 0.1) 0%, rgba(52, 199, 89, 0) 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.03) 100%);
+}
+
+.page-admin .whatsapp-hero-eyebrow {
+  background: rgba(52, 199, 89, 0.14);
+  color: rgba(124, 240, 157, 0.92);
 }
 
 .page-admin .catalog-admin-preview-empty,
@@ -1069,9 +1089,22 @@
 .page-admin .order-note,
 .page-admin .store-hours-admin-live strong,
 .page-admin .store-hours-time,
+.page-admin .whatsapp-hero-step,
+.page-admin .whatsapp-variable-list code,
 .page-admin .whatsapp-admin-note li,
 .page-admin .whatsapp-copy-card small {
   color: var(--admin-text-primary);
+}
+
+.page-admin .whatsapp-hero-step,
+.page-admin .whatsapp-variable-list code {
+  border-color: var(--admin-card-border);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.page-admin .whatsapp-toggle-card .muted,
+.page-admin .whatsapp-advanced-content > .muted {
+  color: var(--admin-text-secondary);
 }
 
 .page-admin .crm-customer-main small,
@@ -5969,61 +6002,115 @@ button {
   border-top: 1px solid var(--slate-200);
 }
 
-.whatsapp-admin-guide,
+.whatsapp-settings-section,
+.whatsapp-control-grid,
 .whatsapp-admin-actions,
 .whatsapp-copy-grid {
   display: grid;
   gap: 12px;
 }
 
-.whatsapp-admin-guide {
-  margin-bottom: 6px;
-}
-
-.whatsapp-admin-note,
+.whatsapp-hero-card,
+.whatsapp-toggle-card,
 .whatsapp-admin-card-block,
-.whatsapp-copy-card {
-  border-radius: 16px;
+.whatsapp-copy-card,
+.whatsapp-advanced-panel {
+  border-radius: 18px;
   border: 1px solid var(--slate-200);
   background: #ffffff;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
-.whatsapp-admin-note {
-  padding: 14px 16px;
-}
-
-.whatsapp-admin-note-primary {
-  border-color: rgba(15, 118, 110, 0.18);
+.whatsapp-hero-card {
+  display: grid;
+  padding: 20px;
+  gap: 18px;
   background:
-    radial-gradient(circle at top right, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 40%),
-    linear-gradient(180deg, rgba(240, 253, 250, 0.98) 0%, rgba(247, 254, 252, 0.96) 100%);
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.14) 0%, rgba(16, 185, 129, 0) 42%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(241, 245, 249, 0.96) 100%);
 }
 
-.whatsapp-admin-note h4,
+.whatsapp-hero-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.whatsapp-hero-eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.whatsapp-hero-copy h4,
 .whatsapp-admin-card-head strong,
-.whatsapp-copy-card strong {
+.whatsapp-copy-card strong,
+.whatsapp-toggle-copy strong {
   margin: 0;
   color: var(--slate-900);
-  font-size: 0.96rem;
+  font-size: 0.98rem;
 }
 
-.whatsapp-admin-note p,
-.whatsapp-admin-note ol {
-  margin: 8px 0 0;
-  color: var(--slate-700);
+.whatsapp-hero-copy p,
+.whatsapp-card-copy,
+.whatsapp-copy-card small,
+.whatsapp-variable-help {
+  margin: 0;
+  color: var(--slate-600);
   line-height: 1.55;
 }
 
-.whatsapp-admin-note ol {
-  padding-left: 18px;
+.whatsapp-hero-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.whatsapp-admin-note li + li {
-  margin-top: 6px;
+.whatsapp-hero-step {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: var(--slate-700);
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
-.whatsapp-admin-card-block {
+.whatsapp-toggle-card {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+}
+
+.whatsapp-toggle-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.whatsapp-toggle-card input {
+  width: 20px;
+  height: 20px;
+  accent-color: #0f766e;
+  flex: 0 0 auto;
+}
+
+.whatsapp-admin-card-block,
+.whatsapp-copy-card {
   padding: 16px;
   display: grid;
   gap: 12px;
@@ -6045,19 +6132,70 @@ button {
   line-height: 1.45;
 }
 
-.whatsapp-copy-card {
-  padding: 16px;
-  display: grid;
-  gap: 8px;
+.whatsapp-session-row {
+  align-items: center;
 }
 
-.whatsapp-copy-card small {
-  color: var(--slate-500);
-  line-height: 1.5;
+.whatsapp-qr-card {
+  align-content: start;
+}
+
+.whatsapp-qr-preview {
+  width: min(100%, 280px);
+  justify-self: center;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
+  padding: 10px;
+}
+
+.whatsapp-copy-card {
+  gap: 10px;
 }
 
 .whatsapp-admin-test-block {
   margin-top: 4px;
+}
+
+.whatsapp-advanced-panel {
+  overflow: hidden;
+}
+
+.whatsapp-advanced-panel summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 16px 18px;
+  font-weight: 800;
+  color: var(--slate-800);
+}
+
+.whatsapp-advanced-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.whatsapp-advanced-content {
+  display: grid;
+  gap: 12px;
+  padding: 0 18px 18px;
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.whatsapp-variable-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.whatsapp-variable-list code {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  color: var(--slate-700);
+  font-size: 0.8rem;
 }
 
 .toggle-line {
@@ -6086,9 +6224,18 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .whatsapp-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .whatsapp-admin-actions,
   .whatsapp-copy-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .whatsapp-hero-card {
+    grid-template-columns: minmax(0, 1.45fr) minmax(240px, 1fr);
+    align-items: center;
   }
 
   .admin-settings-overview-grid {
