@@ -12,6 +12,12 @@ const ADDABLE_NODE_TYPES = ['message', 'menu', 'input', 'order_lookup', 'save_ob
 const SINGLE_NEXT_NODE_TYPES = new Set(['trigger', 'message', 'input', 'wait', 'tag']);
 const LEGACY_TEMPLATE_KEY = 'legacy_whatsapp_bot';
 const COMMERCIAL_STARTER_TEMPLATE_KEY = 'commercial_whatsapp_starter';
+const DEFAULT_NODE_WIDTH = 264;
+const DEFAULT_NODE_HEIGHT = 124;
+const MIN_CANVAS_WIDTH = 1280;
+const MIN_CANVAS_HEIGHT = 900;
+const CANVAS_PADDING_X = 220;
+const CANVAS_PADDING_Y = 240;
 const FLOW_VARIABLES = Object.freeze([
   { key: 'cliente_nome', description: 'Nome recebido do contato atual.' },
   { key: 'cliente_primeiro_nome', description: 'Primeiro nome do contato.' },
@@ -492,18 +498,61 @@ function renderCanvas(options = {}) {
   });
 }
 
-function getElementCenterRelative(element) {
-  const rect = element.getBoundingClientRect();
-  const canvasRect = dom.canvas.getBoundingClientRect();
+function getNodeDimensions(nodeId) {
+  const nodeElement = dom.canvas.querySelector(`[data-node-id="${nodeId}"]`);
   return {
-    x: rect.left - canvasRect.left + rect.width / 2,
-    y: rect.top - canvasRect.top + rect.height / 2,
+    width: nodeElement?.offsetWidth || DEFAULT_NODE_WIDTH,
+    height: nodeElement?.offsetHeight || DEFAULT_NODE_HEIGHT,
+  };
+}
+
+function getPortCenterOnCanvas(nodeId, portKey = null, direction = 'output') {
+  const nodeElement = dom.canvas.querySelector(`[data-node-id="${nodeId}"]`);
+  const position = ensureNodePosition(nodeId);
+  const selector = direction === 'input'
+    ? '.node-port-input'
+    : `[data-port-key="${portKey}"]`;
+  const portElement = nodeElement?.querySelector(selector);
+
+  if (!portElement) {
+    const dimensions = getNodeDimensions(nodeId);
+    return direction === 'input'
+      ? { x: position.x + dimensions.width / 2, y: position.y }
+      : { x: position.x + dimensions.width / 2, y: position.y + dimensions.height };
+  }
+
+  return {
+    x: position.x + portElement.offsetLeft + portElement.offsetWidth / 2,
+    y: position.y + portElement.offsetTop + portElement.offsetHeight / 2,
+  };
+}
+
+function getCanvasBounds() {
+  let width = MIN_CANVAS_WIDTH;
+  let height = MIN_CANVAS_HEIGHT;
+
+  state.nodes.forEach((node, index) => {
+    const position = ensureNodePosition(node.id, index);
+    const dimensions = getNodeDimensions(node.id);
+    width = Math.max(width, position.x + dimensions.width + CANVAS_PADDING_X);
+    height = Math.max(height, position.y + dimensions.height + CANVAS_PADDING_Y);
+  });
+
+  if (state.pendingConnection) {
+    width = Math.max(width, state.pendingConnection.currentX + CANVAS_PADDING_X);
+    height = Math.max(height, state.pendingConnection.currentY + CANVAS_PADDING_Y);
+  }
+
+  return {
+    width: Math.ceil(width),
+    height: Math.ceil(height),
   };
 }
 
 function buildPath(start, end) {
-  const distance = Math.max(48, Math.abs(end.y - start.y) * 0.4);
-  return `M ${start.x} ${start.y} C ${start.x} ${start.y + distance}, ${end.x} ${end.y - distance}, ${end.x} ${end.y}`;
+  const verticalDistance = Math.max(72, Math.abs(end.y - start.y) * 0.42);
+  const horizontalBias = Math.min(88, Math.abs(end.x - start.x) * 0.18);
+  return `M ${start.x} ${start.y} C ${start.x + horizontalBias} ${start.y + verticalDistance}, ${end.x - horizontalBias} ${end.y - verticalDistance}, ${end.x} ${end.y}`;
 }
 
 function collectConnections() {
@@ -519,8 +568,11 @@ function collectConnections() {
 }
 
 function renderConnections() {
-  const width = Math.max(dom.canvas.scrollWidth, dom.canvas.clientWidth, 1280);
-  const height = Math.max(dom.canvas.scrollHeight, dom.canvas.clientHeight, 900);
+  const bounds = getCanvasBounds();
+  const width = bounds.width;
+  const height = bounds.height;
+  dom.canvas.style.width = `${width}px`;
+  dom.canvas.style.height = `${height}px`;
   dom.connections.setAttribute('viewBox', `0 0 ${width} ${height}`);
   dom.connections.setAttribute('width', String(width));
   dom.connections.setAttribute('height', String(height));
@@ -528,19 +580,16 @@ function renderConnections() {
   const defs = `
     <defs>
       <marker id="flowArrowHead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-        <path d="M0 0 L10 5 L0 10 z" fill="#7f6542"></path>
+        <path d="M0 0 L10 5 L0 10 z" fill="#245e7c"></path>
       </marker>
     </defs>
   `;
 
   const lineMarkup = collectConnections()
     .map((connection) => {
-      const source = dom.canvas.querySelector(`[data-node-id="${connection.fromNodeId}"] [data-port-key="${connection.portKey}"]`);
-      const target = dom.canvas.querySelector(`[data-node-id="${connection.toNodeId}"] .node-port-input`);
-      if (!source || !target) return '';
-
-      const start = getElementCenterRelative(source);
-      const end = getElementCenterRelative(target);
+      const start = getPortCenterOnCanvas(connection.fromNodeId, connection.portKey, 'output');
+      const end = getPortCenterOnCanvas(connection.toNodeId, null, 'input');
+      if (!start || !end) return '';
       const path = buildPath(start, end);
 
       return `
@@ -725,10 +774,10 @@ function renderInspector() {
 }
 
 function getCanvasPointFromEvent(event) {
-  const rect = dom.canvas.getBoundingClientRect();
+  const rect = dom.viewport.getBoundingClientRect();
   return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
+    x: event.clientX - rect.left + dom.viewport.scrollLeft,
+    y: event.clientY - rect.top + dom.viewport.scrollTop,
   };
 }
 
@@ -876,37 +925,59 @@ function autoLayout() {
   const triggerNode = getTriggerNode();
   if (!triggerNode) return;
 
+  const adjacency = new Map(
+    state.nodes.map((node) => [
+      node.id,
+      getNodePorts(node)
+        .map((port) => port.target)
+        .filter(Boolean),
+    ]),
+  );
   const levels = new Map([[triggerNode.id, 0]]);
+  const visitOrder = new Map([[triggerNode.id, 0]]);
+  const visited = new Set([triggerNode.id]);
   const queue = [triggerNode.id];
+  let orderCursor = 1;
 
   while (queue.length) {
     const currentId = queue.shift();
-    const currentNode = getNodeById(currentId);
     const currentLevel = levels.get(currentId) || 0;
-    if (!currentNode) continue;
+    const targets = adjacency.get(currentId) || [];
 
-    getNodePorts(currentNode)
-      .map((port) => port.target)
-      .filter(Boolean)
-      .forEach((targetId) => {
-        const nextLevel = currentLevel + 1;
-        if (!levels.has(targetId) || (levels.get(targetId) || 0) < nextLevel) {
-          levels.set(targetId, nextLevel);
-          queue.push(targetId);
-        }
-      });
+    targets.forEach((targetId) => {
+      if (!levels.has(targetId)) {
+        levels.set(targetId, currentLevel + 1);
+      }
+
+      if (!visited.has(targetId)) {
+        visited.add(targetId);
+        visitOrder.set(targetId, orderCursor);
+        orderCursor += 1;
+        queue.push(targetId);
+      }
+    });
   }
 
-  let fallbackLevel = Math.max(...levels.values(), 0) + 1;
+  let fallbackLevel = Math.max(0, ...levels.values()) + 1;
   state.nodes.forEach((node) => {
     if (!levels.has(node.id)) {
       levels.set(node.id, fallbackLevel);
       fallbackLevel += 1;
     }
+    if (!visitOrder.has(node.id)) {
+      visitOrder.set(node.id, orderCursor);
+      orderCursor += 1;
+    }
+  });
+
+  const orderedNodes = [...state.nodes].sort((left, right) => {
+    const levelDelta = (levels.get(left.id) || 0) - (levels.get(right.id) || 0);
+    if (levelDelta !== 0) return levelDelta;
+    return (visitOrder.get(left.id) || 0) - (visitOrder.get(right.id) || 0);
   });
 
   const buckets = new Map();
-  state.nodes.forEach((node) => {
+  orderedNodes.forEach((node) => {
     const level = levels.get(node.id) || 0;
     if (!buckets.has(level)) buckets.set(level, []);
     buckets.get(level).push(node.id);
@@ -915,32 +986,33 @@ function autoLayout() {
   [...buckets.entries()].forEach(([level, nodeIds]) => {
     nodeIds.forEach((nodeId, index) => {
       state.canvas[nodeId] = {
-        x: 120 + level * 320,
-        y: 120 + index * 210,
+        x: 120 + level * 340,
+        y: 120 + index * 240,
       };
     });
   });
 
   markDirty(true, 'Layout reorganizado automaticamente.');
   renderCanvas();
-  centerViewport();
+  window.requestAnimationFrame(() => centerViewport());
 }
 
 function centerViewport() {
   if (!state.nodes.length) return;
 
   const positions = state.nodes.map((node) => ensureNodePosition(node.id));
+  const dimensions = state.nodes.map((node) => getNodeDimensions(node.id));
   const minX = Math.min(...positions.map((position) => position.x));
-  const maxX = Math.max(...positions.map((position) => position.x));
+  const maxX = Math.max(...positions.map((position, index) => position.x + dimensions[index].width));
   const minY = Math.min(...positions.map((position) => position.y));
-  const maxY = Math.max(...positions.map((position) => position.y));
+  const maxY = Math.max(...positions.map((position, index) => position.y + dimensions[index].height));
 
   const centerX = minX + (maxX - minX) / 2;
   const centerY = minY + (maxY - minY) / 2;
 
   dom.viewport.scrollTo({
-    left: Math.max(0, centerX - dom.viewport.clientWidth / 2 + 132),
-    top: Math.max(0, centerY - dom.viewport.clientHeight / 2 + 62),
+    left: Math.max(0, centerX - dom.viewport.clientWidth / 2),
+    top: Math.max(0, centerY - dom.viewport.clientHeight / 2),
     behavior: 'smooth',
   });
 }
@@ -1141,7 +1213,7 @@ function handleCanvasPointerDown(event) {
     const nodeElement = event.target.closest('.flow-node');
     if (!nodeElement) return;
 
-    const start = getElementCenterRelative(port);
+    const start = getPortCenterOnCanvas(nodeElement.dataset.nodeId, port.dataset.portKey, 'output');
     state.pendingConnection = {
       fromNodeId: nodeElement.dataset.nodeId,
       portKey: port.dataset.portKey,

@@ -738,32 +738,42 @@ button {
   height: 100%;
   pointer-events: none;
   overflow: visible;
+  z-index: 1;
 }
 
 .builder-connections .connection-line {
   fill: none;
-  stroke: #7f6542;
-  stroke-width: 2.5;
+  stroke: #245e7c;
+  stroke-width: 3.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.96;
 }
 
 .builder-connections .connection-line-highlight {
-  stroke: rgba(255, 177, 75, 0.56);
-  stroke-width: 6;
+  fill: none;
+  stroke: rgba(36, 94, 124, 0.18);
+  stroke-width: 11;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .builder-connections .connection-preview {
   fill: none;
-  stroke: rgba(34, 94, 124, 0.86);
-  stroke-width: 2.5;
-  stroke-dasharray: 8 8;
+  stroke: rgba(29, 139, 95, 0.88);
+  stroke-width: 3;
+  stroke-dasharray: 9 7;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .builder-canvas {
   position: relative;
   min-width: 1220px;
   min-height: 860px;
+  isolation: isolate;
 }
 
 .builder-canvas-empty {
@@ -789,6 +799,7 @@ button {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 244, 231, 0.96));
   box-shadow: 0 18px 36px rgba(44, 31, 12, 0.12);
   user-select: none;
+  z-index: 2;
 }
 
 .flow-node.selected {
@@ -977,22 +988,33 @@ button {
 
 .node-port {
   position: absolute;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.95);
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.98);
   border-radius: 999px;
   background: var(--flow-accent);
-  box-shadow: 0 10px 20px rgba(29, 139, 95, 0.24);
+  box-shadow: 0 10px 18px rgba(29, 139, 95, 0.22);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.node-port::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 2px solid rgba(29, 139, 95, 0.18);
+  border-radius: inherit;
 }
 
 .node-port-input {
-  top: -8px;
-  left: calc(50% - 8px);
+  top: -10px;
+  left: calc(50% - 9px);
   background: #1f6587;
+  box-shadow: 0 10px 20px rgba(31, 101, 135, 0.22);
 }
 
 .node-port-output {
-  bottom: -8px;
+  bottom: -10px;
+  cursor: crosshair;
 }
 
 .node-port-output-right {
@@ -1009,19 +1031,34 @@ button {
 
 .node-port-label {
   position: absolute;
-  bottom: 20px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   min-height: 24px;
-  padding: 0 8px;
+  padding: 0 10px;
+  border: 1px solid rgba(36, 94, 124, 0.12);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--flow-muted);
-  font-size: 0.68rem;
+  background: rgba(255, 255, 255, 0.97);
+  color: #5f4c2f;
+  font-size: 0.7rem;
   font-weight: 800;
   line-height: 24px;
   white-space: nowrap;
-  box-shadow: 0 8px 18px rgba(44, 31, 12, 0.08);
+  box-shadow: 0 10px 20px rgba(44, 31, 12, 0.08);
+}
+
+.node-port-output:hover,
+.flow-node.selected .node-port-output,
+.flow-node.selected .node-port-input {
+  transform: scale(1.08);
+}
+
+.flow-node.selected .node-port-output {
+  box-shadow: 0 12px 24px rgba(29, 139, 95, 0.32);
+}
+
+.flow-node.selected .node-port-input {
+  box-shadow: 0 12px 24px rgba(31, 101, 135, 0.3);
 }
 
 .builder-empty-state {

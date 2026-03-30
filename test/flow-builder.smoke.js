@@ -90,6 +90,7 @@ async function runFlowBuilderSmoke() {
     messageNodeAdded: false,
     triggerConnectedToMessage: false,
     messageConnectedToEnd: false,
+    autoLayoutWorked: false,
     starterTemplateLoaded: creationMode !== 'starter',
     legacyTemplateLoaded: creationMode !== 'legacy',
     flowSaved: false,
@@ -191,6 +192,14 @@ async function runFlowBuilderSmoke() {
       result.messageConnectedToEnd = true
     }
 
+    await page.click('#builderAutoLayoutBtn')
+    await page.waitForFunction(() => {
+      const status = document.querySelector('#builderPageStatus')
+      const nodeCount = document.querySelectorAll('.flow-node').length
+      return nodeCount >= 2 && Boolean(status && /layout reorganizado automaticamente/i.test(status.textContent))
+    }, { timeout: 15000 })
+    result.autoLayoutWorked = true
+
     await page.click('#builderSaveBtn')
     await page.waitForFunction(() => {
       const status = document.querySelector('#builderPageStatus')
@@ -241,6 +250,7 @@ async function runFlowBuilderSmoke() {
     'flowListLoaded',
     'flowCreated',
     'editorLoaded',
+    'autoLayoutWorked',
     'flowSaved',
     'flowPublished',
     'flowListedAsPublished',
