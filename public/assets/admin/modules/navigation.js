@@ -17,6 +17,17 @@ export function bindNavigationSection(ctx) {
         api.loadDashboard().catch((error) => helpers.setStatus(dom.dashboardStatusEl, error.message, 'err'));
         api.loadDashboardQueue().catch((error) => helpers.setStatus(dom.dashboardStatusEl, error.message, 'err'));
         api.loadStoreSettings().catch((error) => helpers.setStatus(dom.settingsStatusEl, error.message, 'err'));
+        return;
+      }
+
+      if (targetView === 'config' && state.accessToken) {
+        api.loadStoreSettings().catch((error) => helpers.setStatus(dom.settingsStatusEl, error.message, 'err'));
+        return;
+      }
+
+      if (targetView === 'whatsapp' && state.accessToken) {
+        api.loadStoreSettings().catch((error) => helpers.setStatus(dom.whatsappSettingsStatusEl, error.message, 'err'));
+        api.loadWhatsAppSessionStatus().catch((error) => helpers.setStatus(dom.whatsappSessionStatusEl, error.message, 'err'));
       }
     });
   });

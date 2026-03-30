@@ -1,9 +1,9 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260328a'
+import { bindNavigationSection } from './modules/navigation.js?v=20260330a'
 import { bindDashboardSection } from './modules/dashboard.js?v=20260328a'
 import { bindRealtimeSection } from './modules/realtime.js?v=20260328b'
 import { bindCustomersSection } from './modules/customers.js?v=20260325o'
 import { bindOrdersSection } from './modules/orders.js?v=20260328d'
-import { bindSettingsSection } from './modules/settings.js?v=20260325o'
+import { bindSettingsSection } from './modules/settings.js?v=20260330a'
 import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
 import { createAdminStore } from './store.js?v=20260328b'
 import { createAdminApiClient } from './api.js?v=20260328a'
@@ -160,6 +160,8 @@ const crmRevenueTotalEl = document.getElementById('crmRevenueTotal');
 const settingsFormShellEl = document.getElementById('settingsFormShell');
 const settingsFormEl = document.getElementById('settingsForm');
 const settingsStatusEl = document.getElementById('settingsStatus');
+const whatsappSettingsFormEl = document.getElementById('whatsappSettingsForm');
+const whatsappSettingsStatusEl = document.getElementById('whatsappSettingsStatus');
 const storeHoursStatusMetaEl = document.getElementById('storeHoursStatusMeta');
 const storeHoursTimezoneMetaEl = document.getElementById('storeHoursTimezoneMeta');
 const storeHoursStatusEl = document.getElementById('storeHoursStatus');
@@ -312,6 +314,7 @@ const ADMIN_VIEW_PATH_SEGMENTS = {
   cardapio: 'cardapio',
   pedidos: 'pedidos',
   config: 'configuracoes',
+  whatsapp: 'bot-whatsapp',
 };
 const ADMIN_VIEW_ALIASES = {
   resumo: 'dashboard',
@@ -321,13 +324,17 @@ const ADMIN_VIEW_ALIASES = {
   pedidos: 'pedidos',
   configuracoes: 'config',
   config: 'config',
+  whatsapp: 'whatsapp',
+  bot: 'whatsapp',
+  'bot-whatsapp': 'whatsapp',
 };
 const ADMIN_VIEW_DESCRIPTIONS = {
   dashboard: 'Indicadores e fotografia rápida da operação da loja.',
   clientes: 'Base de clientes com histórico, preferências e pedidos.',
   cardapio: 'Categorias, itens, estoque e disponibilidade do cardápio.',
   pedidos: 'Acompanhe, filtre e atualize pedidos em tempo real.',
-  config: 'Horários, avisos e taxas por local da operação.',
+  config: 'Operação da loja, agenda automática e taxas por local.',
+  whatsapp: 'Conexão, automações, mensagens e testes do Bot WhatsApp.',
 };
 
 const CRM_SEGMENT_LABELS = {
@@ -2574,21 +2581,28 @@ async function loadStoreSettings() {
   settingsFormEl.elements.tempo_entrega_minutos.value = Number(config.tempo_entrega_minutos || 40);
   settingsFormEl.elements.tempo_entrega_max_minutos.value = Number(config.tempo_entrega_max_minutos || 60);
   settingsFormEl.elements.mensagem_aviso.value = config.mensagem_aviso || '';
-  settingsFormEl.elements.whatsapp_ativo.checked = Boolean(config.whatsapp_ativo);
-  settingsFormEl.elements.whatsapp_bot_pausado.checked = Boolean(config.whatsapp_bot_pausado);
-  settingsFormEl.elements.whatsapp_webhook_url.value = config.whatsapp_webhook_url || '';
-  settingsFormEl.elements.whatsapp_webhook_secret.value = config.whatsapp_webhook_secret || '';
-  settingsFormEl.elements.whatsapp_mensagem_novo_pedido.value = config.whatsapp_mensagem_novo_pedido || '';
-  settingsFormEl.elements.whatsapp_mensagem_status.value = config.whatsapp_mensagem_status || '';
+
+  if (whatsappSettingsFormEl?.elements?.whatsapp_ativo) {
+    whatsappSettingsFormEl.elements.whatsapp_ativo.checked = Boolean(config.whatsapp_ativo);
+    whatsappSettingsFormEl.elements.whatsapp_bot_pausado.checked = Boolean(config.whatsapp_bot_pausado);
+    whatsappSettingsFormEl.elements.whatsapp_webhook_url.value = config.whatsapp_webhook_url || '';
+    whatsappSettingsFormEl.elements.whatsapp_webhook_secret.value = config.whatsapp_webhook_secret || '';
+    whatsappSettingsFormEl.elements.whatsapp_mensagem_novo_pedido.value = config.whatsapp_mensagem_novo_pedido || '';
+    whatsappSettingsFormEl.elements.whatsapp_mensagem_status.value = config.whatsapp_mensagem_status || '';
+  }
+
   renderWhatsAppBotPauseState(config.whatsapp_bot_pausado);
   renderSettingsOverview();
+  clearStatus(whatsappSettingsStatusEl);
   clearStatus(whatsappTestStatusEl);
   return config;
 }
 
 function renderWhatsAppBotPauseState(isPaused) {
   const paused = Boolean(isPaused);
-  settingsFormEl.elements.whatsapp_bot_pausado.checked = paused;
+  if (whatsappSettingsFormEl?.elements?.whatsapp_bot_pausado) {
+    whatsappSettingsFormEl.elements.whatsapp_bot_pausado.checked = paused;
+  }
   whatsappBotPauseBtnEl.textContent = paused ? 'Retomar envios' : 'Pausar envios';
   whatsappBotPauseMetaEl.textContent = paused
     ? 'Envios automáticos pausados.'
@@ -3475,6 +3489,8 @@ const dom = {
   settingsFormShellEl,
   settingsFormEl,
   settingsStatusEl,
+  whatsappSettingsFormEl,
+  whatsappSettingsStatusEl,
   storeHoursStatusMetaEl,
   storeHoursTimezoneMetaEl,
   storeHoursStatusEl,

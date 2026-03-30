@@ -20,17 +20,6 @@ export function bindSettingsSection(ctx) {
       };
     }
 
-    if (activeSettingsTab === 'whatsapp') {
-      return {
-        whatsapp_ativo: formData.get('whatsapp_ativo') === 'on',
-        whatsapp_bot_pausado: dom.settingsFormEl.elements.whatsapp_bot_pausado.checked,
-        whatsapp_webhook_url: String(formData.get('whatsapp_webhook_url') || '').trim() || null,
-        whatsapp_webhook_secret: String(formData.get('whatsapp_webhook_secret') || '').trim() || null,
-        whatsapp_mensagem_novo_pedido: String(formData.get('whatsapp_mensagem_novo_pedido') || '').trim() || null,
-        whatsapp_mensagem_status: String(formData.get('whatsapp_mensagem_status') || '').trim() || null,
-      };
-    }
-
     return {
       loja_aberta: formData.get('loja_aberta') === 'on',
       tempo_entrega_minutos: parseOptionalInteger(formData.get('tempo_entrega_minutos')),
@@ -39,8 +28,19 @@ export function bindSettingsSection(ctx) {
     };
   }
 
+  function buildWhatsAppPayload(formData) {
+    return {
+      whatsapp_ativo: formData.get('whatsapp_ativo') === 'on',
+      whatsapp_bot_pausado: dom.whatsappSettingsFormEl.elements.whatsapp_bot_pausado.checked,
+      whatsapp_webhook_url: String(formData.get('whatsapp_webhook_url') || '').trim() || null,
+      whatsapp_webhook_secret: String(formData.get('whatsapp_webhook_secret') || '').trim() || null,
+      whatsapp_mensagem_novo_pedido: String(formData.get('whatsapp_mensagem_novo_pedido') || '').trim() || null,
+      whatsapp_mensagem_status: String(formData.get('whatsapp_mensagem_status') || '').trim() || null,
+    };
+  }
+
   function setActiveSettingsTab(nextTab = 'operacao') {
-    const activeTab = ['operacao', 'horarios', 'whatsapp', 'taxas'].includes(nextTab) ? nextTab : 'operacao';
+    const activeTab = ['operacao', 'horarios', 'taxas'].includes(nextTab) ? nextTab : 'operacao';
     activeSettingsTab = activeTab;
     const showFeesOnly = activeTab === 'taxas';
 
@@ -98,10 +98,37 @@ export function bindSettingsSection(ctx) {
 
       await helpers.parseResponse(response);
       await api.loadStoreSettings();
-      await api.loadWhatsAppSessionStatus().catch(() => {});
       helpers.setStatus(dom.settingsStatusEl, 'Configuração salva com sucesso.', 'ok');
     } catch (error) {
       helpers.setStatus(dom.settingsStatusEl, error.message, 'err');
+    }
+  });
+
+  bindEvent(dom.whatsappSettingsFormEl, 'submit', async (event) => {
+    event.preventDefault();
+    if (!state.accessToken) {
+      helpers.setStatus(dom.whatsappSettingsStatusEl, 'Faça login antes de salvar.', 'err');
+      return;
+    }
+
+    helpers.setStatus(dom.whatsappSettingsStatusEl, 'Salvando bot do WhatsApp...', 'muted');
+
+    const fd = new FormData(dom.whatsappSettingsFormEl);
+    const payload = buildWhatsAppPayload(fd);
+
+    try {
+      const response = await fetch('/admin/store-settings', {
+        method: 'PUT',
+        headers: helpers.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload),
+      });
+
+      await helpers.parseResponse(response);
+      await api.loadStoreSettings();
+      await api.loadWhatsAppSessionStatus().catch(() => {});
+      helpers.setStatus(dom.whatsappSettingsStatusEl, 'Configuração do bot salva com sucesso.', 'ok');
+    } catch (error) {
+      helpers.setStatus(dom.whatsappSettingsStatusEl, error.message, 'err');
     }
   });
 
@@ -111,7 +138,7 @@ export function bindSettingsSection(ctx) {
       return;
     }
 
-    const nextPaused = !dom.settingsFormEl.elements.whatsapp_bot_pausado.checked;
+    const nextPaused = !dom.whatsappSettingsFormEl.elements.whatsapp_bot_pausado.checked;
     dom.whatsappBotPauseBtnEl.disabled = true;
     helpers.setStatus(
       dom.whatsappBotPauseStatusEl,
@@ -136,7 +163,7 @@ export function bindSettingsSection(ctx) {
         'ok',
       );
     } catch (error) {
-      api.renderWhatsAppBotPauseState(dom.settingsFormEl.elements.whatsapp_bot_pausado.checked);
+      api.renderWhatsAppBotPauseState(dom.whatsappSettingsFormEl.elements.whatsapp_bot_pausado.checked);
       helpers.setStatus(dom.whatsappBotPauseStatusEl, error.message, 'err');
     } finally {
       dom.whatsappBotPauseBtnEl.disabled = false;
