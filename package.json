@@ -9,7 +9,9 @@
     "prisma:generate": "npx prisma generate",
     "test": "node --test test/*.test.js",
     "smoke:catalog": "bash ./scripts/run-catalog-smoke.sh",
-    "smoke:broadcast": "bash ./scripts/run-broadcast-smoke.sh"
+    "smoke:broadcast": "bash ./scripts/run-broadcast-smoke.sh",
+    "smoke:flows": "bash ./scripts/run-flow-builder-smoke.sh",
+    "validate:predeploy": "bash ./scripts/run-predeploy-validation.sh"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",

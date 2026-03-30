@@ -1,4 +1,5 @@
 const { STATUS_LABELS, PAYMENT_STATUS_LABELS } = require('./whatsappNotificationService')
+const { createFlowEngine } = require('./flowEngine')
 const { getPhoneSearchVariants, normalizeLidKey, normalizeWhatsAppId } = require('../utils/phone')
 const { normalizePhone } = require('./wppConnectService')
 
@@ -801,10 +802,12 @@ function extractTextMessages(payload) {
   return extractWppConnectMessages(payload)
 }
 
-function createWhatsAppBotService(prisma, { transportService, logger = console, broadcastService = null } = {}) {
+function createWhatsAppBotService(prisma, { transportService, logger = console, broadcastService = null, flowEngine = null } = {}) {
   if (!transportService) {
     throw new Error('Servico de transporte obrigatorio para o bot de WhatsApp.')
   }
+
+  const visualFlowEngine = flowEngine || createFlowEngine(prisma, { logger })
 
   async function verifyWebhook(url) {
     return transportService.verifyWebhook ? transportService.verifyWebhook(url) : 'ok'
@@ -1198,6 +1201,23 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
         }
       } catch (error) {
         logger.error('[whatsapp] Falha ao processar resposta pendente de broadcast:', error?.message || error)
+      }
+    }
+
+    if (visualFlowEngine?.processIncomingMessage) {
+      const flowHandled = await visualFlowEngine.processIncomingMessage({
+        phone: finalFrom,
+        rawPhone: rawFrom,
+        message: message.body,
+        profileName: message.profileName,
+        sendMessage: async (body) => transportService.sendTextMessage({
+          to: message.rawFrom || message.from,
+          body,
+        }),
+      })
+
+      if (flowHandled) {
+        return
       }
     }
 

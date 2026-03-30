@@ -38,6 +38,28 @@ Opcoes uteis:
 - `SMOKE_PATH=/catalogo npm run smoke:catalog`
 - `PLAYWRIGHT_VERSION=1.58.2 npm run smoke:catalog`
 
+## Validacao predeploy
+
+Para validar o app inteiro antes de deploy com um comando so:
+
+```bash
+cd /home/donilla/donilla-app
+npm run validate:predeploy
+```
+
+Esse runner:
+
+- sobe uma instancia temporaria do backend em `http://127.0.0.1:3100` usando o codigo atual
+- reaproveita as credenciais do container `donilla-backend` quando ele estiver disponivel
+- roda `npm test`
+- roda os smokes de `catalogo`, `disparos` e `Flow Builder`
+
+Opcoes uteis:
+
+- `PREDEPLOY_BASE_URL=http://127.0.0.1:3000 npm run validate:predeploy`
+- `PREDEPLOY_ADMIN_USERNAME=admin PREDEPLOY_ADMIN_PASSWORD=senha npm run validate:predeploy`
+- `PREDEPLOY_TEMP_APP_PORT=3200 npm run validate:predeploy`
+
 Referencia de variaveis:
 
 - `.env.example` documenta os nomes esperados pelo app

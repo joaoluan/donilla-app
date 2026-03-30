@@ -5,6 +5,7 @@ const { authController } = require('../controllers/authController')
 const { publicController } = require('../controllers/publicController')
 const { adminController } = require('../controllers/adminController')
 const { broadcastController } = require('../controllers/broadcastController')
+const { flowsController } = require('../controllers/flowsController')
 const { whatsappController } = require('../controllers/whatsappController')
 const { paymentsController } = require('../controllers/paymentsController')
 const { requireAuth, requireRole } = require('../middleware/auth')
@@ -14,6 +15,7 @@ const { usuariosService } = require('../services/usuariosService')
 const { publicStoreService } = require('../services/publicStoreService')
 const { adminPanelService } = require('../services/adminPanelService')
 const { createBroadcastService } = require('../services/broadcastService')
+const { createFlowsService } = require('../services/flowsService')
 const { createWhatsAppNotificationService } = require('../services/whatsappNotificationService')
 const { createWppConnectService } = require('../services/wppConnectService')
 const { createWhatsAppBotService } = require('../services/whatsappBotService')
@@ -68,6 +70,9 @@ const ROUTE_PATTERNS = {
   broadcastCampaignStart: compileRoutePattern('/admin/broadcast/campaigns/:id/start'),
   broadcastCampaignCancel: compileRoutePattern('/admin/broadcast/campaigns/:id/cancel'),
   broadcastCampaignRetryFailed: compileRoutePattern('/admin/broadcast/campaigns/:id/retry-failed'),
+  adminFlowById: compileRoutePattern('/admin/flows/:id'),
+  adminFlowPublish: compileRoutePattern('/admin/flows/:id/publish'),
+  adminFlowUnpublish: compileRoutePattern('/admin/flows/:id/unpublish'),
 }
 
 function createRouter(prisma, deps = {}) {
@@ -99,6 +104,7 @@ function createRouter(prisma, deps = {}) {
     { adminEvents },
   )
   const broadcast = broadcastController(broadcastService)
+  const flows = flowsController(createFlowsService(prisma))
 
   return async function route(req, res, method, path, url) {
     if (method === 'GET' && path === '/health') {
@@ -501,6 +507,53 @@ function createRouter(prisma, deps = {}) {
       if (method === 'POST') {
         requireRole(req, 'admin')
         return broadcast.retryFailedCampaign(broadcastCampaignRetryFailedMatch.id)
+      }
+    }
+
+    if (method === 'GET' && path === '/admin/flows') {
+      requireRole(req, 'admin')
+      return flows.listFlows()
+    }
+
+    if (method === 'POST' && path === '/admin/flows') {
+      requireRole(req, 'admin')
+      return flows.createFlow(req)
+    }
+
+    if (method === 'GET' && path === '/admin/flows/sessions/active') {
+      requireRole(req, 'admin')
+      return flows.activeSessions()
+    }
+
+    const adminFlowPublishMatch = matchRoute(path, ROUTE_PATTERNS.adminFlowPublish)
+    if (adminFlowPublishMatch) {
+      if (method === 'POST') {
+        requireRole(req, 'admin')
+        return flows.publishFlow(adminFlowPublishMatch.id)
+      }
+    }
+
+    const adminFlowUnpublishMatch = matchRoute(path, ROUTE_PATTERNS.adminFlowUnpublish)
+    if (adminFlowUnpublishMatch) {
+      if (method === 'POST') {
+        requireRole(req, 'admin')
+        return flows.unpublishFlow(adminFlowUnpublishMatch.id)
+      }
+    }
+
+    const adminFlowByIdMatch = matchRoute(path, ROUTE_PATTERNS.adminFlowById)
+    if (adminFlowByIdMatch) {
+      if (method === 'GET') {
+        requireRole(req, 'admin')
+        return flows.getFlow(adminFlowByIdMatch.id)
+      }
+      if (method === 'PUT') {
+        requireRole(req, 'admin')
+        return flows.updateFlow(req, adminFlowByIdMatch.id)
+      }
+      if (method === 'DELETE') {
+        requireRole(req, 'admin')
+        return flows.removeFlow(adminFlowByIdMatch.id)
       }
     }
 

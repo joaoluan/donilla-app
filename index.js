@@ -34,13 +34,23 @@ async function checkDatabaseSchema() {
       prisma.asaas_webhook_events.findMany({ take: 1, select: { event_id: true } }),
       prisma.pedidos_auditoria.findMany({ take: 1, select: { id: true } }),
     ])
+    await prisma.$queryRawUnsafe('SELECT id, name, trigger_keyword FROM bot_flows LIMIT 1')
+    await prisma.$queryRawUnsafe('SELECT id, phone, flow_id FROM client_flow_sessions LIMIT 1')
+    await prisma.$queryRawUnsafe(
+      'SELECT id, bot_tags, bot_handoff_active, bot_handoff_updated_at FROM clientes LIMIT 1',
+    )
     console.log('Schema do banco validado com sucesso.')
     return true
   } catch (error) {
-    if (error?.code === 'P2022') {
+    const errorMessage = String(error?.message || error || '')
+    const isMissingSchemaArtifact = error?.code === 'P2022'
+      || /column .* does not exist/i.test(errorMessage)
+      || /relation .* does not exist/i.test(errorMessage)
+
+    if (isMissingSchemaArtifact) {
       console.error('Falha ao validar o schema do banco.')
       console.error(
-        'Motivo: tabela/coluna ausente. Aplique as atualizacoes SQL em prisma/sql/20260311_add_produtos_estoque_disponivel.sql, prisma/sql/20260311_add_taxas_entrega_por_local.sql, prisma/sql/20260311_add_tempo_entrega_max_minutos.sql, prisma/sql/20260311_add_pedidos_observacoes.sql, prisma/sql/20260311_add_whatsapp_bot_settings.sql, prisma/sql/20260312_add_clientes_whatsapp_lid.sql, prisma/sql/20260323_add_asaas_webhook_events.sql e prisma/sql/20260323_add_pedidos_auditoria.sql',
+        'Motivo: tabela/coluna ausente. Aplique as atualizacoes SQL em prisma/sql/20260311_add_produtos_estoque_disponivel.sql, prisma/sql/20260311_add_taxas_entrega_por_local.sql, prisma/sql/20260311_add_tempo_entrega_max_minutos.sql, prisma/sql/20260311_add_pedidos_observacoes.sql, prisma/sql/20260311_add_whatsapp_bot_settings.sql, prisma/sql/20260312_add_clientes_whatsapp_lid.sql, prisma/sql/20260323_add_asaas_webhook_events.sql, prisma/sql/20260323_add_pedidos_auditoria.sql e prisma/sql/20260330_add_flow_builder.sql',
       )
       return false
     }

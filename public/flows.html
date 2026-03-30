@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Donilla - Flow Builder</title>
+    <link rel="stylesheet" href="/assets/admin/flows.css?v=20260330a" />
+  </head>
+  <body class="flow-admin-body">
+    <main class="flow-page-shell">
+      <header class="flow-topbar">
+        <div class="flow-topbar-copy">
+          <a class="flow-back-link" href="/admin">
+            <span aria-hidden="true">←</span>
+            <span>Voltar ao painel</span>
+          </a>
+          <span class="flow-topbar-eyebrow">Flow Builder Visual</span>
+          <h1>Construa automações de WhatsApp com cara de operação grande</h1>
+          <p>
+            Liste, publique e acompanhe os fluxos visuais sem mexer na lógica legada do bot. O fluxo antigo continua
+            funcionando até você publicar um visual novo para o mesmo gatilho.
+          </p>
+        </div>
+        <div class="flow-topbar-actions">
+          <button id="refreshFlowsBtn" class="flow-btn-ghost" type="button">Atualizar</button>
+          <button id="importLegacyFlowBtn" class="flow-btn-ghost" type="button">Importar legado</button>
+          <button id="newFlowBtn" class="flow-btn" type="button">Novo fluxo</button>
+        </div>
+      </header>
+
+      <section class="flow-overview-grid" aria-label="Resumo dos fluxos">
+        <article class="flow-metric-card">
+          <span>Total de fluxos</span>
+          <strong id="flowStatTotal">0</strong>
+          <small>Todos os fluxos visuais salvos no banco.</small>
+        </article>
+        <article class="flow-metric-card">
+          <span>Fluxos publicados</span>
+          <strong id="flowStatPublished">0</strong>
+          <small>Ativos e prontos para responder no WhatsApp.</small>
+        </article>
+        <article class="flow-metric-card">
+          <span>Rascunhos</span>
+          <strong id="flowStatDrafts">0</strong>
+          <small>Fluxos em edição aguardando revisão.</small>
+        </article>
+        <article class="flow-metric-card">
+          <span>Sessões ativas</span>
+          <strong id="flowStatSessions">0</strong>
+          <small>Clientes em andamento agora dentro dos fluxos.</small>
+        </article>
+      </section>
+
+      <section class="flows-main-grid">
+        <article class="flow-card">
+          <div class="flow-card-head">
+            <div>
+              <h2>Fluxos disponíveis</h2>
+              <p>Escolha um fluxo para editar, publicar ou remover.</p>
+            </div>
+            <div class="flow-card-actions">
+              <a class="flow-btn-ghost" href="/admin">Painel principal</a>
+            </div>
+          </div>
+          <div class="flow-card-body">
+            <p id="flowsPageStatus" class="flow-card-status" data-tone="muted">Conectando ao painel administrativo...</p>
+            <div class="flow-table-wrap">
+              <table class="flow-table">
+                <thead>
+                  <tr>
+                    <th>Fluxo</th>
+                    <th>Gatilho</th>
+                    <th>Status</th>
+                    <th>Atualização</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="flowsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+
+        <article class="flow-card">
+          <div class="flow-card-head">
+            <div>
+              <h3>Sessões ativas</h3>
+              <p>Monitoramento rápido dos clientes dentro dos fluxos publicados.</p>
+            </div>
+          </div>
+          <div class="flow-card-body">
+            <div id="activeSessionsList" class="active-session-list"></div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <dialog id="newFlowDialog" class="flow-dialog">
+      <div class="flow-dialog-panel">
+        <h2 id="newFlowDialogTitle">Novo fluxo</h2>
+        <p id="newFlowDialogDescription">Crie a base com Trigger e Fim ja posicionados no canvas.</p>
+        <form id="newFlowForm" class="flow-form-grid">
+          <input id="newFlowTemplateKey" name="template_key" type="hidden" />
+          <div class="flow-field">
+            <label for="newFlowName">Nome do fluxo</label>
+            <input id="newFlowName" name="name" placeholder="Ex.: Boas-vindas Donilla" required />
+          </div>
+          <div class="flow-field">
+            <label for="newFlowTrigger">Gatilho inicial</label>
+            <input id="newFlowTrigger" name="trigger_keyword" placeholder="Ex.: oi" required />
+          </div>
+          <p id="newFlowStatus" class="flow-card-status" data-tone="muted">Use um gatilho simples para testar mais rápido.</p>
+          <div class="flow-dialog-actions">
+            <button class="flow-btn-ghost" type="button" data-dialog-close>Cancelar</button>
+            <button id="newFlowSubmitBtn" class="flow-btn" type="submit">Criar e abrir editor</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <div id="flowToast" class="flow-toast hidden" data-tone="ok" aria-live="polite"></div>
+
+    <script type="module" src="/assets/admin/flows-list.js?v=20260330a"></script>
+    <script>
+      document.addEventListener('click', function (event) {
+        const closeButton = event.target.closest('[data-dialog-close]');
+        if (!closeButton) return;
+        const dialog = closeButton.closest('dialog');
+        if (dialog && typeof dialog.close === 'function') dialog.close();
+      });
+    </script>
+  </body>
+</html>

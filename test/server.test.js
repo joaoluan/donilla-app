@@ -149,6 +149,14 @@ test('rotas web canonicas devem servir as paginas corretas', async () => {
   assert.equal(adminConfigResponse.statusCode, 200)
   assert.match(adminConfigResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
 
+  const adminFlowsResponse = await requestApp(app, { url: '/admin/fluxos' })
+  assert.equal(adminFlowsResponse.statusCode, 200)
+  assert.match(adminFlowsResponse.body, /<title>Donilla - Flow Builder<\/title>/)
+
+  const adminFlowBuilderResponse = await requestApp(app, { url: '/admin/fluxos/editor?id=1' })
+  assert.equal(adminFlowBuilderResponse.statusCode, 200)
+  assert.match(adminFlowBuilderResponse.body, /<title>Donilla - Editor de Fluxo<\/title>/)
+
   const trackingResponse = await requestApp(app, { url: '/pedido/41' })
   assert.equal(trackingResponse.statusCode, 200)
   assert.match(trackingResponse.body, /<title>Donilla - Acompanhar Pedido<\/title>/)

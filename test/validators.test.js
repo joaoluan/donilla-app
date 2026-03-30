@@ -37,6 +37,10 @@ const {
   validateCreateDeliveryFee,
   validateUpdateDeliveryFee,
 } = require('../src/validators/deliveryFeeValidator')
+const {
+  validateCreateFlow,
+  validateUpdateFlow,
+} = require('../src/validators/flowsValidator')
 const { resolveDeliveryFee } = require('../src/utils/deliveryFees')
 
 function mockUrl(pathAndQuery) {
@@ -250,6 +254,47 @@ test('validateCustomerLookup deve rejeitar telefone curto', () => {
 test('parseMemberPhone preserva telefone legado sem prefixar 55 na rota de exclusao', () => {
   const phone = parseMemberPhone('51999999999')
   assert.equal(phone, '51999999999')
+})
+
+test('validateCreateFlow deve aceitar template legado opcional', () => {
+  const flow = validateCreateFlow({
+    name: 'Fluxo legado guiado',
+    trigger_keyword: 'oi',
+    template_key: 'legacy_whatsapp_bot',
+  })
+
+  assert.deepEqual(flow, {
+    name: 'Fluxo legado guiado',
+    trigger_keyword: 'oi',
+    template_key: 'legacy_whatsapp_bot',
+  })
+})
+
+test('validateUpdateFlow deve preservar meta de template legado', () => {
+  const flow = validateUpdateFlow({
+    name: 'Fluxo legado guiado',
+    trigger_keyword: 'oi',
+    flow_json: {
+      meta: {
+        template_key: 'legacy_whatsapp_bot',
+        template_mode: 'guide',
+        template_label: 'Fluxo legado guiado',
+      },
+      nodes: [
+        { id: 'trigger_1', type: 'trigger', next: 'end_1' },
+        { id: 'end_1', type: 'end' },
+      ],
+    },
+    canvas_json: {
+      trigger_1: { x: 120, y: 120 },
+      end_1: { x: 440, y: 120 },
+    },
+  })
+
+  assert.equal(flow.flow_json.meta.template_key, 'legacy_whatsapp_bot')
+  assert.equal(flow.flow_json.meta.template_mode, 'guide')
+  assert.equal(flow.flow_json.meta.template_label, 'Fluxo legado guiado')
+  assert.equal(flow.canvas_json.trigger_1.x, 120)
 })
 
 test('validateCreateOrder deve aceitar observacoes e normalizar vazio para null', () => {

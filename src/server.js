@@ -31,6 +31,8 @@ const STATIC_ROUTES = {
   '/admin/pedidos': ADMIN_STATIC_ROUTE,
   '/admin/disparos': ADMIN_STATIC_ROUTE,
   '/admin/configuracoes': ADMIN_STATIC_ROUTE,
+  '/admin/fluxos': { type: 'file', fileName: 'flows.html' },
+  '/admin/fluxos/editor': { type: 'file', fileName: 'flow-builder.html' },
   '/site': { type: 'redirect', location: '/', statusCode: 308 },
   '/cliente': { type: 'redirect', location: '/', statusCode: 308 },
   '/styles.css': { type: 'file', fileName: 'styles.css' },

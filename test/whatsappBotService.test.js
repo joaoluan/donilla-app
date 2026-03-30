@@ -108,6 +108,35 @@ test('handleWebhookEvent consome resposta pendente de broadcast antes do menu au
   assert.equal(broadcastCalls[0].message, 'Tenho interesse')
 })
 
+test('handleWebhookEvent deixa o flow engine visual assumir a conversa antes do bot legado', async () => {
+  const sentMessages = []
+  const flowCalls = []
+  const service = createWhatsAppBotService({}, {
+    transportService: createTransport(sentMessages),
+    flowEngine: {
+      async processIncomingMessage(payload) {
+        flowCalls.push(payload)
+        return true
+      },
+    },
+  })
+
+  const result = await service.handleWebhookEvent({
+    event: 'onmessage',
+    payload: {
+      from: '5511999990000@c.us',
+      body: 'oi',
+      sender: { pushname: 'Maria' },
+    },
+  })
+
+  assert.equal(result.processed, true)
+  assert.equal(result.messages, 1)
+  assert.equal(flowCalls.length, 1)
+  assert.equal(flowCalls[0].phone, '5511999990000')
+  assert.equal(sentMessages.length, 0)
+})
+
 test('handleWebhookEvent responde saudacao com menu numerico e ajuda contextual', async () => {
   const previousStoreUrl = process.env.PUBLIC_STORE_URL
   process.env.PUBLIC_STORE_URL = 'https://loja.exemplo.com/loja'

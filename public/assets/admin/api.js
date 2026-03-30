@@ -126,6 +126,55 @@ export function createAdminApiClient({ state, store }) {
     return parseResponse(await fetch('/admin/delivery-fees', { headers: authHeaders() }));
   }
 
+  async function fetchFlows() {
+    return parseResponse(await fetch('/admin/flows', { headers: authHeaders() }));
+  }
+
+  async function createFlow(payload) {
+    return parseResponse(await fetch('/admin/flows', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    }));
+  }
+
+  async function fetchFlow(flowId) {
+    return parseResponse(await fetch(`/admin/flows/${flowId}`, { headers: authHeaders() }));
+  }
+
+  async function saveFlow(flowId, payload) {
+    return parseResponse(await fetch(`/admin/flows/${flowId}`, {
+      method: 'PUT',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    }));
+  }
+
+  async function publishFlow(flowId) {
+    return parseResponse(await fetch(`/admin/flows/${flowId}/publish`, {
+      method: 'POST',
+      headers: authHeaders(),
+    }));
+  }
+
+  async function unpublishFlow(flowId) {
+    return parseResponse(await fetch(`/admin/flows/${flowId}/unpublish`, {
+      method: 'POST',
+      headers: authHeaders(),
+    }));
+  }
+
+  async function deleteFlow(flowId) {
+    return parseResponse(await fetch(`/admin/flows/${flowId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    }));
+  }
+
+  async function fetchActiveFlowSessions() {
+    return parseResponse(await fetch('/admin/flows/sessions/active', { headers: authHeaders() }));
+  }
+
   async function deleteDeliveryFee(id) {
     return parseResponse(await fetch(`/admin/delivery-fees/${id}`, {
       method: 'DELETE',
@@ -172,6 +221,14 @@ export function createAdminApiClient({ state, store }) {
     fetchWhatsAppSessionStatus,
     fetchWhatsAppQrCode,
     fetchDeliveryFees,
+    fetchFlows,
+    createFlow,
+    fetchFlow,
+    saveFlow,
+    publishFlow,
+    unpublishFlow,
+    deleteFlow,
+    fetchActiveFlowSessions,
     deleteDeliveryFee,
     fetchCategorias,
     deleteCategoria,

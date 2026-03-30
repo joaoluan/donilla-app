@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Donilla - Editor de Fluxo</title>
+    <link rel="stylesheet" href="/assets/admin/flows.css?v=20260330a" />
+  </head>
+  <body class="flow-admin-body">
+    <main class="flow-page-shell">
+      <header class="flow-topbar">
+        <div class="flow-topbar-copy">
+          <a class="flow-back-link" href="/admin/fluxos">
+            <span aria-hidden="true">←</span>
+            <span>Voltar para fluxos</span>
+          </a>
+          <span class="flow-topbar-eyebrow">Editor visual</span>
+          <h1 id="builderFlowTitle">Carregando fluxo...</h1>
+          <p>
+            Arraste blocos, conecte saídas e ajuste as propriedades à direita. O bot antigo continua em pé até este
+            fluxo ser publicado.
+          </p>
+        </div>
+        <div class="flow-topbar-actions">
+          <button id="builderUnpublishBtn" class="flow-btn-ghost hidden" type="button">Despublicar</button>
+          <button id="builderSaveBtn" class="flow-btn-ghost" type="button">Salvar rascunho</button>
+          <button id="builderPublishBtn" class="flow-btn" type="button">Publicar fluxo</button>
+        </div>
+      </header>
+
+      <section class="builder-meta-panel">
+        <div class="builder-field">
+          <label for="builderFlowName">Nome do fluxo</label>
+          <input id="builderFlowName" placeholder="Nome do fluxo" />
+        </div>
+        <div class="builder-field">
+          <label for="builderFlowTrigger">Gatilho</label>
+          <input id="builderFlowTrigger" placeholder="Ex.: oi" />
+        </div>
+        <div class="builder-meta-status">
+          <span>Status atual</span>
+          <span id="builderFlowStatus"></span>
+        </div>
+      </section>
+
+      <section id="builderTemplateNotice" class="flow-guide-card hidden" aria-live="polite">
+        <strong id="builderTemplateNoticeTitle">Fluxo legado guiado</strong>
+        <p id="builderTemplateNoticeText"></p>
+      </section>
+
+      <section class="builder-workspace">
+        <aside class="builder-toolbar">
+          <div class="builder-panel-head">
+            <h2>Blocos</h2>
+            <p>Puxe para o canvas ou clique para adicionar perto do centro.</p>
+          </div>
+          <div id="builderBlockList" class="builder-block-list"></div>
+          <div class="builder-legend">
+            <strong>Atalhos úteis</strong>
+            <ul>
+              <li><span class="builder-legend-dot builder-legend-dot-green"></span> Duplo clique no canvas para abrir o menu rápido.</li>
+              <li><span class="builder-legend-dot builder-legend-dot-blue"></span> Arraste da bolinha verde até o próximo bloco para conectar.</li>
+              <li><span class="builder-legend-dot builder-legend-dot-amber"></span> Clique com o botão direito em um bloco para duplicar ou remover.</li>
+            </ul>
+          </div>
+        </aside>
+
+        <section class="builder-canvas-shell">
+          <div class="builder-canvas-toolbar">
+            <div>
+              <strong>Canvas do fluxo</strong>
+              <small id="builderPageStatus">Abrindo o fluxo e preparando o layout visual...</small>
+            </div>
+            <div class="builder-canvas-toolbar-actions">
+              <button id="builderCenterBtn" class="flow-btn-ghost" type="button">Centralizar</button>
+              <button id="builderAutoLayoutBtn" class="flow-btn-ghost" type="button">Organizar</button>
+            </div>
+          </div>
+          <div id="builderViewport" class="builder-canvas-viewport">
+            <svg id="builderConnections" class="builder-connections" aria-hidden="true"></svg>
+            <div id="builderCanvas" class="builder-canvas"></div>
+            <div class="builder-canvas-empty">
+              Dica: comece clicando em “Mensagem” ou “Menu”, depois conecte a saída do Trigger até o bloco novo.
+            </div>
+          </div>
+        </section>
+
+        <aside class="builder-inspector">
+          <div class="builder-panel-head">
+            <h3>Propriedades</h3>
+            <p>Selecione um bloco para editar o conteúdo e o comportamento.</p>
+          </div>
+          <div id="builderInspectorEmpty" class="builder-empty-state">
+            Nenhum bloco selecionado ainda. Clique em um nó do canvas para editar texto, opções, tempo de espera ou tag.
+          </div>
+          <div id="builderInspectorPanel" class="hidden"></div>
+        </aside>
+      </section>
+    </main>
+
+    <div id="builderContextMenu" class="builder-context-menu hidden"></div>
+    <div id="builderAddMenu" class="builder-add-menu hidden"></div>
+    <div id="builderToast" class="flow-toast hidden" data-tone="ok" aria-live="polite"></div>
+
+    <script type="module" src="/assets/admin/flow-builder.js?v=20260330a"></script>
+  </body>
+</html>
