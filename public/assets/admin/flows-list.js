@@ -8,6 +8,17 @@ import {
 } from './flows-shared.js?v=20260330a';
 
 const LEGACY_TEMPLATE_KEY = 'legacy_whatsapp_bot';
+const COMMERCIAL_STARTER_TEMPLATE_KEY = 'commercial_whatsapp_starter';
+const TEMPLATE_DETAILS = Object.freeze({
+  [COMMERCIAL_STARTER_TEMPLATE_KEY]: {
+    chipLabel: 'Base comercial',
+    rowHint: 'Fluxo pronto com acolhimento, cardapio, interesse, pedido e handoff.',
+  },
+  [LEGACY_TEMPLATE_KEY]: {
+    chipLabel: 'Base legado',
+    rowHint: 'Rascunho guiado importado do bot antigo.',
+  },
+});
 const state = {
   flows: [],
   sessions: [],
@@ -18,6 +29,7 @@ const session = createFlowAdminSession();
 const dom = {
   pageStatus: document.getElementById('flowsPageStatus'),
   refreshBtn: document.getElementById('refreshFlowsBtn'),
+  starterBtn: document.getElementById('newStarterFlowBtn'),
   importLegacyBtn: document.getElementById('importLegacyFlowBtn'),
   newFlowBtn: document.getElementById('newFlowBtn'),
   flowsTableBody: document.getElementById('flowsTableBody'),
@@ -56,23 +68,39 @@ function closeDialog() {
   dom.dialog?.removeAttribute('open');
 }
 
-function isLegacyTemplateFlow(flow) {
-  return flow?.flow_json?.meta?.template_key === LEGACY_TEMPLATE_KEY;
+function getTemplateDetails(flow) {
+  const templateKey = flow?.flow_json?.meta?.template_key;
+  return TEMPLATE_DETAILS[templateKey] || null;
 }
 
 function prepareCreateDialog(mode = 'blank') {
   dom.form?.reset();
+
+  if (mode === 'starter') {
+    dom.dialogTitle.textContent = 'Fluxo comercial pronto';
+    dom.dialogDescription.textContent = 'Cria um rascunho com acolhimento, ajuda de venda, pedido, observacao e atendimento humano.';
+    dom.templateKeyInput.value = COMMERCIAL_STARTER_TEMPLATE_KEY;
+    dom.nameInput.value = 'Fluxo comercial inicial';
+    dom.triggerInput.value = 'oi, ola, olá, opa, bom dia, boa tarde, boa noite';
+    dom.submitBtn.textContent = 'Criar fluxo pronto';
+    setInlineStatus(
+      dom.createStatus,
+      'Esse modelo ja vem conversacional. Separe aliases por virgula e ajuste os textos com o tom da sua loja antes de publicar.',
+      'muted',
+    );
+    return;
+  }
 
   if (mode === 'legacy') {
     dom.dialogTitle.textContent = 'Importar fluxo legado';
     dom.dialogDescription.textContent = 'Cria um rascunho guiado com o menu principal do bot antigo ja distribuido no canvas.';
     dom.templateKeyInput.value = LEGACY_TEMPLATE_KEY;
     dom.nameInput.value = 'Fluxo legado guiado';
-    dom.triggerInput.value = 'oi';
+    dom.triggerInput.value = 'oi, ola, olá, opa, bom dia, boa tarde, boa noite';
     dom.submitBtn.textContent = 'Importar e abrir editor';
     setInlineStatus(
       dom.createStatus,
-      'Esse rascunho serve como mapa inicial. Revise os textos antes de publicar no WhatsApp.',
+      'Esse rascunho serve como mapa inicial. Voce pode colocar varios gatilhos separados por virgula antes de publicar no WhatsApp.',
       'muted',
     );
     return;
@@ -82,7 +110,7 @@ function prepareCreateDialog(mode = 'blank') {
   dom.dialogDescription.textContent = 'Crie a base com Trigger e Fim ja posicionados no canvas.';
   dom.templateKeyInput.value = '';
   dom.submitBtn.textContent = 'Criar e abrir editor';
-  setInlineStatus(dom.createStatus, 'Use um gatilho simples para testar mais rapido.', 'muted');
+  setInlineStatus(dom.createStatus, 'Use um ou varios gatilhos separados por virgula para testar mais rapido.', 'muted');
 }
 
 function openCreateDialog(mode = 'blank') {
@@ -118,7 +146,7 @@ function renderFlowsTable() {
   dom.flowsTableBody.innerHTML = state.flows
     .map((flow) => {
       const canDelete = flow.status === 'draft';
-      const legacyTemplate = isLegacyTemplateFlow(flow);
+      const templateDetails = getTemplateDetails(flow);
       const actionButtons = [
         `<a class="flow-inline-btn" href="/admin/fluxos/editor?id=${flow.id}">Editar</a>`,
         flow.status === 'published'
@@ -136,14 +164,14 @@ function renderFlowsTable() {
           <td>
             <div class="flow-name-stack">
               <strong>${escapeHtml(flow.name)}</strong>
-              ${legacyTemplate ? '<span class="flow-template-chip">Base legado</span>' : ''}
+              ${templateDetails ? `<span class="flow-template-chip">${escapeHtml(templateDetails.chipLabel)}</span>` : ''}
             </div>
             <small>ID ${flow.id}</small>
-            ${legacyTemplate ? '<small>Rascunho guiado importado do bot antigo.</small>' : ''}
+            ${templateDetails ? `<small>${escapeHtml(templateDetails.rowHint)}</small>` : ''}
           </td>
           <td>
             <strong>${escapeHtml(flow.trigger_keyword)}</strong>
-            <small>Dispara quando a mensagem começa com esse gatilho</small>
+            <small>Dispara quando a mensagem começa com qualquer alias desse campo</small>
           </td>
           <td>${renderStatusBadge(flow.status)}</td>
           <td>
@@ -281,6 +309,10 @@ async function handleTableAction(event) {
 
 dom.refreshBtn?.addEventListener('click', () => {
   refreshPage();
+});
+
+dom.starterBtn?.addEventListener('click', () => {
+  openCreateDialog('starter');
 });
 
 dom.newFlowBtn?.addEventListener('click', () => {

@@ -36,7 +36,11 @@ async function runFlowBuilderSmoke() {
   const pagePath = process.env.SMOKE_PATH || '/admin/fluxos'
   const adminUsername = process.env.SMOKE_ADMIN_USERNAME || ''
   const adminPassword = process.env.SMOKE_ADMIN_PASSWORD || ''
-  const creationMode = process.env.SMOKE_FLOW_CREATION_MODE === 'legacy' ? 'legacy' : 'blank'
+  const creationMode = process.env.SMOKE_FLOW_CREATION_MODE === 'legacy'
+    ? 'legacy'
+    : process.env.SMOKE_FLOW_CREATION_MODE === 'starter'
+      ? 'starter'
+      : 'blank'
   const smokePrefix = process.env.SMOKE_PREFIX || 'SMOKE-FLOW'
   const url = buildUrl(baseUrl, pagePath)
 
@@ -86,6 +90,7 @@ async function runFlowBuilderSmoke() {
     messageNodeAdded: false,
     triggerConnectedToMessage: false,
     messageConnectedToEnd: false,
+    starterTemplateLoaded: creationMode !== 'starter',
     legacyTemplateLoaded: creationMode !== 'legacy',
     flowSaved: false,
     flowPublished: false,
@@ -126,7 +131,13 @@ async function runFlowBuilderSmoke() {
     }, { timeout: 30000 })
     result.flowListLoaded = true
 
-    await page.click(creationMode === 'legacy' ? '#importLegacyFlowBtn' : '#newFlowBtn')
+    await page.click(
+      creationMode === 'legacy'
+        ? '#importLegacyFlowBtn'
+        : creationMode === 'starter'
+          ? '#newStarterFlowBtn'
+          : '#newFlowBtn',
+    )
     await page.waitForSelector('#newFlowDialog[open]', { timeout: 10000 })
     await page.fill('#newFlowName', smokeName)
     await page.fill('#newFlowTrigger', smokeTrigger)
@@ -143,11 +154,20 @@ async function runFlowBuilderSmoke() {
 
     if (creationMode === 'legacy') {
       await page.waitForSelector('#builderTemplateNotice:not(.hidden)', { timeout: 10000 })
-      await page.waitForSelector('[data-node-id="menu_legacy_main"]', { timeout: 10000 })
+      await page.waitForSelector('[data-node-id="order_lookup_current"]', { timeout: 10000 })
+      await page.waitForSelector('[data-node-id="menu_has_order"]', { timeout: 10000 })
       result.legacyTemplateLoaded = true
 
       await page.click('[data-node-id="message_legacy_intro"]')
       await page.fill('#inspectorNodeContent', `${smokeMessage}\n\nTemplate legado importado no smoke test.`)
+    } else if (creationMode === 'starter') {
+      await page.waitForSelector('#builderTemplateNotice:not(.hidden)', { timeout: 10000 })
+      await page.waitForSelector('[data-node-id="menu_commercial_main"]', { timeout: 10000 })
+      await page.waitForSelector('[data-node-id="input_sales_need"]', { timeout: 10000 })
+      result.starterTemplateLoaded = true
+
+      await page.click('[data-node-id="message_commercial_intro"]')
+      await page.fill('#inspectorNodeContent', `${smokeMessage}\n\nTemplate comercial importado no smoke test.`)
     } else {
       await page.click('[data-block-type="message"]')
       await page.waitForSelector('.flow-node[data-type="message"]', { timeout: 10000 })
@@ -230,6 +250,8 @@ async function runFlowBuilderSmoke() {
 
   if (creationMode === 'legacy') {
     expectedChecks.push('legacyTemplateLoaded')
+  } else if (creationMode === 'starter') {
+    expectedChecks.push('starterTemplateLoaded')
   } else {
     expectedChecks.push('messageNodeAdded', 'triggerConnectedToMessage', 'messageConnectedToEnd')
   }

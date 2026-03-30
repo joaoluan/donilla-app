@@ -35,7 +35,7 @@
         </div>
         <div class="builder-field">
           <label for="builderFlowTrigger">Gatilho</label>
-          <input id="builderFlowTrigger" placeholder="Ex.: oi" />
+          <input id="builderFlowTrigger" placeholder="Ex.: oi, ola, olá, boa noite" />
         </div>
         <div class="builder-meta-status">
           <span>Status atual</span>
@@ -62,6 +62,11 @@
               <li><span class="builder-legend-dot builder-legend-dot-blue"></span> Arraste da bolinha verde até o próximo bloco para conectar.</li>
               <li><span class="builder-legend-dot builder-legend-dot-amber"></span> Clique com o botão direito em um bloco para duplicar ou remover.</li>
             </ul>
+          </div>
+          <div class="builder-variable-guide">
+            <strong>Variáveis úteis</strong>
+            <p>Use estas chaves dentro dos textos, como <code>{cliente_nome}</code> ou <code>{pedido_resumo}</code>.</p>
+            <div id="builderVariableList" class="builder-variable-list"></div>
           </div>
         </aside>
 
@@ -102,6 +107,6 @@
     <div id="builderAddMenu" class="builder-add-menu hidden"></div>
     <div id="builderToast" class="flow-toast hidden" data-tone="ok" aria-live="polite"></div>
 
-    <script type="module" src="/assets/admin/flow-builder.js?v=20260330a"></script>
+    <script type="module" src="/assets/admin/flow-builder.js?v=20260330c"></script>
   </body>
 </html>

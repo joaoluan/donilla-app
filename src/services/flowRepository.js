@@ -1,6 +1,87 @@
 const { AppError } = require('../utils/errors')
 const { normalizeWhatsAppPhone } = require('../utils/phone')
 
+function removeDiacritics(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+function normalizeTriggerText(value) {
+  return removeDiacritics(value)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function splitTriggerKeywords(value) {
+  const seen = new Set()
+
+  return String(value || '')
+    .split(/[\n,;|]+/)
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .map((item) => ({
+      raw: item,
+      normalized: normalizeTriggerText(item),
+    }))
+    .filter((item) => item.normalized)
+    .filter((item) => {
+      if (seen.has(item.normalized)) {
+        return false
+      }
+
+      seen.add(item.normalized)
+      return true
+    })
+}
+
+function hasOverlappingTriggerAlias(leftValue, rightValue) {
+  const leftAliases = new Set(splitTriggerKeywords(leftValue).map((item) => item.normalized))
+  if (!leftAliases.size) return false
+
+  return splitTriggerKeywords(rightValue).some((item) => leftAliases.has(item.normalized))
+}
+
+function compareFlowPriority(leftFlow, leftAlias, rightFlow, rightAlias) {
+  if (!rightFlow || !rightAlias) return -1
+
+  const aliasLengthDiff = rightAlias.normalized.length - leftAlias.normalized.length
+  if (aliasLengthDiff !== 0) {
+    return aliasLengthDiff
+  }
+
+  const leftPublishedAt = leftFlow?.published_at ? new Date(leftFlow.published_at).getTime() : 0
+  const rightPublishedAt = rightFlow?.published_at ? new Date(rightFlow.published_at).getTime() : 0
+  if (rightPublishedAt !== leftPublishedAt) {
+    return rightPublishedAt - leftPublishedAt
+  }
+
+  return Number(rightFlow?.id || 0) - Number(leftFlow?.id || 0)
+}
+
+function findBestTriggerMatch(flows, messageText) {
+  const normalizedMessage = normalizeTriggerText(messageText)
+  if (!normalizedMessage) return null
+
+  let bestFlow = null
+  let bestAlias = null
+
+  for (const flow of Array.isArray(flows) ? flows : []) {
+    for (const alias of splitTriggerKeywords(flow?.trigger_keyword)) {
+      if (!normalizedMessage.startsWith(alias.normalized)) {
+        continue
+      }
+
+      if (!bestFlow || compareFlowPriority(bestFlow, bestAlias, flow, alias) > 0) {
+        bestFlow = flow
+        bestAlias = alias
+      }
+    }
+  }
+
+  return bestFlow
+}
+
 function createFlowRepository(prisma) {
   function hasRawQuerySupport(client = prisma) {
     return typeof client?.$queryRawUnsafe === 'function' && typeof client?.$executeRawUnsafe === 'function'
@@ -47,6 +128,18 @@ function createFlowRepository(prisma) {
         409,
         'Nao foi possivel concluir a operacao porque este fluxo esta vinculado a outras informacoes.',
       )
+    }
+
+    if (databaseCode === '22001') {
+      const errorMessage = String(error?.message || '')
+      if (/trigger_keyword|character varying\(100\)/i.test(errorMessage)) {
+        throw new AppError(
+          500,
+          'Schema do banco desatualizado para gatilhos multiplos. Aplique o SQL prisma/sql/20260330_expand_flow_trigger_keyword_aliases.sql.',
+        )
+      }
+
+      throw new AppError(400, 'Um dos campos informados excede o limite permitido.')
     }
 
     throw error
@@ -181,16 +274,30 @@ function createFlowRepository(prisma) {
 
   async function publishFlow(id, triggerKeyword) {
     return withTransaction(async (tx) => {
-      await execute(
-        `UPDATE bot_flows
-         SET status = 'archived',
-             updated_at = NOW()
-         WHERE LOWER(trigger_keyword) = LOWER($1)
-           AND status = 'published'
-           AND id <> $2`,
-        [triggerKeyword, id],
+      const publishedRows = await query(
+        `SELECT id, name, trigger_keyword, flow_json, canvas_json, status, published_at, created_at, updated_at
+         FROM bot_flows
+         WHERE status = 'published'
+           AND id <> $1`,
+        [id],
         tx,
       )
+
+      for (const row of publishedRows) {
+        const publishedFlow = mapFlow(row)
+        if (!hasOverlappingTriggerAlias(publishedFlow.trigger_keyword, triggerKeyword)) {
+          continue
+        }
+
+        await execute(
+          `UPDATE bot_flows
+           SET status = 'archived',
+               updated_at = NOW()
+           WHERE id = $1`,
+          [publishedFlow.id],
+          tx,
+        )
+      }
 
       const rows = await query(
         `UPDATE bot_flows
@@ -260,13 +367,10 @@ function createFlowRepository(prisma) {
       `SELECT id, name, trigger_keyword, flow_json, canvas_json, status, published_at, created_at, updated_at
        FROM bot_flows
        WHERE status = 'published'
-         AND LOWER($1) LIKE LOWER(trigger_keyword) || '%'
-       ORDER BY LENGTH(trigger_keyword) DESC, published_at DESC NULLS LAST, id DESC
-       LIMIT 1`,
-      [keyword],
+       ORDER BY published_at DESC NULLS LAST, id DESC`,
     )
 
-    return rows[0] ? mapFlow(rows[0]) : null
+    return findBestTriggerMatch(rows.map((row) => mapFlow(row)), keyword)
   }
 
   async function getClientSession(phone) {
@@ -430,4 +534,10 @@ function createFlowRepository(prisma) {
   }
 }
 
-module.exports = { createFlowRepository }
+module.exports = {
+  createFlowRepository,
+  findBestTriggerMatch,
+  hasOverlappingTriggerAlias,
+  normalizeTriggerText,
+  splitTriggerKeywords,
+}

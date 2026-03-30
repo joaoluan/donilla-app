@@ -259,14 +259,28 @@ test('parseMemberPhone preserva telefone legado sem prefixar 55 na rota de exclu
 test('validateCreateFlow deve aceitar template legado opcional', () => {
   const flow = validateCreateFlow({
     name: 'Fluxo legado guiado',
-    trigger_keyword: 'oi',
+    trigger_keyword: 'oi, ola, olá',
     template_key: 'legacy_whatsapp_bot',
   })
 
   assert.deepEqual(flow, {
     name: 'Fluxo legado guiado',
-    trigger_keyword: 'oi',
+    trigger_keyword: 'oi, ola, olá',
     template_key: 'legacy_whatsapp_bot',
+  })
+})
+
+test('validateCreateFlow deve aceitar template comercial pronto', () => {
+  const flow = validateCreateFlow({
+    name: 'Fluxo comercial inicial',
+    trigger_keyword: 'oi, ola, olá, boa noite',
+    template_key: 'commercial_whatsapp_starter',
+  })
+
+  assert.deepEqual(flow, {
+    name: 'Fluxo comercial inicial',
+    trigger_keyword: 'oi, ola, olá, boa noite',
+    template_key: 'commercial_whatsapp_starter',
   })
 })
 

@@ -24,6 +24,9 @@
   --node-condition: #7a4aa2;
   --node-wait: #7a5533;
   --node-tag: #2f7c55;
+  --node-input: #225e7c;
+  --node-order: #7f5134;
+  --node-observation: #8a3c58;
   --node-handoff: #9d4a46;
   --node-end: #575c62;
 }
@@ -665,6 +668,18 @@ button {
   border-left-color: var(--node-tag);
 }
 
+.builder-block-input {
+  border-left-color: var(--node-input);
+}
+
+.builder-block-order {
+  border-left-color: var(--node-order);
+}
+
+.builder-block-observation {
+  border-left-color: var(--node-observation);
+}
+
 .builder-block-handoff {
   border-left-color: var(--node-handoff);
 }
@@ -817,6 +832,18 @@ button {
   background: var(--node-tag);
 }
 
+.flow-node[data-type="input"]::before {
+  background: var(--node-input);
+}
+
+.flow-node[data-type="order_lookup"]::before {
+  background: var(--node-order);
+}
+
+.flow-node[data-type="save_observation"]::before {
+  background: var(--node-observation);
+}
+
 .flow-node[data-type="handoff"]::before {
   background: var(--node-handoff);
 }
@@ -869,6 +896,21 @@ button {
 .flow-node[data-type="tag"] .flow-node-type {
   color: var(--node-tag);
   background: rgba(47, 124, 85, 0.12);
+}
+
+.flow-node[data-type="input"] .flow-node-type {
+  color: var(--node-input);
+  background: rgba(34, 94, 124, 0.12);
+}
+
+.flow-node[data-type="order_lookup"] .flow-node-type {
+  color: var(--node-order);
+  background: rgba(127, 81, 52, 0.12);
+}
+
+.flow-node[data-type="save_observation"] .flow-node-type {
+  color: var(--node-observation);
+  background: rgba(138, 60, 88, 0.12);
 }
 
 .flow-node[data-type="handoff"] .flow-node-type {
@@ -1121,6 +1163,42 @@ button {
 
 .builder-legend-dot-amber {
   background: var(--flow-highlight);
+}
+
+.builder-variable-guide {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--flow-line);
+}
+
+.builder-variable-guide p {
+  margin: 8px 0 12px;
+  color: var(--flow-muted);
+  line-height: 1.55;
+}
+
+.builder-variable-list {
+  display: grid;
+  gap: 8px;
+}
+
+.builder-variable-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--flow-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.builder-variable-card code {
+  color: var(--flow-info);
+  font-weight: 700;
+}
+
+.builder-variable-card small {
+  color: var(--flow-muted);
+  line-height: 1.45;
 }
 
 @media (max-width: 1240px) {

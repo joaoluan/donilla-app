@@ -23,8 +23,9 @@
         </div>
         <div class="flow-topbar-actions">
           <button id="refreshFlowsBtn" class="flow-btn-ghost" type="button">Atualizar</button>
+          <button id="newStarterFlowBtn" class="flow-btn" type="button">Fluxo comercial pronto</button>
           <button id="importLegacyFlowBtn" class="flow-btn-ghost" type="button">Importar legado</button>
-          <button id="newFlowBtn" class="flow-btn" type="button">Novo fluxo</button>
+          <button id="newFlowBtn" class="flow-btn-ghost" type="button">Novo em branco</button>
         </div>
       </header>
 
@@ -107,9 +108,9 @@
           </div>
           <div class="flow-field">
             <label for="newFlowTrigger">Gatilho inicial</label>
-            <input id="newFlowTrigger" name="trigger_keyword" placeholder="Ex.: oi" required />
+            <input id="newFlowTrigger" name="trigger_keyword" placeholder="Ex.: oi, ola, olá, boa noite" required />
           </div>
-          <p id="newFlowStatus" class="flow-card-status" data-tone="muted">Use um gatilho simples para testar mais rápido.</p>
+          <p id="newFlowStatus" class="flow-card-status" data-tone="muted">Você pode separar vários gatilhos por vírgula para cobrir jeitos diferentes de escrever.</p>
           <div class="flow-dialog-actions">
             <button class="flow-btn-ghost" type="button" data-dialog-close>Cancelar</button>
             <button id="newFlowSubmitBtn" class="flow-btn" type="submit">Criar e abrir editor</button>
@@ -120,7 +121,7 @@
 
     <div id="flowToast" class="flow-toast hidden" data-tone="ok" aria-live="polite"></div>
 
-    <script type="module" src="/assets/admin/flows-list.js?v=20260330a"></script>
+    <script type="module" src="/assets/admin/flows-list.js?v=20260330c"></script>
     <script>
       document.addEventListener('click', function (event) {
         const closeButton = event.target.closest('[data-dialog-close]');

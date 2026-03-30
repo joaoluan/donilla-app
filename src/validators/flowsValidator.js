@@ -2,8 +2,21 @@ const { z } = require('zod')
 const { AppError } = require('../utils/errors')
 
 const positiveInt = z.coerce.number().int().positive()
-const FLOW_NODE_TYPES = ['trigger', 'message', 'menu', 'condition', 'wait', 'tag', 'end', 'handoff']
-const FLOW_TEMPLATE_KEYS = ['legacy_whatsapp_bot']
+const FLOW_NODE_TYPES = [
+  'trigger',
+  'message',
+  'menu',
+  'condition',
+  'wait',
+  'tag',
+  'input',
+  'order_lookup',
+  'save_observation',
+  'end',
+  'handoff',
+]
+const FLOW_TEMPLATE_KEYS = ['legacy_whatsapp_bot', 'commercial_whatsapp_starter']
+const FLOW_INPUT_VARIABLE_KEY = /^[a-z][a-z0-9_]{1,39}$/
 
 function normalizeOptionalString(value, max = 255) {
   if (value === null || value === undefined) return null
@@ -38,6 +51,15 @@ function normalizeNodeType(value) {
   const normalized = String(value || '').trim().toLowerCase()
   if (!FLOW_NODE_TYPES.includes(normalized)) {
     throw new AppError(400, 'Tipo de no invalido.')
+  }
+
+  return normalized
+}
+
+function normalizeVariableKey(value, label = 'Nome da variavel') {
+  const normalized = normalizeRequiredString(value, label, 40).toLowerCase()
+  if (!FLOW_INPUT_VARIABLE_KEY.test(normalized)) {
+    throw new AppError(400, `${label} invalido. Use letras minusculas, numeros e underscore.`)
   }
 
   return normalized
@@ -85,6 +107,24 @@ function normalizeFlowMeta(input = {}) {
   }
 
   return meta
+}
+
+function normalizePhoneSource(value) {
+  const normalized = String(value || 'current_phone').trim().toLowerCase()
+  if (!['current_phone', 'variable'].includes(normalized)) {
+    throw new AppError(400, 'Origem do telefone invalida.')
+  }
+
+  return normalized
+}
+
+function normalizeLookupScope(value) {
+  const normalized = String(value || 'latest').trim().toLowerCase()
+  if (!['latest', 'active'].includes(normalized)) {
+    throw new AppError(400, 'Escopo da busca de pedido invalido.')
+  }
+
+  return normalized
 }
 
 function normalizeMenuOptions(options) {
@@ -177,6 +217,45 @@ function normalizeFlowNode(node) {
     }
   }
 
+  if (type === 'input') {
+    return {
+      ...base,
+      prompt: normalizeOptionalString(node?.prompt ?? node?.content, 2000) || '',
+      variable_key: normalizeVariableKey(node?.variable_key, 'Nome da variavel'),
+      next: normalizeNodeReference(node?.next),
+    }
+  }
+
+  if (type === 'order_lookup') {
+    const phoneSource = normalizePhoneSource(node?.phone_source)
+
+    return {
+      ...base,
+      lookup_scope: normalizeLookupScope(node?.lookup_scope),
+      phone_source: phoneSource,
+      phone_variable: phoneSource === 'variable'
+        ? normalizeVariableKey(node?.phone_variable, 'Variavel do telefone')
+        : null,
+      found: normalizeNodeReference(node?.found),
+      missing: normalizeNodeReference(node?.missing),
+    }
+  }
+
+  if (type === 'save_observation') {
+    const phoneSource = normalizePhoneSource(node?.phone_source)
+
+    return {
+      ...base,
+      variable_key: normalizeVariableKey(node?.variable_key, 'Variavel da observacao'),
+      phone_source: phoneSource,
+      phone_variable: phoneSource === 'variable'
+        ? normalizeVariableKey(node?.phone_variable, 'Variavel do telefone')
+        : null,
+      saved: normalizeNodeReference(node?.saved),
+      missing: normalizeNodeReference(node?.missing),
+    }
+  }
+
   if (type === 'handoff') {
     return {
       ...base,
@@ -228,6 +307,9 @@ function validateFlowGraph(input = {}) {
     ensureRefExists(node.next)
     ensureRefExists(node.yes)
     ensureRefExists(node.no)
+    ensureRefExists(node.found)
+    ensureRefExists(node.missing)
+    ensureRefExists(node.saved)
     if (Array.isArray(node.options)) {
       node.options.forEach((option) => ensureRefExists(option.next))
     }
@@ -256,7 +338,7 @@ function parseFlowId(value) {
 function validateCreateFlow(input = {}) {
   return {
     name: normalizeRequiredString(input?.name, 'Nome do fluxo', 255),
-    trigger_keyword: normalizeRequiredString(input?.trigger_keyword, 'Gatilho', 100),
+    trigger_keyword: normalizeRequiredString(input?.trigger_keyword, 'Gatilho', 255),
     template_key: normalizeTemplateKey(input?.template_key),
   }
 }
@@ -264,7 +346,7 @@ function validateCreateFlow(input = {}) {
 function validateUpdateFlow(input = {}) {
   return {
     name: normalizeRequiredString(input?.name, 'Nome do fluxo', 255),
-    trigger_keyword: normalizeRequiredString(input?.trigger_keyword, 'Gatilho', 100),
+    trigger_keyword: normalizeRequiredString(input?.trigger_keyword, 'Gatilho', 255),
     flow_json: validateFlowGraph(input?.flow_json || {}),
     canvas_json: normalizeCanvas(input?.canvas_json),
   }

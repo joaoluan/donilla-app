@@ -138,4 +138,18 @@ SMOKE_ADMIN_USERNAME="${ADMIN_USERNAME}" \
 SMOKE_ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
 bash ./scripts/run-flow-builder-smoke.sh
 
+log_step "Rodando smoke do Flow Builder com fluxo comercial pronto"
+SMOKE_BASE_URL="${BASE_URL}" \
+SMOKE_ADMIN_USERNAME="${ADMIN_USERNAME}" \
+SMOKE_ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
+SMOKE_FLOW_CREATION_MODE=starter \
+bash ./scripts/run-flow-builder-smoke.sh
+
+log_step "Rodando smoke do Flow Builder com importacao do legado"
+SMOKE_BASE_URL="${BASE_URL}" \
+SMOKE_ADMIN_USERNAME="${ADMIN_USERNAME}" \
+SMOKE_ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
+SMOKE_FLOW_CREATION_MODE=legacy \
+bash ./scripts/run-flow-builder-smoke.sh
+
 log_step "Validacao predeploy concluida com sucesso"

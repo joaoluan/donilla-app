@@ -8,9 +8,33 @@ import {
   showToast,
 } from './flows-shared.js?v=20260330a';
 
-const ADDABLE_NODE_TYPES = ['message', 'menu', 'condition', 'wait', 'tag', 'handoff', 'end'];
-const SINGLE_NEXT_NODE_TYPES = new Set(['trigger', 'message', 'wait', 'tag']);
+const ADDABLE_NODE_TYPES = ['message', 'menu', 'input', 'order_lookup', 'save_observation', 'condition', 'wait', 'tag', 'handoff', 'end'];
+const SINGLE_NEXT_NODE_TYPES = new Set(['trigger', 'message', 'input', 'wait', 'tag']);
 const LEGACY_TEMPLATE_KEY = 'legacy_whatsapp_bot';
+const COMMERCIAL_STARTER_TEMPLATE_KEY = 'commercial_whatsapp_starter';
+const FLOW_VARIABLES = Object.freeze([
+  { key: 'cliente_nome', description: 'Nome recebido do contato atual.' },
+  { key: 'cliente_primeiro_nome', description: 'Primeiro nome do contato.' },
+  { key: 'cliente_telefone', description: 'Telefone atual da conversa.' },
+  { key: 'mensagem_recebida', description: 'Ultima mensagem enviada pelo cliente.' },
+  { key: 'fluxo_nome', description: 'Nome do fluxo atual.' },
+  { key: 'gatilho_fluxo', description: 'Gatilho principal do fluxo.' },
+  { key: 'loja_link', description: 'Link publico da loja quando configurado.' },
+  { key: 'pedido_resumo', description: 'Resumo do pedido encontrado pelo bloco de busca.' },
+  { key: 'pedido_id', description: 'Numero do pedido encontrado.' },
+  { key: 'pedido_status_label', description: 'Status do pedido em texto humano.' },
+  { key: 'pedido_pagamento_label', description: 'Status do pagamento em texto humano.' },
+  { key: 'pedido_total', description: 'Valor total formatado em BRL.' },
+  { key: 'pedido_tracking_url', description: 'Link publico de rastreio do pedido.' },
+  { key: 'pedido_observacoes', description: 'Observacoes atuais do pedido.' },
+  { key: 'pedido_telefone_consulta', description: 'Telefone usado na ultima busca de pedido.' },
+  { key: 'menu_opcao_escolhida', description: 'Numero escolhido no ultimo menu.' },
+  { key: 'menu_opcao_rotulo', description: 'Rotulo escolhido no ultimo menu.' },
+  { key: 'interesse_cliente', description: 'Exemplo de variavel capturada para saber o que o cliente procura.' },
+  { key: 'bairro_cliente', description: 'Exemplo de variavel capturada para entrega ou atendimento local.' },
+  { key: 'lookup_phone', description: 'Telefone informado pelo cliente para buscar pedido em outro WhatsApp.' },
+  { key: 'observacao_cliente', description: 'Texto livre capturado para registrar observacoes no pedido.' },
+]);
 
 const NODE_DEFINITIONS = Object.freeze({
   trigger: {
@@ -90,6 +114,52 @@ const NODE_DEFINITIONS = Object.freeze({
       };
     },
   },
+  input: {
+    label: 'Capturar resposta',
+    description: 'Pergunta algo, espera texto livre e salva em uma variavel.',
+    className: 'builder-block-input',
+    create(id) {
+      return {
+        id,
+        type: 'input',
+        prompt: 'Me conte com suas palavras o que voce precisa.',
+        variable_key: 'resposta_cliente',
+        next: null,
+      };
+    },
+  },
+  order_lookup: {
+    label: 'Buscar pedido',
+    description: 'Procura o ultimo pedido do cliente e abre caminhos de encontrado ou nao.',
+    className: 'builder-block-order',
+    create(id) {
+      return {
+        id,
+        type: 'order_lookup',
+        lookup_scope: 'latest',
+        phone_source: 'current_phone',
+        phone_variable: null,
+        found: null,
+        missing: null,
+      };
+    },
+  },
+  save_observation: {
+    label: 'Salvar observacao',
+    description: 'Pega uma variavel capturada e registra no pedido em andamento.',
+    className: 'builder-block-observation',
+    create(id) {
+      return {
+        id,
+        type: 'save_observation',
+        variable_key: 'observacao_cliente',
+        phone_source: 'current_phone',
+        phone_variable: null,
+        saved: null,
+        missing: null,
+      };
+    },
+  },
   handoff: {
     label: 'Handoff',
     description: 'Pausa o bot e passa para atendimento humano.',
@@ -145,6 +215,7 @@ const dom = {
   centerBtn: document.getElementById('builderCenterBtn'),
   autoLayoutBtn: document.getElementById('builderAutoLayoutBtn'),
   blockList: document.getElementById('builderBlockList'),
+  variableList: document.getElementById('builderVariableList'),
   viewport: document.getElementById('builderViewport'),
   canvas: document.getElementById('builderCanvas'),
   connections: document.getElementById('builderConnections'),
@@ -211,18 +282,24 @@ function syncHeader() {
 
 function syncTemplateNotice() {
   const meta = state.flowMeta || {};
-  const isLegacyGuide = meta.template_key === LEGACY_TEMPLATE_KEY;
+  const templateKey = String(meta.template_key || '').trim();
+  const hasTemplateGuide = Boolean(templateKey);
+  const extraNoticeByTemplate = {
+    [LEGACY_TEMPLATE_KEY]: 'Esse rascunho consolida o menu principal em um canvas visual, mas ainda precisa de adaptacao antes de substituir o atendimento antigo.',
+    [COMMERCIAL_STARTER_TEMPLATE_KEY]: 'Esse rascunho ja vem com acolhimento comercial, captura de interesse, recuperacao de pedido e handoff. Edite os textos com o jeito da sua loja antes de publicar.',
+  };
 
-  dom.templateNotice.classList.toggle('hidden', !isLegacyGuide);
-  if (!isLegacyGuide) {
+  dom.templateNotice.classList.toggle('hidden', !hasTemplateGuide);
+  if (!hasTemplateGuide) {
+    dom.templateNoticeTitle.textContent = 'Fluxo inicial';
     dom.templateNoticeText.textContent = '';
     return;
   }
 
-  dom.templateNoticeTitle.textContent = meta.template_label || 'Fluxo legado guiado';
+  dom.templateNoticeTitle.textContent = meta.template_label || 'Fluxo inicial pronto';
   dom.templateNoticeText.textContent = [
-    meta.template_description || 'Mapa inicial baseado no bot legado atual do WhatsApp.',
-    'Esse rascunho consolida o menu principal em um canvas visual, mas ainda precisa de adaptacao antes de substituir o atendimento antigo.',
+    meta.template_description || 'Rascunho inicial pronto para personalizacao.',
+    extraNoticeByTemplate[templateKey] || 'Revise as conexoes, ajuste o texto e publique quando estiver seguro.',
   ].join(' ');
 }
 
@@ -240,6 +317,19 @@ function renderToolbar() {
     .join('');
 }
 
+function renderVariableGuide() {
+  if (!dom.variableList) return;
+
+  dom.variableList.innerHTML = FLOW_VARIABLES
+    .map((item) => `
+      <article class="builder-variable-card">
+        <code>{${escapeHtml(item.key)}}</code>
+        <small>${escapeHtml(item.description)}</small>
+      </article>
+    `)
+    .join('');
+}
+
 function getNodePorts(node) {
   if (node.type === 'menu') {
     return (node.options || []).map((option, index) => ({
@@ -253,6 +343,20 @@ function getNodePorts(node) {
     return [
       { key: 'yes', label: 'Sim', target: node.yes || null },
       { key: 'no', label: 'Não', target: node.no || null },
+    ];
+  }
+
+  if (node.type === 'order_lookup') {
+    return [
+      { key: 'found', label: 'Encontrado', target: node.found || null },
+      { key: 'missing', label: 'Nao', target: node.missing || null },
+    ];
+  }
+
+  if (node.type === 'save_observation') {
+    return [
+      { key: 'saved', label: 'Salvo', target: node.saved || null },
+      { key: 'missing', label: 'Sem pedido', target: node.missing || null },
     ];
   }
 
@@ -288,6 +392,38 @@ function buildNodeBody(node) {
     return `<div class="flow-node-copy">Adiciona a tag <strong>${escapeHtml(node.tag_name || '--')}</strong> no cliente atual.</div>`;
   }
 
+  if (node.type === 'input') {
+    return `
+      <div class="flow-node-copy">${escapeHtml(summarize(node.prompt, 110))}</div>
+      <div class="flow-node-divider"></div>
+      <div class="flow-node-copy">Salva em <strong>{${escapeHtml(node.variable_key || '--')}}</strong></div>
+    `;
+  }
+
+  if (node.type === 'order_lookup') {
+    const scopeLabel = node.lookup_scope === 'active' ? 'Pedido em andamento' : 'Ultimo pedido';
+    const phoneLabel = node.phone_source === 'variable'
+      ? `Variavel {${node.phone_variable || '--'}}`
+      : 'Telefone da conversa';
+
+    return `
+      <div class="flow-node-copy"><strong>${escapeHtml(scopeLabel)}</strong></div>
+      <div class="flow-node-copy">Consulta por <strong>${escapeHtml(phoneLabel)}</strong>.</div>
+    `;
+  }
+
+  if (node.type === 'save_observation') {
+    const phoneLabel = node.phone_source === 'variable'
+      ? `Variavel {${node.phone_variable || '--'}}`
+      : 'Telefone da conversa';
+
+    return `
+      <div class="flow-node-copy">Usa <strong>{${escapeHtml(node.variable_key || '--')}}</strong> como texto da observacao.</div>
+      <div class="flow-node-divider"></div>
+      <div class="flow-node-copy">Tenta salvar no pedido ativo encontrado por <strong>${escapeHtml(phoneLabel)}</strong>.</div>
+    `;
+  }
+
   if (node.type === 'handoff') {
     return `<div class="flow-node-copy">${escapeHtml(summarize(node.content, 120))}</div>`;
   }
@@ -297,7 +433,7 @@ function buildNodeBody(node) {
   }
 
   if (node.type === 'trigger') {
-    return `<div class="flow-node-copy">Escuta o gatilho principal deste fluxo: <strong>${escapeHtml(state.flow?.trigger_keyword || '--')}</strong>.</div>`;
+    return `<div class="flow-node-copy">Escuta os gatilhos deste fluxo: <strong>${escapeHtml(state.flow?.trigger_keyword || '--')}</strong>.</div>`;
   }
 
   return `<div class="flow-node-copy">${escapeHtml(summarize(node.content, 120))}</div>`;
@@ -452,9 +588,9 @@ function renderInspector() {
   if (node.type === 'trigger') {
     content = `
       <div class="builder-field">
-        <label for="inspectorTriggerKeyword">Palavra-chave gatilho</label>
+        <label for="inspectorTriggerKeyword">Gatilhos do fluxo</label>
         <input id="inspectorTriggerKeyword" data-flow-field="trigger_keyword" value="${escapeHtml(state.flow?.trigger_keyword || '')}" />
-        <small class="builder-field-hint">Quando a mensagem começar com esse texto, este fluxo entra em ação.</small>
+        <small class="builder-field-hint">Separe varios gatilhos por virgula. O sistema ignora acentos, caixa alta e escolhe a melhor coincidencia do inicio da mensagem.</small>
       </div>
     `;
   } else if (node.type === 'message' || node.type === 'handoff') {
@@ -462,7 +598,7 @@ function renderInspector() {
       <div class="builder-field">
         <label for="inspectorNodeContent">Texto da mensagem</label>
         <textarea id="inspectorNodeContent" data-node-field="content">${escapeHtml(node.content || '')}</textarea>
-        <small class="builder-field-hint">Quebras de linha são respeitadas e aparecem no WhatsApp.</small>
+        <small class="builder-field-hint">Quebras de linha são respeitadas. Você pode usar variáveis como {cliente_nome}, {loja_link} e {pedido_resumo}.</small>
       </div>
     `;
   } else if (node.type === 'menu') {
@@ -470,6 +606,7 @@ function renderInspector() {
       <div class="builder-field">
         <label for="inspectorMenuContent">Pergunta do menu</label>
         <textarea id="inspectorMenuContent" data-node-field="content">${escapeHtml(node.content || '')}</textarea>
+        <small class="builder-field-hint">O texto aceita variáveis. As opções ficam numeradas automaticamente no WhatsApp.</small>
       </div>
       <div class="builder-field">
         <label>Opções</label>
@@ -511,6 +648,67 @@ function renderInspector() {
         <label for="inspectorTagName">Nome da tag</label>
         <input id="inspectorTagName" data-node-field="tag_name" value="${escapeHtml(node.tag_name || '')}" />
         <small class="builder-field-hint">A tag será adicionada na tabela de clientes quando este nó rodar.</small>
+      </div>
+    `;
+  } else if (node.type === 'input') {
+    content = `
+      <div class="builder-field">
+        <label for="inspectorInputPrompt">Pergunta enviada ao cliente</label>
+        <textarea id="inspectorInputPrompt" data-node-field="prompt">${escapeHtml(node.prompt || '')}</textarea>
+        <small class="builder-field-hint">Assim que este bloco rodar, o fluxo espera uma resposta livre do cliente.</small>
+      </div>
+      <div class="builder-field">
+        <label for="inspectorInputVariable">Variável onde salvar</label>
+        <input id="inspectorInputVariable" data-node-field="variable_key" value="${escapeHtml(node.variable_key || '')}" />
+        <small class="builder-field-hint">Use letras minúsculas, números e underscore. Depois você pode usar {${escapeHtml(node.variable_key || 'variavel')}} nas mensagens.</small>
+      </div>
+    `;
+  } else if (node.type === 'order_lookup') {
+    content = `
+      <div class="builder-field">
+        <label for="inspectorOrderLookupScope">Qual pedido procurar</label>
+        <select id="inspectorOrderLookupScope" data-node-field="lookup_scope">
+          <option value="latest" ${node.lookup_scope !== 'active' ? 'selected' : ''}>Último pedido</option>
+          <option value="active" ${node.lookup_scope === 'active' ? 'selected' : ''}>Pedido em andamento</option>
+        </select>
+      </div>
+      <div class="builder-field">
+        <label for="inspectorOrderPhoneSource">Telefone da busca</label>
+        <select id="inspectorOrderPhoneSource" data-node-field="phone_source">
+          <option value="current_phone" ${node.phone_source !== 'variable' ? 'selected' : ''}>Telefone da conversa atual</option>
+          <option value="variable" ${node.phone_source === 'variable' ? 'selected' : ''}>Usar uma variável capturada</option>
+        </select>
+      </div>
+      <div class="builder-field ${node.phone_source === 'variable' ? '' : 'hidden'}" data-conditional-field="phone_variable">
+        <label for="inspectorOrderPhoneVariable">Variável do telefone</label>
+        <input id="inspectorOrderPhoneVariable" data-node-field="phone_variable" value="${escapeHtml(node.phone_variable || '')}" />
+        <small class="builder-field-hint">Ex.: lookup_phone. Esse valor costuma vir de um bloco “Capturar resposta”.</small>
+      </div>
+      <div class="builder-empty-state">
+        Quando encontra um pedido, libera variáveis como {pedido_id}, {pedido_resumo}, {pedido_tracking_url} e {pedido_status_label}.
+      </div>
+    `;
+  } else if (node.type === 'save_observation') {
+    content = `
+      <div class="builder-field">
+        <label for="inspectorObservationVariable">Variável com a observação</label>
+        <input id="inspectorObservationVariable" data-node-field="variable_key" value="${escapeHtml(node.variable_key || '')}" />
+        <small class="builder-field-hint">Normalmente essa variável vem de um bloco “Capturar resposta”.</small>
+      </div>
+      <div class="builder-field">
+        <label for="inspectorObservationPhoneSource">Telefone do pedido</label>
+        <select id="inspectorObservationPhoneSource" data-node-field="phone_source">
+          <option value="current_phone" ${node.phone_source !== 'variable' ? 'selected' : ''}>Telefone da conversa atual</option>
+          <option value="variable" ${node.phone_source === 'variable' ? 'selected' : ''}>Usar uma variável capturada</option>
+        </select>
+      </div>
+      <div class="builder-field ${node.phone_source === 'variable' ? '' : 'hidden'}" data-conditional-field="phone_variable">
+        <label for="inspectorObservationPhoneVariable">Variável do telefone</label>
+        <input id="inspectorObservationPhoneVariable" data-node-field="phone_variable" value="${escapeHtml(node.phone_variable || '')}" />
+        <small class="builder-field-hint">Ex.: lookup_phone.</small>
+      </div>
+      <div class="builder-empty-state">
+        Este bloco tenta registrar a observação no pedido em andamento. Se conseguir, você pode usar {pedido_observacoes} e {pedido_id} no próximo texto.
       </div>
     `;
   } else if (node.type === 'end') {
@@ -579,6 +777,18 @@ function setNodeConnection(node, portKey, targetNodeId) {
     return;
   }
 
+  if (node.type === 'order_lookup') {
+    if (portKey === 'found') node.found = targetNodeId;
+    if (portKey === 'missing') node.missing = targetNodeId;
+    return;
+  }
+
+  if (node.type === 'save_observation') {
+    if (portKey === 'saved') node.saved = targetNodeId;
+    if (portKey === 'missing') node.missing = targetNodeId;
+    return;
+  }
+
   if (SINGLE_NEXT_NODE_TYPES.has(node.type)) {
     node.next = targetNodeId;
   }
@@ -589,6 +799,9 @@ function clearReferencesToNode(targetNodeId) {
     if (node.next === targetNodeId) node.next = null;
     if (node.yes === targetNodeId) node.yes = null;
     if (node.no === targetNodeId) node.no = null;
+    if (node.found === targetNodeId) node.found = null;
+    if (node.saved === targetNodeId) node.saved = null;
+    if (node.missing === targetNodeId) node.missing = null;
     if (Array.isArray(node.options)) {
       node.options.forEach((option) => {
         if (option.next === targetNodeId) option.next = null;
@@ -641,6 +854,9 @@ function duplicateNode(nodeId) {
   if (clone.next !== undefined) clone.next = null;
   if (clone.yes !== undefined) clone.yes = null;
   if (clone.no !== undefined) clone.no = null;
+  if (clone.found !== undefined) clone.found = null;
+  if (clone.saved !== undefined) clone.saved = null;
+  if (clone.missing !== undefined) clone.missing = null;
   if (Array.isArray(clone.options)) {
     clone.options = clone.options.map((option) => ({ ...option, next: null }));
   }
@@ -765,7 +981,7 @@ function buildPayload() {
   }
 
   if (!triggerKeyword) {
-    throw new Error('Informe um gatilho para o fluxo.');
+    throw new Error('Informe ao menos um gatilho para o fluxo.');
   }
 
   return {
@@ -797,7 +1013,7 @@ async function saveFlow() {
 }
 
 async function publishFlow() {
-  const confirmed = window.confirm('Tem certeza? O fluxo publicado para este gatilho será substituído.');
+  const confirmed = window.confirm('Tem certeza? Fluxos publicados com os mesmos gatilhos ou aliases serão substituídos.');
   if (!confirmed) return;
 
   try {
@@ -841,6 +1057,13 @@ function handleNodeFieldChange(field, value) {
 
   if (field === 'seconds') {
     node.seconds = Math.max(1, Math.min(86400, Number.parseInt(value, 10) || 1));
+  } else if (field === 'phone_source') {
+    node.phone_source = value === 'variable' ? 'variable' : 'current_phone';
+    if (node.phone_source !== 'variable') {
+      node.phone_variable = null;
+    }
+  } else if (field === 'lookup_scope') {
+    node.lookup_scope = value === 'active' ? 'active' : 'latest';
   } else {
     node[field] = value;
   }
@@ -1154,6 +1377,7 @@ window.addEventListener('beforeunload', (event) => {
 (async function bootstrap() {
   try {
     renderToolbar();
+    renderVariableGuide();
     await session.ensureSession();
     await loadFlow();
   } catch (error) {
