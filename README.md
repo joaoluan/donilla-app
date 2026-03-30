@@ -170,6 +170,7 @@ Fluxos automáticos:
 - pedido criado: o backend notifica o cliente
 - status atualizado no painel: o backend notifica o cliente
 - mensagens recebidas no WhatsApp: o bot responde `status 123`, `pedido 123` e `ultimo pedido`
+- campanhas de disparo: o sistema envia uma saudacao randômica, espera a resposta do cliente por ate 24h e so entao libera a mensagem principal
 - teste manual: o botão `Testar integracao` chama `POST /admin/whatsapp/test`
 
 Configuração obrigatória no ambiente:
@@ -224,3 +225,5 @@ Antes de subir a API, aplique também:
 - `prisma/sql/20260323_add_asaas_webhook_events.sql`
 - `prisma/sql/20260323_add_pedidos_auditoria.sql`
 - `prisma/sql/20260325_add_store_hours_schedule.sql`
+- `prisma/sql/20260330_add_broadcast_module.sql`
+- `prisma/sql/20260330_add_broadcast_human_behavior.sql`

@@ -72,7 +72,12 @@ function createRouter(prisma, deps = {}) {
   const whatsappTransport = deps.whatsappTransport || createWppConnectService()
   const whatsappNotifier = deps.whatsappNotifier || createWhatsAppNotificationService({ transportService: whatsappTransport })
   const adminEvents = deps.adminEventsBroker || createAdminEventsBroker()
-  const whatsappBot = whatsappController(createWhatsAppBotService(prisma, { transportService: whatsappTransport }))
+  const broadcastService = createBroadcastService(prisma, { whatsappTransport, logger: deps.logger })
+  const whatsappBot = whatsappController(createWhatsAppBotService(prisma, {
+    transportService: whatsappTransport,
+    logger: deps.logger,
+    broadcastService,
+  }))
   const asaas = deps.asaasService || createAsaasService()
   const categorias = categoriasController(categoriasService(prisma))
   const produtos = produtosController(produtosService(prisma))
@@ -91,9 +96,7 @@ function createRouter(prisma, deps = {}) {
     adminPanelService(prisma, { whatsappNotifier, whatsappTransport, adminEvents }),
     { adminEvents },
   )
-  const broadcast = broadcastController(
-    createBroadcastService(prisma, { whatsappTransport, logger: deps.logger }),
-  )
+  const broadcast = broadcastController(broadcastService)
 
   return async function route(req, res, method, path, url) {
     if (method === 'GET' && path === '/health') {

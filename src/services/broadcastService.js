@@ -5,6 +5,7 @@ const CAMPAIGN_STATUS = {
   draft: 'draft',
   scheduled: 'scheduled',
   running: 'running',
+  awaiting_reply: 'awaiting_reply',
   done: 'done',
   failed: 'failed',
 }
@@ -12,11 +13,24 @@ const CAMPAIGN_STATUS = {
 const LOG_STATUS = {
   pending: 'pending',
   sent: 'sent',
+  greeting_sent: 'greeting_sent',
+  replied: 'replied',
+  completed: 'completed',
+  no_response: 'no_response',
   failed: 'failed',
 }
 
-const MIN_DELAY_MS = 3000
-const MAX_DELAY_MS = 6000
+const INTERACTION_STATUS = {
+  greeting_sent: 'greeting_sent',
+  replied: 'replied',
+  completed: 'completed',
+  no_response: 'no_response',
+  failed: 'failed',
+}
+
+const DEFAULT_MIN_DELAY_MS = 2 * 60 * 1000
+const DEFAULT_MAX_DELAY_MS = 3 * 60 * 1000
+const DEFAULT_REPLY_TIMEOUT_MS = 24 * 60 * 60 * 1000
 const MAX_TIMEOUT_MS = 2_147_483_647
 
 function createBroadcastService(prisma, deps = {}) {
@@ -24,11 +38,28 @@ function createBroadcastService(prisma, deps = {}) {
   const logger = deps.logger || console
   const nowProvider = typeof deps.nowProvider === 'function' ? deps.nowProvider : () => new Date()
   const randomProvider = typeof deps.randomProvider === 'function' ? deps.randomProvider : Math.random
+  const setTimeoutFn = typeof deps.setTimeoutFn === 'function' ? deps.setTimeoutFn : setTimeout
+  const clearTimeoutFn = typeof deps.clearTimeoutFn === 'function' ? deps.clearTimeoutFn : clearTimeout
+  const sleepImpl = typeof deps.sleepImpl === 'function'
+    ? deps.sleepImpl
+    : (ms) => new Promise((resolve) => {
+      setTimeoutFn(resolve, ms)
+    })
+  const minDelayMs = Math.max(0, toFiniteNumber(deps.minDelayMs, DEFAULT_MIN_DELAY_MS))
+  const maxDelayMs = Math.max(minDelayMs, toFiniteNumber(deps.maxDelayMs, DEFAULT_MAX_DELAY_MS))
+  const replyTimeoutMs = Math.max(60_000, toFiniteNumber(deps.replyTimeoutMs, DEFAULT_REPLY_TIMEOUT_MS))
   const scheduledTimers = new Map()
+  const interactionTimers = new Map()
   const runningCampaigns = new Map()
+  const processingReplyInteractions = new Set()
   let bootstrapPromise = null
   let memberPhoneNormalizationPromise = null
   let memberPhoneNormalizationDone = false
+
+  function toFiniteNumber(value, fallback) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
 
   function hasRawQuerySupport() {
     return typeof prisma?.$queryRawUnsafe === 'function' && typeof prisma?.$executeRawUnsafe === 'function'
@@ -66,7 +97,7 @@ function createBroadcastService(prisma, deps = {}) {
     if (['42P01', '42703'].includes(databaseCode) || isMissingSchemaError(error)) {
       throw new AppError(
         500,
-        'Schema do banco desatualizado. Aplique o SQL prisma/sql/20260330_add_broadcast_module.sql antes de usar os disparos.',
+        'Schema do banco desatualizado. Aplique os SQLs prisma/sql/20260330_add_broadcast_module.sql e prisma/sql/20260330_add_broadcast_human_behavior.sql antes de usar os disparos.',
       )
     }
 
@@ -115,13 +146,11 @@ function createBroadcastService(prisma, deps = {}) {
   }
 
   function getRandomDelayMs() {
-    return MIN_DELAY_MS + Math.floor(randomProvider() * (MAX_DELAY_MS - MIN_DELAY_MS + 1))
+    return minDelayMs + Math.floor(randomProvider() * (maxDelayMs - minDelayMs + 1))
   }
 
   function sleep(ms) {
-    return new Promise((resolve) => {
-      setTimeout(resolve, ms)
-    })
+    return sleepImpl(ms)
   }
 
   function toNumber(value, fallback = 0) {
@@ -154,6 +183,45 @@ function createBroadcastService(prisma, deps = {}) {
     ])
   }
 
+  function firstName(value) {
+    const normalized = trimNullable(value)
+    if (!normalized) return null
+    return normalized.split(/\s+/).filter(Boolean)[0] || null
+  }
+
+  function buildTimeGreetingLabel(reference = nowProvider()) {
+    const hour = new Date(reference).getHours()
+    if (hour < 12) return 'Bom dia'
+    if (hour < 18) return 'Boa tarde'
+    return 'Boa noite'
+  }
+
+  function chooseGreetingMessage(clientName) {
+    const name = firstName(clientName)
+    const timeGreeting = buildTimeGreetingLabel()
+    const candidates = dedupeStrings([
+      'Oi!',
+      'Ola!',
+      'Oi, tudo bem?',
+      'Ola! Tudo bem?',
+      name ? `Oi, ${name}!` : null,
+      name ? `${timeGreeting}, ${name}!` : `${timeGreeting}!`,
+    ])
+
+    if (!candidates.length) return 'Oi!'
+
+    const selectedIndex = Math.floor(randomProvider() * candidates.length)
+    return candidates[selectedIndex] || candidates[0]
+  }
+
+  function buildInteractionExpiryDate(reference = nowProvider()) {
+    return new Date(new Date(reference).getTime() + replyTimeoutMs)
+  }
+
+  function isGreetingDispatchStatus(status) {
+    return [LOG_STATUS.sent, LOG_STATUS.greeting_sent].includes(trimNullable(status))
+  }
+
   function mapList(row = {}) {
     return {
       id: toNumber(row.id),
@@ -176,9 +244,27 @@ function createBroadcastService(prisma, deps = {}) {
 
   function buildCampaignProgress(campaign = {}) {
     const total = toNumber(campaign.total_contacts)
-    const processed = toNumber(campaign.sent_count) + toNumber(campaign.failed_count)
+    const pendingLogs = toNumber(campaign.pending_logs_count)
+    const awaitingReply = toNumber(campaign.awaiting_reply_count)
+    const resolved = toNumber(campaign.completed_count) + toNumber(campaign.no_response_count) + toNumber(campaign.failed_count)
+    const status = trimNullable(campaign.status) || CAMPAIGN_STATUS.draft
+
     if (!total) return 0
-    return Math.max(0, Math.min(100, Math.round((processed / total) * 100)))
+
+    if (status === CAMPAIGN_STATUS.awaiting_reply || status === CAMPAIGN_STATUS.done) {
+      return Math.max(0, Math.min(100, Math.round((resolved / total) * 100)))
+    }
+
+    if (status === CAMPAIGN_STATUS.running) {
+      const attempted = Math.max(0, total - pendingLogs)
+      return Math.max(0, Math.min(100, Math.round((attempted / total) * 100)))
+    }
+
+    if (awaitingReply > 0) {
+      return Math.max(0, Math.min(100, Math.round((resolved / total) * 100)))
+    }
+
+    return Math.max(0, Math.min(100, Math.round((resolved / total) * 100)))
   }
 
   function mapCampaign(row = {}) {
@@ -195,6 +281,10 @@ function createBroadcastService(prisma, deps = {}) {
       total_contacts: toNumber(row.total_contacts),
       sent_count: toNumber(row.sent_count),
       failed_count: toNumber(row.failed_count),
+      pending_logs_count: toNumber(row.pending_logs_count),
+      awaiting_reply_count: toNumber(row.awaiting_reply_count),
+      completed_count: toNumber(row.completed_count),
+      no_response_count: toNumber(row.no_response_count),
       created_at: row.created_at || null,
       progress_percent: buildCampaignProgress(row),
     }
@@ -218,8 +308,51 @@ function createBroadcastService(prisma, deps = {}) {
       status: trimNullable(row.status) || LOG_STATUS.pending,
       error_message: trimNullable(row.error_message),
       sent_at: row.sent_at || null,
+      last_message_sent_at: row.last_message_sent_at || null,
+      greeting_sent_at: row.greeting_sent_at || null,
+      reply_received_at: row.reply_received_at || null,
+      main_message_sent_at: row.main_message_sent_at || null,
+      expires_at: row.expires_at || null,
+      interaction_status: trimNullable(row.interaction_status),
       created_at: row.created_at || null,
     }
+  }
+
+  function campaignLogSummaryJoinSql() {
+    return `
+      LEFT JOIN (
+        SELECT
+          campaign_id,
+          COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_logs_count,
+          COUNT(*) FILTER (WHERE status IN ('greeting_sent', 'replied'))::int AS awaiting_reply_count,
+          COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_count,
+          COUNT(*) FILTER (WHERE status = 'no_response')::int AS no_response_count
+        FROM broadcast_logs
+        GROUP BY campaign_id
+      ) log_summary ON log_summary.campaign_id = c.id
+    `
+  }
+
+  function campaignSelectColumnsSql() {
+    return `
+      c.id,
+      c.name,
+      c.message,
+      c.list_id,
+      l.name AS list_name,
+      c.status,
+      c.scheduled_at,
+      c.started_at,
+      c.finished_at,
+      c.total_contacts,
+      c.sent_count,
+      c.failed_count,
+      c.created_at,
+      COALESCE(log_summary.pending_logs_count, 0)::int AS pending_logs_count,
+      COALESCE(log_summary.awaiting_reply_count, 0)::int AS awaiting_reply_count,
+      COALESCE(log_summary.completed_count, 0)::int AS completed_count,
+      COALESCE(log_summary.no_response_count, 0)::int AS no_response_count
+    `
   }
 
   async function ensureListExists(listId) {
@@ -258,9 +391,11 @@ function createBroadcastService(prisma, deps = {}) {
   async function ensureCampaignExists(campaignId) {
     const rows = await query(
       `
-        SELECT c.*, l.name AS list_name
+        SELECT
+          ${campaignSelectColumnsSql()}
         FROM broadcast_campaigns c
         LEFT JOIN broadcast_lists l ON l.id = c.list_id
+        ${campaignLogSummaryJoinSql()}
         WHERE c.id = $1
         LIMIT 1
       `,
@@ -277,8 +412,15 @@ function createBroadcastService(prisma, deps = {}) {
   function clearScheduledTimer(campaignId) {
     const active = scheduledTimers.get(campaignId)
     if (!active) return
-    clearTimeout(active.timeoutId)
+    clearTimeoutFn(active.timeoutId)
     scheduledTimers.delete(campaignId)
+  }
+
+  function clearInteractionTimer(interactionId) {
+    const active = interactionTimers.get(interactionId)
+    if (!active) return
+    clearTimeoutFn(active.timeoutId)
+    interactionTimers.delete(interactionId)
   }
 
   function scheduleCampaignTimer(campaignId, scheduledAt) {
@@ -291,7 +433,7 @@ function createBroadcastService(prisma, deps = {}) {
       const remaining = targetAt.getTime() - nowProvider().getTime()
       const nextDelay = Math.min(Math.max(remaining, 0), MAX_TIMEOUT_MS)
 
-      const timeoutId = setTimeout(async () => {
+      const timeoutId = setTimeoutFn(async () => {
         if (remaining > MAX_TIMEOUT_MS) {
           armNextTimeout()
           return
@@ -328,22 +470,146 @@ function createBroadcastService(prisma, deps = {}) {
     armNextTimeout()
   }
 
+  async function updateInteractionLogStatus(logId, status, errorMessage = null) {
+    await execute(
+      `
+        UPDATE broadcast_logs
+        SET status = $2,
+            error_message = $3
+        WHERE id = $1
+      `,
+      logId,
+      status,
+      errorMessage,
+    )
+  }
+
+  async function expireInteraction(interactionId) {
+    clearInteractionTimer(interactionId)
+
+    const rows = await query(
+      `
+        SELECT id, campaign_id, log_id
+        FROM broadcast_interactions
+        WHERE id = $1
+          AND status = $2
+        LIMIT 1
+      `,
+      interactionId,
+      INTERACTION_STATUS.greeting_sent,
+    )
+
+    const interaction = rows?.[0] || null
+    if (!interaction) return false
+
+    const errorMessage = 'Cliente nao respondeu ao cumprimento em ate 24 horas.'
+
+    await execute(
+      `
+        UPDATE broadcast_interactions
+        SET status = $2,
+            expired_at = NOW(),
+            expires_at = NULL,
+            error_message = $3,
+            updated_at = NOW()
+        WHERE id = $1
+      `,
+      interactionId,
+      INTERACTION_STATUS.no_response,
+      errorMessage,
+    )
+
+    await updateInteractionLogStatus(toNumber(interaction.log_id), LOG_STATUS.no_response, errorMessage)
+    await syncCampaignLifecycle(toNumber(interaction.campaign_id))
+    return true
+  }
+
+  function scheduleInteractionTimer(interactionId, expiresAt) {
+    clearInteractionTimer(interactionId)
+
+    const targetAt = new Date(expiresAt)
+    if (!Number.isFinite(targetAt.getTime())) return
+
+    const armNextTimeout = () => {
+      const remaining = targetAt.getTime() - nowProvider().getTime()
+      const nextDelay = Math.min(Math.max(remaining, 0), MAX_TIMEOUT_MS)
+
+      const timeoutId = setTimeoutFn(async () => {
+        if (remaining > MAX_TIMEOUT_MS) {
+          armNextTimeout()
+          return
+        }
+
+        interactionTimers.delete(interactionId)
+
+        try {
+          await expireInteraction(interactionId)
+        } catch (error) {
+          logger.error?.('[broadcast] Falha ao expirar interacao pendente:', error?.message || error)
+        }
+      }, nextDelay)
+
+      interactionTimers.set(interactionId, {
+        timeoutId,
+        expires_at: targetAt.toISOString(),
+      })
+    }
+
+    armNextTimeout()
+  }
+
+  async function bootstrapPendingInteractions() {
+    const expiredRows = await query(
+      `
+        SELECT id
+        FROM broadcast_interactions
+        WHERE status = $1
+          AND expires_at IS NOT NULL
+          AND expires_at <= NOW()
+      `,
+      INTERACTION_STATUS.greeting_sent,
+    )
+
+    for (const interaction of expiredRows || []) {
+      await expireInteraction(toNumber(interaction.id))
+    }
+
+    const pendingRows = await query(
+      `
+        SELECT id, expires_at
+        FROM broadcast_interactions
+        WHERE status = $1
+          AND expires_at IS NOT NULL
+          AND expires_at > NOW()
+      `,
+      INTERACTION_STATUS.greeting_sent,
+    )
+
+    for (const interaction of pendingRows || []) {
+      scheduleInteractionTimer(toNumber(interaction.id), interaction.expires_at)
+    }
+  }
+
+  async function clearCampaignInteractionTimers(campaignId) {
+    const rows = await query(
+      `
+        SELECT id
+        FROM broadcast_interactions
+        WHERE campaign_id = $1
+      `,
+      campaignId,
+    )
+
+    for (const interaction of rows || []) {
+      clearInteractionTimer(toNumber(interaction.id))
+    }
+  }
+
   async function bootstrapScheduledCampaigns() {
     if (bootstrapPromise) return bootstrapPromise
 
     bootstrapPromise = (async () => {
       await normalizeLegacyMemberPhonesOnce()
-
-      await execute(
-        `
-          UPDATE broadcast_campaigns
-          SET status = $2,
-              finished_at = NOW()
-          WHERE status = $1
-        `,
-        CAMPAIGN_STATUS.running,
-        CAMPAIGN_STATUS.failed,
-      )
 
       const scheduledCampaigns = await query(
         `
@@ -357,6 +623,38 @@ function createBroadcastService(prisma, deps = {}) {
 
       for (const campaign of scheduledCampaigns || []) {
         scheduleCampaignTimer(toNumber(campaign.id), campaign.scheduled_at)
+      }
+
+      await bootstrapPendingInteractions()
+
+      const activeCampaigns = await query(
+        `
+        SELECT id
+        FROM broadcast_campaigns
+        WHERE status IN ($1, $2, $3, $4)
+        `,
+        CAMPAIGN_STATUS.running,
+        CAMPAIGN_STATUS.awaiting_reply,
+        CAMPAIGN_STATUS.done,
+        CAMPAIGN_STATUS.failed,
+      )
+
+      for (const campaign of activeCampaigns || []) {
+        const campaignId = toNumber(campaign.id)
+        const nextStatus = await syncCampaignLifecycle(campaignId)
+
+        if (nextStatus === CAMPAIGN_STATUS.running && !runningCampaigns.has(campaignId)) {
+          runningCampaigns.set(campaignId, {
+            started_at: nowProvider().toISOString(),
+            source: 'recovery',
+          })
+
+          setTimeoutFn(() => {
+            runCampaign(campaignId).catch((error) => {
+              logger.error?.('[broadcast] Falha ao retomar campanha apos reinicio:', error?.message || error)
+            })
+          }, 0)
+        }
       }
     })()
 
@@ -696,21 +994,10 @@ function createBroadcastService(prisma, deps = {}) {
     const rows = await query(
       `
         SELECT
-          c.id,
-          c.name,
-          c.message,
-          c.list_id,
-          l.name AS list_name,
-          c.status,
-          c.scheduled_at,
-          c.started_at,
-          c.finished_at,
-          c.total_contacts,
-          c.sent_count,
-          c.failed_count,
-          c.created_at
+          ${campaignSelectColumnsSql()}
         FROM broadcast_campaigns c
         LEFT JOIN broadcast_lists l ON l.id = c.list_id
+        ${campaignLogSummaryJoinSql()}
         ORDER BY c.created_at DESC, c.id DESC
       `,
     )
@@ -761,10 +1048,25 @@ function createBroadcastService(prisma, deps = {}) {
 
     const rows = await query(
       `
-        SELECT id, campaign_id, phone, client_name, status, error_message, sent_at, created_at
-        FROM broadcast_logs
-        WHERE campaign_id = $1
-        ORDER BY id ASC
+        SELECT
+          l.id,
+          l.campaign_id,
+          l.phone,
+          l.client_name,
+          l.status,
+          l.error_message,
+          l.sent_at,
+          l.created_at,
+          i.last_message_sent_at,
+          i.greeting_sent_at,
+          i.reply_received_at,
+          i.main_message_sent_at,
+          i.expires_at,
+          i.status AS interaction_status
+        FROM broadcast_logs l
+        LEFT JOIN broadcast_interactions i ON i.log_id = l.id
+        WHERE l.campaign_id = $1
+        ORDER BY l.id ASC
       `,
       campaignId,
     )
@@ -777,6 +1079,10 @@ function createBroadcastService(prisma, deps = {}) {
 
     if (campaign.status === CAMPAIGN_STATUS.running) {
       throw new AppError(409, 'Esta campanha ja esta em execucao.')
+    }
+
+    if (campaign.status === CAMPAIGN_STATUS.awaiting_reply) {
+      throw new AppError(409, 'Esta campanha ainda esta aguardando respostas dos contatos.')
     }
 
     if (campaign.status === CAMPAIGN_STATUS.done) {
@@ -799,7 +1105,17 @@ function createBroadcastService(prisma, deps = {}) {
       throw new AppError(400, 'A lista vinculada nao possui contatos para disparo.')
     }
 
+    await clearCampaignInteractionTimers(campaignId)
+
     await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `
+          DELETE FROM broadcast_interactions
+          WHERE campaign_id = $1
+        `,
+        campaignId,
+      )
+
       await tx.$executeRawUnsafe(
         `
           DELETE FROM broadcast_logs
@@ -858,10 +1174,70 @@ function createBroadcastService(prisma, deps = {}) {
     )
   }
 
+  async function summarizeCampaignLogs(campaignId) {
+    const rows = await query(
+      `
+        SELECT
+          COUNT(*) FILTER (WHERE status = $2)::int AS pending_logs_count,
+          COUNT(*) FILTER (WHERE status IN ($3, $4))::int AS awaiting_reply_count,
+          COUNT(*) FILTER (WHERE status = $5)::int AS completed_count,
+          COUNT(*) FILTER (WHERE status = $6)::int AS no_response_count,
+          COUNT(*) FILTER (WHERE status = $7)::int AS failed_logs_count,
+          COUNT(*)::int AS total_logs_count
+        FROM broadcast_logs
+        WHERE campaign_id = $1
+      `,
+      campaignId,
+      LOG_STATUS.pending,
+      LOG_STATUS.greeting_sent,
+      LOG_STATUS.replied,
+      LOG_STATUS.completed,
+      LOG_STATUS.no_response,
+      LOG_STATUS.failed,
+    )
+
+    return rows?.[0] || {}
+  }
+
+  async function syncCampaignLifecycle(campaignId) {
+    const summary = await summarizeCampaignLogs(campaignId)
+    const pendingLogs = toNumber(summary.pending_logs_count)
+    const awaitingReply = toNumber(summary.awaiting_reply_count)
+    const totalLogs = toNumber(summary.total_logs_count)
+
+    let nextStatus = CAMPAIGN_STATUS.done
+    if (!totalLogs) {
+      nextStatus = CAMPAIGN_STATUS.draft
+    } else if (pendingLogs > 0) {
+      nextStatus = CAMPAIGN_STATUS.running
+    } else if (awaitingReply > 0) {
+      nextStatus = CAMPAIGN_STATUS.awaiting_reply
+    }
+
+    const shouldRemainOpen = [CAMPAIGN_STATUS.running, CAMPAIGN_STATUS.awaiting_reply].includes(nextStatus)
+
+    await execute(
+      `
+        UPDATE broadcast_campaigns
+        SET status = $2,
+            finished_at = CASE
+              WHEN $3::boolean THEN NULL
+              ELSE COALESCE(finished_at, NOW())
+            END
+        WHERE id = $1
+      `,
+      campaignId,
+      nextStatus,
+      shouldRemainOpen,
+    )
+
+    return nextStatus
+  }
+
   async function updateLogStatus(campaignId, logId, payload = {}) {
     const status = payload.status || LOG_STATUS.failed
     const errorMessage = trimNullable(payload.error_message)
-    const shouldSetSentAt = status === LOG_STATUS.sent
+    const shouldSetSentAt = isGreetingDispatchStatus(status)
 
     await execute(
       `
@@ -879,7 +1255,7 @@ function createBroadcastService(prisma, deps = {}) {
       shouldSetSentAt,
     )
 
-    if (status === LOG_STATUS.sent) {
+    if (isGreetingDispatchStatus(status)) {
       await execute(
         `
           UPDATE broadcast_campaigns
@@ -909,6 +1285,297 @@ function createBroadcastService(prisma, deps = {}) {
     return trimNullable(error?.message) || 'Falha ao enviar mensagem.'
   }
 
+  async function recordGreetingInteraction({
+    campaignId,
+    logId,
+    phone,
+    clientName,
+    greetingMessage,
+    mainMessage,
+  }) {
+    const sentAt = nowProvider()
+    const expiresAt = buildInteractionExpiryDate(sentAt)
+    const rows = await query(
+      `
+        INSERT INTO broadcast_interactions (
+          campaign_id,
+          log_id,
+          phone_number,
+          client_name,
+          greeting_message,
+          main_message,
+          status,
+          last_message_sent_at,
+          greeting_sent_at,
+          expires_at,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9, NOW(), NOW())
+        ON CONFLICT (log_id) DO UPDATE
+        SET campaign_id = EXCLUDED.campaign_id,
+            phone_number = EXCLUDED.phone_number,
+            client_name = EXCLUDED.client_name,
+            greeting_message = EXCLUDED.greeting_message,
+            main_message = EXCLUDED.main_message,
+            status = EXCLUDED.status,
+            last_message_sent_at = EXCLUDED.last_message_sent_at,
+            greeting_sent_at = EXCLUDED.greeting_sent_at,
+            reply_received_at = NULL,
+            main_message_sent_at = NULL,
+            expires_at = EXCLUDED.expires_at,
+            expired_at = NULL,
+            completed_at = NULL,
+            reply_message = NULL,
+            error_message = NULL,
+            updated_at = NOW()
+        RETURNING id, expires_at
+      `,
+      campaignId,
+      logId,
+      phone,
+      clientName,
+      greetingMessage,
+      mainMessage,
+      INTERACTION_STATUS.greeting_sent,
+      sentAt,
+      expiresAt,
+    )
+
+    return rows?.[0] || null
+  }
+
+  async function recordFailedInteraction({
+    campaignId,
+    logId,
+    phone,
+    clientName,
+    mainMessage,
+    errorMessage,
+    greetingMessage = null,
+  }) {
+    const rows = await query(
+      `
+        INSERT INTO broadcast_interactions (
+          campaign_id,
+          log_id,
+          phone_number,
+          client_name,
+          greeting_message,
+          main_message,
+          status,
+          error_message,
+          created_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        ON CONFLICT (log_id) DO UPDATE
+        SET campaign_id = EXCLUDED.campaign_id,
+            phone_number = EXCLUDED.phone_number,
+            client_name = EXCLUDED.client_name,
+            greeting_message = EXCLUDED.greeting_message,
+            main_message = EXCLUDED.main_message,
+            status = EXCLUDED.status,
+            last_message_sent_at = NULL,
+            greeting_sent_at = NULL,
+            reply_received_at = NULL,
+            main_message_sent_at = NULL,
+            expires_at = NULL,
+            expired_at = NULL,
+            completed_at = NULL,
+            reply_message = NULL,
+            error_message = EXCLUDED.error_message,
+            updated_at = NOW()
+        RETURNING id
+      `,
+      campaignId,
+      logId,
+      phone,
+      clientName,
+      greetingMessage,
+      mainMessage,
+      INTERACTION_STATUS.failed,
+      errorMessage,
+    )
+
+    return rows?.[0] || null
+  }
+
+  async function findOpenInteraction(values = []) {
+    const variants = dedupeStrings(values.flatMap((value) => buildMemberPhoneVariants(value)))
+    if (!variants.length) return null
+
+    const rows = await query(
+      `
+        SELECT
+          id,
+          campaign_id,
+          log_id,
+          phone_number,
+          client_name,
+          main_message,
+          status,
+          expires_at
+        FROM broadcast_interactions
+        WHERE status IN ($1, $2)
+          AND main_message_sent_at IS NULL
+          AND phone_number IN (${variants.map((_, index) => `$${index + 3}`).join(', ')})
+        ORDER BY
+          CASE
+            WHEN status = $1 THEN 0
+            ELSE 1
+          END,
+          COALESCE(reply_received_at, greeting_sent_at, created_at) DESC,
+          id DESC
+        LIMIT 1
+      `,
+      INTERACTION_STATUS.greeting_sent,
+      INTERACTION_STATUS.replied,
+      ...variants,
+    )
+
+    const row = rows?.[0] || null
+    if (!row) return null
+
+    const isExpiredGreeting = (
+      trimNullable(row.status) === INTERACTION_STATUS.greeting_sent
+      && row.expires_at
+      && new Date(row.expires_at).getTime() <= nowProvider().getTime()
+    )
+
+    if (isExpiredGreeting) {
+      await expireInteraction(toNumber(row.id))
+      return null
+    }
+
+    return row
+  }
+
+  async function markInteractionReplied(interactionId, logId, replyMessage) {
+    await execute(
+      `
+        UPDATE broadcast_interactions
+        SET status = $2,
+            reply_received_at = COALESCE(reply_received_at, NOW()),
+            reply_message = $3,
+            expires_at = NULL,
+            error_message = NULL,
+            updated_at = NOW()
+        WHERE id = $1
+      `,
+      interactionId,
+      INTERACTION_STATUS.replied,
+      trimNullable(replyMessage),
+    )
+
+    await updateInteractionLogStatus(logId, LOG_STATUS.replied, null)
+  }
+
+  async function markInteractionCompleted(interactionId, logId, campaignId) {
+    await execute(
+      `
+        UPDATE broadcast_interactions
+        SET status = $2,
+            main_message_sent_at = NOW(),
+            completed_at = NOW(),
+            last_message_sent_at = NOW(),
+            error_message = NULL,
+            updated_at = NOW()
+        WHERE id = $1
+      `,
+      interactionId,
+      INTERACTION_STATUS.completed,
+    )
+
+    await updateInteractionLogStatus(logId, LOG_STATUS.completed, null)
+    await syncCampaignLifecycle(campaignId)
+  }
+
+  async function markInteractionReplyDeliveryError(interactionId, logId, campaignId, errorMessage) {
+    await execute(
+      `
+        UPDATE broadcast_interactions
+        SET status = $2,
+            error_message = $3,
+            updated_at = NOW()
+        WHERE id = $1
+      `,
+      interactionId,
+      INTERACTION_STATUS.replied,
+      errorMessage,
+    )
+
+    await updateInteractionLogStatus(logId, LOG_STATUS.replied, errorMessage)
+    await syncCampaignLifecycle(campaignId)
+  }
+
+  async function processIncomingReply(payload = {}) {
+    await bootstrapScheduledCampaigns()
+
+    const lookupValues = dedupeStrings([
+      ...(Array.isArray(payload.phones) ? payload.phones : []),
+      payload.phone,
+      payload.rawPhone,
+    ])
+
+    const interaction = await findOpenInteraction(lookupValues)
+    if (!interaction) {
+      return { matched: false }
+    }
+
+    const interactionId = toNumber(interaction.id)
+    const logId = toNumber(interaction.log_id)
+    const campaignId = toNumber(interaction.campaign_id)
+    if (processingReplyInteractions.has(interactionId)) {
+      return {
+        matched: true,
+        sent: false,
+        skipped: true,
+        interaction_id: interactionId,
+        log_id: logId,
+        campaign_id: campaignId,
+      }
+    }
+
+    processingReplyInteractions.add(interactionId)
+    clearInteractionTimer(interactionId)
+
+    try {
+      await markInteractionReplied(interactionId, logId, payload.message)
+
+      ensureWhatsAppTransport()
+      await whatsappTransport.sendTextMessage({
+        to: payload.replyTarget || payload.rawPhone || payload.phone || interaction.phone_number,
+        body: trimNullable(interaction.main_message) || '',
+      })
+
+      await markInteractionCompleted(interactionId, logId, campaignId)
+
+      return {
+        matched: true,
+        sent: true,
+        interaction_id: interactionId,
+        log_id: logId,
+        campaign_id: campaignId,
+      }
+    } catch (error) {
+      const errorMessage = formatDeliveryError(error)
+      await markInteractionReplyDeliveryError(interactionId, logId, campaignId, errorMessage)
+      logger.error?.('[broadcast] Falha ao enviar mensagem principal apos resposta do cliente:', errorMessage)
+
+      return {
+        matched: true,
+        sent: false,
+        interaction_id: interactionId,
+        log_id: logId,
+        campaign_id: campaignId,
+        error_message: errorMessage,
+      }
+    } finally {
+      processingReplyInteractions.delete(interactionId)
+    }
+  }
+
   async function runCampaign(campaignId) {
     const execution = runningCampaigns.get(campaignId)
     if (!execution) return
@@ -934,20 +1601,46 @@ function createBroadcastService(prisma, deps = {}) {
           return
         }
 
+        const greetingMessage = chooseGreetingMessage(log.client_name)
+
         try {
           await whatsappTransport.sendTextMessage({
             to: log.phone,
-            body: campaign.message,
+            body: greetingMessage,
           })
 
+          const interaction = await recordGreetingInteraction({
+            campaignId,
+            logId: log.id,
+            phone: log.phone,
+            clientName: log.client_name,
+            greetingMessage,
+            mainMessage: campaign.message,
+          })
+
+          if (interaction?.id && interaction?.expires_at) {
+            scheduleInteractionTimer(toNumber(interaction.id), interaction.expires_at)
+          }
+
           await updateLogStatus(campaignId, log.id, {
-            status: LOG_STATUS.sent,
+            status: LOG_STATUS.greeting_sent,
             error_message: null,
           })
         } catch (error) {
+          const errorMessage = formatDeliveryError(error)
+          await recordFailedInteraction({
+            campaignId,
+            logId: log.id,
+            phone: log.phone,
+            clientName: log.client_name,
+            greetingMessage,
+            mainMessage: campaign.message,
+            errorMessage,
+          })
+
           await updateLogStatus(campaignId, log.id, {
             status: LOG_STATUS.failed,
-            error_message: formatDeliveryError(error),
+            error_message: errorMessage,
           })
         }
 
@@ -956,7 +1649,7 @@ function createBroadcastService(prisma, deps = {}) {
         }
       }
 
-      await finalizeCampaign(campaignId, CAMPAIGN_STATUS.done)
+      await syncCampaignLifecycle(campaignId)
     } catch (error) {
       logger.error?.('[broadcast] Falha na execucao da campanha:', error?.message || error)
       await finalizeCampaign(campaignId, CAMPAIGN_STATUS.failed)
@@ -982,7 +1675,7 @@ function createBroadcastService(prisma, deps = {}) {
       source: options.source || 'manual',
     })
 
-    setTimeout(() => {
+    setTimeoutFn(() => {
       runCampaign(campaignId).catch((error) => {
         logger.error?.('[broadcast] Falha inesperada ao disparar campanha:', error?.message || error)
       })
@@ -1017,11 +1710,12 @@ function createBroadcastService(prisma, deps = {}) {
   async function removeCampaign(campaignId) {
     const campaign = await ensureCampaignExists(campaignId)
 
-    if (campaign.status === CAMPAIGN_STATUS.running || runningCampaigns.has(campaignId)) {
-      throw new AppError(409, 'Nao e possivel excluir uma campanha em execucao.')
+    if ([CAMPAIGN_STATUS.running, CAMPAIGN_STATUS.awaiting_reply].includes(campaign.status) || runningCampaigns.has(campaignId)) {
+      throw new AppError(409, 'Nao e possivel excluir uma campanha com fluxo ainda em andamento.')
     }
 
     clearScheduledTimer(campaignId)
+    await clearCampaignInteractionTimers(campaignId)
 
     await execute(
       `
@@ -1056,9 +1750,10 @@ function createBroadcastService(prisma, deps = {}) {
     getCampaign,
     getCampaignLogs,
     startCampaign,
+    processIncomingReply,
     cancelCampaign,
     removeCampaign,
   }
 }
 
-module.exports = { createBroadcastService, CAMPAIGN_STATUS, LOG_STATUS }
+module.exports = { createBroadcastService, CAMPAIGN_STATUS, LOG_STATUS, INTERACTION_STATUS }

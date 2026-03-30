@@ -450,6 +450,7 @@ Resposta:
 Recebe eventos do WPPConnect.
 
 Comportamentos atuais:
+- detecta respostas de contatos com `greeting_sent` no modulo de disparos e envia a mensagem principal da campanha
 - responde clientes que enviarem `status 123`
 - responde clientes que enviarem `pedido 123`
 - responde clientes que enviarem `ultimo pedido`

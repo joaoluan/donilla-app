@@ -78,6 +78,36 @@ test('buildOrderMessage formata o resumo do pedido', () => {
   assert.match(text, /Total: R\$/)
 })
 
+test('handleWebhookEvent consome resposta pendente de broadcast antes do menu automatico', async () => {
+  const sentMessages = []
+  const broadcastCalls = []
+  const service = createWhatsAppBotService({}, {
+    transportService: createTransport(sentMessages),
+    broadcastService: {
+      async processIncomingReply(payload) {
+        broadcastCalls.push(payload)
+        return { matched: true, sent: true }
+      },
+    },
+  })
+
+  const result = await service.handleWebhookEvent({
+    event: 'onmessage',
+    payload: {
+      from: '5511999990000@c.us',
+      body: 'Tenho interesse',
+      sender: { pushname: 'Maria' },
+    },
+  })
+
+  assert.equal(result.processed, true)
+  assert.equal(result.messages, 1)
+  assert.equal(sentMessages.length, 0)
+  assert.equal(broadcastCalls.length, 1)
+  assert.equal(broadcastCalls[0].replyTarget, '5511999990000@c.us')
+  assert.equal(broadcastCalls[0].message, 'Tenho interesse')
+})
+
 test('handleWebhookEvent responde saudacao com menu numerico e ajuda contextual', async () => {
   const previousStoreUrl = process.env.PUBLIC_STORE_URL
   process.env.PUBLIC_STORE_URL = 'https://loja.exemplo.com/loja'

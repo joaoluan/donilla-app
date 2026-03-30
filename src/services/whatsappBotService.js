@@ -801,7 +801,7 @@ function extractTextMessages(payload) {
   return extractWppConnectMessages(payload)
 }
 
-function createWhatsAppBotService(prisma, { transportService, logger = console } = {}) {
+function createWhatsAppBotService(prisma, { transportService, logger = console, broadcastService = null } = {}) {
   if (!transportService) {
     throw new Error('Servico de transporte obrigatorio para o bot de WhatsApp.')
   }
@@ -1180,6 +1180,25 @@ function createWhatsAppBotService(prisma, { transportService, logger = console }
         resolvedFrom: finalFrom,
         fallbackPhones: lookupPhones,
       })
+    }
+
+    if (broadcastService?.processIncomingReply) {
+      try {
+        const broadcastResult = await broadcastService.processIncomingReply({
+          phone: finalFrom,
+          rawPhone: rawFrom,
+          phones: lookupPhones,
+          replyTarget: message.rawFrom || message.from,
+          message: message.body,
+          profileName: message.profileName,
+        })
+
+        if (broadcastResult?.matched) {
+          return
+        }
+      } catch (error) {
+        logger.error('[whatsapp] Falha ao processar resposta pendente de broadcast:', error?.message || error)
+      }
     }
 
     const reply = await buildReply({

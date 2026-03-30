@@ -1,7 +1,8 @@
 const BROADCAST_STATUS_LABELS = {
   draft: 'Rascunho',
   scheduled: 'Agendada',
-  running: 'Em envio',
+  running: 'Enviando saudacoes',
+  awaiting_reply: 'Aguardando respostas',
   done: 'Concluida',
   failed: 'Falhou',
 };
@@ -9,6 +10,10 @@ const BROADCAST_STATUS_LABELS = {
 const LOG_STATUS_LABELS = {
   pending: 'Pendente',
   sent: 'Enviado',
+  greeting_sent: 'Saudacao enviada',
+  replied: 'Cliente respondeu',
+  completed: 'Mensagem principal enviada',
+  no_response: 'Sem resposta (24h)',
   failed: 'Falhou',
 };
 
@@ -202,8 +207,31 @@ export function bindBroadcastSection(ctx) {
     const total = Number(campaign?.total_contacts || 0);
     const sent = Number(campaign?.sent_count || 0);
     const failed = Number(campaign?.failed_count || 0);
-    const processed = sent + failed;
-    const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((processed / total) * 100))) : 0;
+    const pending = Number(campaign?.pending_logs_count || 0);
+    const awaitingReply = Number(campaign?.awaiting_reply_count || 0);
+    const completed = Number(campaign?.completed_count || 0);
+    const noResponse = Number(campaign?.no_response_count || 0);
+    const resolved = completed + noResponse + failed;
+
+    let processed = sent + failed;
+    let percent = total > 0 ? Math.max(0, Math.min(100, Math.round((processed / total) * 100))) : 0;
+    let leftLabel = `${processed} de ${total || 0}`;
+    let rightLabel = `${percent}%`;
+
+    if (campaign?.status === 'running') {
+      processed = total > 0 ? Math.max(0, total - pending) : sent + failed;
+      percent = total > 0 ? Math.max(0, Math.min(100, Math.round((processed / total) * 100))) : 0;
+      leftLabel = `${processed} saudacao(oes) processada(s)`;
+      rightLabel = `${pending} pendente(s)`;
+    } else if (campaign?.status === 'awaiting_reply') {
+      percent = total > 0 ? Math.max(0, Math.min(100, Math.round((resolved / total) * 100))) : 0;
+      leftLabel = `${awaitingReply} aguardando resposta`;
+      rightLabel = `${resolved} fluxo(s) encerrado(s)`;
+    } else if (campaign?.status === 'done') {
+      percent = total > 0 ? Math.max(0, Math.min(100, Math.round((resolved / total) * 100))) : 0;
+      leftLabel = `${resolved} de ${total || 0} encerrado(s)`;
+      rightLabel = `${completed} convertido(s)`;
+    }
 
     return `
       <div class="broadcast-progress">
@@ -211,8 +239,8 @@ export function bindBroadcastSection(ctx) {
           <div class="broadcast-progress-fill" style="width: ${percent}%"></div>
         </div>
         <div class="broadcast-progress-meta">
-          <span>${processed} de ${total || 0}</span>
-          <span>${percent}%</span>
+          <span>${escapeHtml(leftLabel)}</span>
+          <span>${escapeHtml(rightLabel)}</span>
         </div>
       </div>
     `;
@@ -230,7 +258,7 @@ export function bindBroadcastSection(ctx) {
     if (statCampaignsEl) statCampaignsEl.textContent = String(localState.campaigns.length);
     if (statRunningEl) {
       statRunningEl.textContent = String(
-        localState.campaigns.filter((campaign) => campaign.status === 'running').length,
+        localState.campaigns.filter((campaign) => ['running', 'awaiting_reply'].includes(campaign.status)).length,
       );
     }
   }
@@ -482,7 +510,7 @@ export function bindBroadcastSection(ctx) {
                       ? `<button class="ghost-btn" type="button" data-broadcast-cancel-campaign="${campaign.id}">Cancelar</button>`
                       : ''
                     }
-                    ${campaign.status !== 'running'
+                    ${!['running', 'awaiting_reply'].includes(campaign.status)
                       ? `<button class="ghost-btn" type="button" data-broadcast-delete-campaign="${campaign.id}">Excluir</button>`
                       : ''
                     }
@@ -511,7 +539,10 @@ export function bindBroadcastSection(ctx) {
         const sent = Number(campaign.sent_count || 0);
         const failed = Number(campaign.failed_count || 0);
         const total = Number(campaign.total_contacts || 0);
-        logsStatusEl.textContent = `${sent} enviado(s), ${failed} falha(s), ${total} contato(s) no total.`;
+        const awaitingReply = Number(campaign.awaiting_reply_count || 0);
+        const completed = Number(campaign.completed_count || 0);
+        const noResponse = Number(campaign.no_response_count || 0);
+        logsStatusEl.textContent = `${sent} saudacao(oes) enviada(s), ${awaitingReply} aguardando resposta, ${completed} principal(is) enviada(s), ${noResponse} sem resposta, ${failed} falha(s), ${total} contato(s) no total.`;
       }
     }
 
@@ -777,11 +808,11 @@ export function bindBroadcastSection(ctx) {
       localState.pollTimer = null;
     }
 
-    const hasRunningCampaign = localState.campaigns.some((campaign) => campaign.status === 'running');
+    const hasRunningCampaign = localState.campaigns.some((campaign) => ['running', 'awaiting_reply'].includes(campaign.status));
     const activeLogsCampaign = localState.campaigns.find(
       (campaign) => Number(campaign.id || 0) === Number(localState.logsCampaignId || 0),
     );
-    const shouldPollLogs = activeLogsCampaign?.status === 'running';
+    const shouldPollLogs = ['running', 'awaiting_reply'].includes(activeLogsCampaign?.status);
 
     if (!state.accessToken || !isViewActive() || (!hasRunningCampaign && !shouldPollLogs)) {
       return;

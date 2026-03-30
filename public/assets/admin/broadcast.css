@@ -290,6 +290,12 @@
   animation: broadcastPulse 1.4s ease-in-out infinite;
 }
 
+.broadcast-status-badge.awaiting_reply {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
+}
+
 .broadcast-status-badge.done {
   background: #dcfce7;
   color: #166534;
