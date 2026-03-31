@@ -9,6 +9,11 @@ const {
   buildPublicOrderTrackingUrl,
   generateOrderTrackingToken,
 } = require('../utils/orderTracking')
+const {
+  birthdayDateToDbValue,
+  parseBirthdayDate,
+  serializeBirthdayDate,
+} = require('../utils/customerBirthday')
 const { createOrderAuditService } = require('./orderAuditService')
 const { validateAddressData, validateOrderItems } = require('../utils/orderValidation')
 const { retryWithBackoff } = require('../utils/retryHelper')
@@ -81,11 +86,13 @@ function cleanAddressForClient(endereco) {
 function buildCustomerSessionFromCliente(cliente, latestEndereco = null) {
   const endereco = latestEndereco || cliente?.enderecos?.[0] || null
   const normalizedEndereco = cleanAddressForClient(endereco)
+  const dataAniversario = serializeBirthdayDate(cliente?.data_aniversario)
 
   const payload = {
     customer_id: cliente.id,
     telefone_whatsapp: cliente.telefone_whatsapp,
     nome: cliente.nome,
+    data_aniversario: dataAniversario,
     has_endereco: Boolean(normalizedEndereco),
     endereco: normalizedEndereco,
   }
@@ -94,10 +101,12 @@ function buildCustomerSessionFromCliente(cliente, latestEndereco = null) {
     found: true,
     has_endereco: Boolean(normalizedEndereco),
     endereco: normalizedEndereco,
+    data_aniversario: dataAniversario,
     cliente_session_token: issueCustomerSession(payload, CLIENT_SESSION_TTL_SECONDS),
     cliente: {
       nome: cliente.nome,
       telefone_whatsapp: cliente.telefone_whatsapp,
+      data_aniversario: dataAniversario,
     },
   }
 }
@@ -499,6 +508,8 @@ function publicStoreService(prisma, deps = {}) {
   }) {
     return prisma.$transaction(async (tx) => {
       const sessionCustomerId = toSessionCustomerId(session.customer_id)
+      const sessionBirthday = parseBirthdayDate(session.data_aniversario)
+      const shouldSyncSessionBirthday = sessionBirthday !== undefined && sessionBirthday !== null
       let cliente = null
 
       if (sessionCustomerId) {
@@ -521,12 +532,16 @@ function publicStoreService(prisma, deps = {}) {
           data: {
             nome: sessionNome,
             telefone_whatsapp: sessionTelefone,
+            ...(shouldSyncSessionBirthday ? { data_aniversario: birthdayDateToDbValue(sessionBirthday) } : {}),
           },
         })
-      } else if (cliente.nome !== sessionNome) {
+      } else if (cliente.nome !== sessionNome || (shouldSyncSessionBirthday && serializeBirthdayDate(cliente.data_aniversario) !== sessionBirthday)) {
         cliente = await tx.clientes.update({
           where: { id: cliente.id },
-          data: { nome: sessionNome },
+          data: {
+            nome: sessionNome,
+            ...(shouldSyncSessionBirthday ? { data_aniversario: birthdayDateToDbValue(sessionBirthday) } : {}),
+          },
         })
       }
 
@@ -1008,6 +1023,7 @@ function publicStoreService(prisma, deps = {}) {
         customer_id: null,
         telefone_whatsapp: toPhone(input?.telefone_whatsapp),
         nome: String(input?.nome || '').trim(),
+        data_aniversario: parseBirthdayDate(input?.data_aniversario),
         is_new: true,
         endereco: toAddress(input?.endereco),
       }
@@ -1017,9 +1033,11 @@ function publicStoreService(prisma, deps = {}) {
         has_endereco: Boolean(payload.endereco?.rua && payload.endereco?.numero && payload.endereco?.bairro),
         cliente_session_token: issueCustomerSession(payload, CLIENT_SESSION_TTL_SECONDS),
         endereco: cleanAddressForClient(payload.endereco),
+        data_aniversario: payload.data_aniversario || null,
         cliente: {
           nome: payload.nome,
           telefone_whatsapp: payload.telefone_whatsapp,
+          data_aniversario: payload.data_aniversario || null,
         },
       }
     },
@@ -1045,6 +1063,9 @@ function publicStoreService(prisma, deps = {}) {
       const nome = String(input?.nome || '').trim()
       const telefone = toPhone(input?.telefone_whatsapp)
       const senha = String(input?.senha || '')
+      const hasBirthdayField = Object.prototype.hasOwnProperty.call(input || {}, 'data_aniversario')
+      const dataAniversario = parseBirthdayDate(input?.data_aniversario)
+      const shouldSyncBirthday = hasBirthdayField && dataAniversario !== undefined && dataAniversario !== null
       const endereco = toAddress(input?.endereco)
 
       if (!nome) {
@@ -1081,12 +1102,16 @@ function publicStoreService(prisma, deps = {}) {
             data: {
               nome,
               telefone_whatsapp: telefone,
+              ...(shouldSyncBirthday ? { data_aniversario: birthdayDateToDbValue(dataAniversario) } : {}),
             },
           })
-        } else if (cliente.nome !== nome) {
+        } else if (cliente.nome !== nome || (shouldSyncBirthday && serializeBirthdayDate(cliente.data_aniversario) !== dataAniversario)) {
           cliente = await tx.clientes.update({
             where: { id: cliente.id },
-            data: { nome },
+            data: {
+              nome,
+              ...(shouldSyncBirthday ? { data_aniversario: birthdayDateToDbValue(dataAniversario) } : {}),
+            },
           })
         }
 
@@ -1179,6 +1204,8 @@ function publicStoreService(prisma, deps = {}) {
     async updateCustomerProfile(rawSessionToken, input) {
       const session = parseCustomerSessionToken(rawSessionToken)
       const nome = String(input?.nome || '').trim()
+      const hasBirthdayField = Object.prototype.hasOwnProperty.call(input || {}, 'data_aniversario')
+      const dataAniversario = hasBirthdayField ? parseBirthdayDate(input?.data_aniversario) : undefined
       const endereco = toAddress(input?.endereco)
 
       const sessionCustomerId = toSessionCustomerId(session.customer_id)
@@ -1199,10 +1226,23 @@ function publicStoreService(prisma, deps = {}) {
       return prisma.$transaction(async (tx) => {
         let clienteAtualizado = cliente
 
+        const nextCustomerData = {}
+
         if (nome && nome !== cliente.nome) {
+          nextCustomerData.nome = nome
+        }
+
+        if (hasBirthdayField) {
+          const currentBirthday = serializeBirthdayDate(cliente.data_aniversario)
+          if (currentBirthday !== dataAniversario) {
+            nextCustomerData.data_aniversario = birthdayDateToDbValue(dataAniversario)
+          }
+        }
+
+        if (Object.keys(nextCustomerData).length) {
           clienteAtualizado = await tx.clientes.update({
             where: { id: cliente.id },
-            data: { nome },
+            data: nextCustomerData,
           })
         }
 

@@ -1,5 +1,6 @@
 const { z } = require('zod')
 const { AppError } = require('../utils/errors')
+const { parseBirthdayDate } = require('../utils/customerBirthday')
 const { toInt } = require('./common')
 
 const CUSTOMER_PASSWORD_RULE_MESSAGE =
@@ -28,6 +29,7 @@ const createCustomerRegisterSchema = z.object({
   nome: z.string().trim().min(2),
   telefone_whatsapp: z.string().trim().min(8).max(20),
   senha: z.string().max(255).refine(isStrongCustomerPassword, CUSTOMER_PASSWORD_RULE_MESSAGE),
+  data_aniversario: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   endereco: enderecoSchema,
 })
 
@@ -39,9 +41,10 @@ const customerLoginSchema = z.object({
 const updateCustomerProfileSchema = z
   .object({
     nome: z.string().trim().min(2).max(100).optional(),
+    data_aniversario: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     endereco: enderecoSchema.optional(),
   })
-  .refine((payload) => payload.nome || payload.endereco, {
+  .refine((payload) => payload.nome || payload.endereco || Object.prototype.hasOwnProperty.call(payload, 'data_aniversario'), {
     message: 'Dados de perfil invalidos.',
   })
 
@@ -115,6 +118,7 @@ function validateCreateCustomer(input) {
   const normalized = {
     ...input,
     telefone_whatsapp: toRawPhone(input?.telefone_whatsapp),
+    data_aniversario: parseBirthdayDate(input?.data_aniversario),
   }
   const parsed = createCustomerRegisterSchema.safeParse(normalized)
   if (!parsed.success) {
@@ -138,7 +142,14 @@ function validateCustomerLogin(input) {
 }
 
 function validateUpdateCustomerProfile(input) {
-  const parsed = updateCustomerProfileSchema.safeParse(input)
+  const normalized = {
+    ...input,
+    ...(Object.prototype.hasOwnProperty.call(input || {}, 'data_aniversario')
+      ? { data_aniversario: parseBirthdayDate(input?.data_aniversario) }
+      : {}),
+  }
+
+  const parsed = updateCustomerProfileSchema.safeParse(normalized)
   if (!parsed.success) throw new AppError(400, 'Dados de perfil invalidos.')
   return parsed.data
 }

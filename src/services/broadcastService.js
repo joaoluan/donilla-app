@@ -1192,6 +1192,70 @@ function createBroadcastService(prisma, deps = {}) {
         continue
       }
 
+      if (field === 'registration_days') {
+        const numericValue = parseAudienceNumericValue(value, 'dias desde cadastro')
+        const numericParam = pushParam(numericValue)
+
+        if (operator === 'gte' || operator === 'not_gte') {
+          conditions.push(`
+            c.criado_em IS NOT NULL
+            AND c.criado_em <= NOW() - ($${numericParam}::numeric * INTERVAL '1 day')
+          `)
+          continue
+        }
+
+        if (operator === 'lte') {
+          conditions.push(`
+            c.criado_em IS NOT NULL
+            AND c.criado_em >= NOW() - ($${numericParam}::numeric * INTERVAL '1 day')
+          `)
+          continue
+        }
+
+        if (operator === 'eq') {
+          conditions.push(`
+            c.criado_em IS NOT NULL
+            AND FLOOR(EXTRACT(EPOCH FROM (NOW() - c.criado_em)) / 86400) = $${numericParam}::numeric
+          `)
+          continue
+        }
+
+        throw new AppError(400, 'Operador invalido para dias desde cadastro.')
+      }
+
+      if (field === 'birthday_month') {
+        const numericValue = parseAudienceNumericValue(value, 'mes de aniversario')
+        if (numericValue < 1 || numericValue > 12) {
+          throw new AppError(400, 'Mes de aniversario invalido.')
+        }
+
+        if (operator !== 'eq') {
+          throw new AppError(400, 'Operador invalido para mes de aniversario.')
+        }
+
+        const numericParam = pushParam(numericValue)
+        conditions.push(`
+          c.data_aniversario IS NOT NULL
+          AND EXTRACT(MONTH FROM c.data_aniversario) = $${numericParam}::numeric
+        `)
+        continue
+      }
+
+      if (field === 'age_years') {
+        const numericValue = parseAudienceNumericValue(value, 'idade')
+        const numericParam = pushParam(numericValue)
+        const pgOperator = operator === 'gte' ? '>=' : operator === 'lte' ? '<=' : operator === 'eq' ? '=' : null
+        if (!pgOperator) {
+          throw new AppError(400, 'Operador invalido para idade.')
+        }
+
+        conditions.push(`
+          c.data_aniversario IS NOT NULL
+          AND DATE_PART('year', AGE(CURRENT_DATE, c.data_aniversario)) ${pgOperator} $${numericParam}::numeric
+        `)
+        continue
+      }
+
       if (field === 'total_spent') {
         const numericValue = parseAudienceNumericValue(value, 'total gasto')
         const numericParam = pushParam(numericValue)
@@ -1208,6 +1272,24 @@ function createBroadcastService(prisma, deps = {}) {
               AND p.status_pagamento = 'pago'
             GROUP BY p.cliente_id
             HAVING SUM(p.valor_total::numeric) ${pgOperator} $${numericParam}::numeric
+          )
+        `)
+        continue
+      }
+
+      if (field === 'payment_method') {
+        const textCondition = buildTextFilter(value, operator, {
+          exactLabel: 'forma de pagamento',
+          containsLabel: 'forma de pagamento',
+        }).replace('%COLUMN%', "NULLIF(TRIM(p.metodo_pagamento), '')")
+
+        conditions.push(`
+          c.id IN (
+            SELECT DISTINCT p.cliente_id
+            FROM pedidos p
+            WHERE p.cliente_id IS NOT NULL
+              AND COALESCE(NULLIF(TRIM(p.metodo_pagamento), ''), '') <> ''
+              AND ${textCondition}
           )
         `)
         continue
@@ -1266,6 +1348,30 @@ function createBroadcastService(prisma, deps = {}) {
         continue
       }
 
+      if (field === 'bairro') {
+        const textCondition = buildTextFilter(value, operator, {
+          exactLabel: 'bairro',
+          containsLabel: 'bairro',
+        }).replace('%COLUMN%', 'latest_address.bairro')
+
+        conditions.push(`
+          c.id IN (
+            SELECT latest_address.cliente_id
+            FROM (
+              SELECT DISTINCT ON (e.cliente_id)
+                e.cliente_id,
+                e.bairro
+              FROM enderecos e
+              WHERE e.cliente_id IS NOT NULL
+              ORDER BY e.cliente_id, e.id DESC
+            ) latest_address
+            WHERE COALESCE(NULLIF(TRIM(latest_address.bairro), ''), '') <> ''
+              AND ${textCondition}
+          )
+        `)
+        continue
+      }
+
       if (field === 'city') {
         const textCondition = buildTextFilter(value, operator, {
           exactLabel: 'cidade',
@@ -1284,6 +1390,23 @@ function createBroadcastService(prisma, deps = {}) {
               ORDER BY e.cliente_id, e.id DESC
             ) latest_address
             WHERE COALESCE(NULLIF(TRIM(latest_address.cidade), ''), '') <> ''
+              AND ${textCondition}
+          )
+        `)
+        continue
+      }
+
+      if (field === 'customer_tag') {
+        const textCondition = buildTextFilter(value, operator, {
+          exactLabel: 'tag do cliente',
+          containsLabel: 'tag do cliente',
+        }).replace('%COLUMN%', 'tag.value')
+
+        conditions.push(`
+          EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements_text(COALESCE(c.bot_tags, '[]'::jsonb)) AS tag(value)
+            WHERE COALESCE(NULLIF(TRIM(tag.value), ''), '') <> ''
               AND ${textCondition}
           )
         `)

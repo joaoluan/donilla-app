@@ -41,10 +41,20 @@ export function bindBroadcastSection(ctx) {
   const membersListEl = document.getElementById('broadcastMembersList');
   const addMemberBtnEl = document.getElementById('broadcastAddMemberBtn');
   const importClientsBtnEl = document.getElementById('broadcastImportClientsBtn');
+  const audienceBuilderEl = document.getElementById('broadcastAudienceBuilder');
+  const audienceListNameEl = document.getElementById('broadcastAudienceListName');
+  const audienceDescriptionEl = document.getElementById('broadcastAudienceDescription');
+  const audienceRuleCountEl = document.getElementById('broadcastAudienceRuleCount');
+  const audienceLogicLabelEl = document.getElementById('broadcastAudienceLogicLabel');
   const audienceRulesEl = document.getElementById('broadcastAudienceRules');
   const audienceLogicEl = document.getElementById('broadcastAudienceLogic');
+  const audiencePickerEl = document.getElementById('broadcastAudiencePicker');
+  const audiencePickerSearchEl = document.getElementById('broadcastAudiencePickerSearch');
+  const audiencePickerResultsEl = document.getElementById('broadcastAudiencePickerResults');
+  const audiencePickerCloseBtnEl = document.getElementById('broadcastAudiencePickerCloseBtn');
   const audiencePreviewEl = document.getElementById('broadcastAudiencePreview');
   const audienceTotalEl = document.getElementById('broadcastAudienceTotal');
+  const audiencePreviewCaptionEl = document.getElementById('broadcastAudiencePreviewCaption');
   const audienceSampleEl = document.getElementById('broadcastAudienceSample');
   const audienceStatusEl = document.getElementById('broadcastAudienceStatus');
   const addRuleBtnEl = document.getElementById('broadcastAddRuleBtn');
@@ -123,6 +133,8 @@ export function bindBroadcastSection(ctx) {
 
   let audienceRules = [];
   let lastPreviewTotal = 0;
+  let audiencePreviewTimer = null;
+  let audiencePreviewRequestId = 0;
 
   function isViewActive() {
     return !viewEl.classList.contains('hidden');
@@ -698,8 +710,13 @@ export function bindBroadcastSection(ctx) {
     localState.logsCampaign = null;
     localState.selectedListId = null;
     localState.logsCampaignId = null;
+    audienceRules = [];
     campaignFormEl?.reset();
     templateFormEl?.reset();
+    if (audienceListNameEl) audienceListNameEl.value = '';
+    if (audienceDescriptionEl) audienceDescriptionEl.value = '';
+    if (audiencePickerSearchEl) audiencePickerSearchEl.value = '';
+    setAudiencePickerOpen(false);
     syncBroadcastMessageCounters();
     updateOverview();
     updateCampaignListOptions();
@@ -709,8 +726,12 @@ export function bindBroadcastSection(ctx) {
     renderTemplates();
     renderCampaigns();
     renderLogs();
-    resetAudiencePreview();
     renderAudienceRules();
+    resetAudiencePreview({
+      caption: 'Faca login para consultar a audiencia dessa lista.',
+      sampleLabel: 'Amostra disponivel apos o login.',
+      clearMessage: true,
+    });
     setStatus(listsStatusEl, 'Faça login para carregar listas de disparo.', 'muted');
     setStatus(membersStatusEl, 'Faça login para gerenciar contatos.', 'muted');
     setStatus(templatesStatusEl, 'Faça login para visualizar templates.', 'muted');
@@ -746,26 +767,186 @@ export function bindBroadcastSection(ctx) {
     return envelope ? helpers.parseEnvelope(response) : helpers.parseResponse(response);
   }
 
-  // Exemplos sugeridos:
-  // Clientes inativos: last_order_days gte 30
-  // Clientes recorrentes: total_orders gte 5
-  // Fas de Nutella: product_bought contains Nutella
-  // Nunca compraram: never_ordered eq
-  // Top clientes: total_spent gte 200
-  const AUDIENCE_FIELDS = [
-    { value: 'last_order_days', label: 'Dias desde o ultimo pedido' },
-    { value: 'total_orders', label: 'Total de pedidos' },
-    { value: 'total_spent', label: 'Total gasto (R$)' },
-    { value: 'product_bought', label: 'Produto comprado' },
-    { value: 'category_bought', label: 'Categoria comprada' },
-    { value: 'never_ordered', label: 'Nunca fez pedido' },
-    { value: 'city', label: 'Cidade' },
+  const AUDIENCE_CATEGORY_META = {
+    behavior: {
+      label: 'Comportamento de compra',
+      description: 'Recencia, frequencia e gasto acumulado.',
+      shortLabel: 'Comportamento',
+    },
+    product: {
+      label: 'Produto e categoria',
+      description: 'Historico do que cada cliente ja comprou.',
+      shortLabel: 'Produto',
+    },
+    profile: {
+      label: 'Perfil do cliente',
+      description: 'Localizacao e dados de cadastro.',
+      shortLabel: 'Perfil',
+    },
+  };
+
+  const BIRTHDAY_MONTH_OPTIONS = [
+    { value: '1', label: 'Janeiro' },
+    { value: '2', label: 'Fevereiro' },
+    { value: '3', label: 'Marco' },
+    { value: '4', label: 'Abril' },
+    { value: '5', label: 'Maio' },
+    { value: '6', label: 'Junho' },
+    { value: '7', label: 'Julho' },
+    { value: '8', label: 'Agosto' },
+    { value: '9', label: 'Setembro' },
+    { value: '10', label: 'Outubro' },
+    { value: '11', label: 'Novembro' },
+    { value: '12', label: 'Dezembro' },
   ];
+
+  const AUDIENCE_FIELDS = [
+    {
+      value: 'last_order_days',
+      label: 'Dias desde o ultimo pedido',
+      category: 'behavior',
+      description: 'Identifique clientes inativos ou quem comprou recentemente.',
+      valueLabel: 'Dias',
+      placeholder: 'Ex.: 30',
+      pickerTag: 'Numero',
+    },
+    {
+      value: 'registration_days',
+      label: 'Dias desde cadastro',
+      category: 'profile',
+      description: 'Separe clientes novos ou mais antigos na base.',
+      valueLabel: 'Dias',
+      placeholder: 'Ex.: 15',
+      pickerTag: 'Numero',
+    },
+    {
+      value: 'birthday_month',
+      label: 'Mes de aniversario',
+      category: 'profile',
+      description: 'Separe campanhas para quem faz aniversario em um mes especifico.',
+      valueLabel: 'Mes',
+      inputKind: 'select',
+      options: BIRTHDAY_MONTH_OPTIONS,
+      pickerTag: 'Selecao',
+    },
+    {
+      value: 'age_years',
+      label: 'Idade',
+      category: 'profile',
+      description: 'Use a data de aniversario para segmentar por faixa etaria.',
+      valueLabel: 'Anos',
+      placeholder: 'Ex.: 30',
+      pickerTag: 'Numero',
+    },
+    {
+      value: 'total_orders',
+      label: 'Total de pedidos',
+      category: 'behavior',
+      description: 'Separe clientes recorrentes, ocasionais ou novos.',
+      valueLabel: 'Quantidade',
+      placeholder: 'Ex.: 5',
+      pickerTag: 'Numero',
+    },
+    {
+      value: 'total_spent',
+      label: 'Total gasto (R$)',
+      category: 'behavior',
+      description: 'Crie listas por valor acumulado gasto na loja.',
+      valueLabel: 'Valor',
+      placeholder: 'Ex.: 200',
+      pickerTag: 'Moeda',
+    },
+    {
+      value: 'product_bought',
+      label: 'Produto comprado',
+      category: 'product',
+      description: 'Encontre clientes por item comprado em qualquer pedido.',
+      valueLabel: 'Produto',
+      placeholder: 'Ex.: Nutella',
+      pickerTag: 'Texto',
+    },
+    {
+      value: 'category_bought',
+      label: 'Categoria comprada',
+      category: 'product',
+      description: 'Agrupe quem ja comprou dentro de uma categoria especifica.',
+      valueLabel: 'Categoria',
+      placeholder: 'Ex.: Chocolate',
+      pickerTag: 'Texto',
+    },
+    {
+      value: 'never_ordered',
+      label: 'Nunca fez pedido',
+      category: 'behavior',
+      description: 'Ative automaticamente clientes sem historico de compra.',
+      valueLabel: 'Regra automatica',
+      placeholder: '',
+      pickerTag: 'Booleano',
+    },
+    {
+      value: 'city',
+      label: 'Cidade',
+      category: 'profile',
+      description: 'Filtre clientes pela cidade mais recente cadastrada.',
+      valueLabel: 'Cidade',
+      placeholder: 'Ex.: Sao Paulo',
+      pickerTag: 'Texto',
+    },
+    {
+      value: 'bairro',
+      label: 'Bairro',
+      category: 'profile',
+      description: 'Use o bairro mais recente do cadastro do cliente.',
+      valueLabel: 'Bairro',
+      placeholder: 'Ex.: Centro',
+      pickerTag: 'Texto',
+    },
+    {
+      value: 'payment_method',
+      label: 'Forma de pagamento',
+      category: 'behavior',
+      description: 'Encontre quem ja comprou com Pix ou pagamento online.',
+      valueLabel: 'Forma de pagamento',
+      inputKind: 'select',
+      options: [
+        { value: 'pix', label: 'Pix' },
+        { value: 'asaas_checkout', label: 'Pagamento online' },
+      ],
+      pickerTag: 'Selecao',
+    },
+    {
+      value: 'customer_tag',
+      label: 'Tag do cliente',
+      category: 'profile',
+      description: 'Filtre usando tags salvas no cliente pelo Flow Builder.',
+      valueLabel: 'Tag',
+      placeholder: 'Ex.: lead_fluxo_comercial',
+      pickerTag: 'Texto',
+    },
+  ];
+  const AUDIENCE_FIELDS_BY_VALUE = AUDIENCE_FIELDS.reduce((acc, field) => {
+    acc[field.value] = field;
+    return acc;
+  }, {});
+  const AUDIENCE_CATEGORY_ORDER = ['behavior', 'product', 'profile'];
 
   const AUDIENCE_OPERATORS = {
     last_order_days: [
-      { value: 'gte', label: 'nao pede ha pelo menos (dias)' },
-      { value: 'lte', label: 'pediu nos ultimos (dias)' },
+      { value: 'gte', label: 'nao pede ha pelo menos' },
+      { value: 'lte', label: 'pediu nos ultimos' },
+    ],
+    registration_days: [
+      { value: 'gte', label: 'cadastrado ha pelo menos' },
+      { value: 'lte', label: 'cadastrado nos ultimos' },
+      { value: 'eq', label: 'cadastrado ha exatamente' },
+    ],
+    birthday_month: [
+      { value: 'eq', label: 'faz aniversario em' },
+    ],
+    age_years: [
+      { value: 'gte', label: 'tem pelo menos' },
+      { value: 'lte', label: 'tem no maximo' },
+      { value: 'eq', label: 'tem exatamente' },
     ],
     total_orders: [
       { value: 'gte', label: 'fez pelo menos' },
@@ -786,9 +967,20 @@ export function bindBroadcastSection(ctx) {
       { value: 'eq', label: 'igual a' },
     ],
     never_ordered: [
-      { value: 'eq', label: '(automatico)' },
+      { value: 'eq', label: 'automatico' },
     ],
     city: [
+      { value: 'contains', label: 'contem' },
+      { value: 'eq', label: 'igual a' },
+    ],
+    bairro: [
+      { value: 'contains', label: 'contem' },
+      { value: 'eq', label: 'igual a' },
+    ],
+    payment_method: [
+      { value: 'eq', label: 'usou' },
+    ],
+    customer_tag: [
       { value: 'contains', label: 'contem' },
       { value: 'eq', label: 'igual a' },
     ],
@@ -796,12 +988,16 @@ export function bindBroadcastSection(ctx) {
 
   const FIELDS_WITH_WINDOW = ['product_bought', 'category_bought'];
   const FIELDS_NO_VALUE = ['never_ordered'];
-  const FIELDS_NUMERIC = ['last_order_days', 'total_orders', 'total_spent'];
+  const FIELDS_NUMERIC = ['last_order_days', 'registration_days', 'age_years', 'total_orders', 'total_spent'];
 
   function defaultAudienceValue(field) {
     if (field === 'last_order_days') return '30';
+    if (field === 'registration_days') return '15';
+    if (field === 'birthday_month') return String(new Date().getMonth() + 1);
+    if (field === 'age_years') return '30';
     if (field === 'total_orders') return '5';
     if (field === 'total_spent') return '200';
+    if (field === 'payment_method') return 'pix';
     return '';
   }
 
@@ -814,13 +1010,174 @@ export function bindBroadcastSection(ctx) {
     };
   }
 
-  function buildRuleEl(rule, index) {
-    const fieldOptions = AUDIENCE_FIELDS
-      .map((field) => (
-        `<option value="${field.value}" ${rule.field === field.value ? 'selected' : ''}>${escapeHtml(field.label)}</option>`
-      ))
+  function cancelAudiencePreviewTimer() {
+    if (audiencePreviewTimer) {
+      window.clearTimeout(audiencePreviewTimer);
+      audiencePreviewTimer = null;
+    }
+  }
+
+  function getAudienceFieldMeta(field) {
+    return AUDIENCE_FIELDS_BY_VALUE[field] || AUDIENCE_FIELDS[0];
+  }
+
+  function isAudiencePickerOpen() {
+    return Boolean(audiencePickerEl && !audiencePickerEl.classList.contains('hidden'));
+  }
+
+  function setAudiencePickerOpen(nextOpen) {
+    if (!audiencePickerEl) return;
+    audiencePickerEl.classList.toggle('hidden', !nextOpen);
+    addRuleBtnEl?.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+
+    if (nextOpen) {
+      renderAudiencePicker(audiencePickerSearchEl?.value || '');
+      window.requestAnimationFrame(() => audiencePickerSearchEl?.focus());
+    }
+  }
+
+  function normalizeAudienceRule(rule) {
+    return {
+      field: rule.field,
+      operator: rule.operator,
+      value: FIELDS_NO_VALUE.includes(rule.field) ? '' : String(rule.value || '').trim(),
+      window_days: rule.window_days ? Number(rule.window_days) : null,
+    };
+  }
+
+  function isAudienceRuleComplete(rule) {
+    if (!rule) return false;
+    if (FIELDS_NO_VALUE.includes(rule.field)) return true;
+    return Boolean(String(rule.value || '').trim());
+  }
+
+  function hasIncompleteAudienceRules() {
+    return audienceRules.some((rule) => !isAudienceRuleComplete(rule));
+  }
+
+  function syncAudienceSummary() {
+    if (audienceRuleCountEl) {
+      audienceRuleCountEl.textContent = String(audienceRules.length);
+    }
+
+    if (audienceLogicLabelEl) {
+      if (audienceRules.length === 0) {
+        audienceLogicLabelEl.textContent = 'Sem filtros';
+      } else if (audienceRules.length === 1) {
+        audienceLogicLabelEl.textContent = 'Uma regra';
+      } else {
+        audienceLogicLabelEl.textContent = audienceLogicEl?.value === 'or'
+          ? 'Qualquer filtro'
+          : 'Todos os filtros';
+      }
+    }
+  }
+
+  function syncAudienceSaveState() {
+    if (!saveSegmentBtnEl) return;
+
+    const hasName = Boolean(String(audienceListNameEl?.value || '').trim());
+    const isLoading = Boolean(audiencePreviewEl?.classList.contains('is-loading'));
+    saveSegmentBtnEl.disabled = !state.accessToken || !hasName || isLoading || lastPreviewTotal === 0 || hasIncompleteAudienceRules();
+  }
+
+  function renderAudienceSample(sample = [], total = 0, emptyLabel = 'Amostra da lista aparece aqui.') {
+    if (!audienceSampleEl) return;
+
+    if (!sample.length) {
+      audienceSampleEl.innerHTML = `
+        <span class="broadcast-audience-chip muted">
+          ${escapeHtml(emptyLabel)}
+        </span>
+      `;
+      return;
+    }
+
+    audienceSampleEl.innerHTML = sample
+      .map((customer) => `
+        <span class="broadcast-audience-chip">
+          ${escapeHtml(customer.nome || 'Sem nome')} · ${escapeHtml(helpers.formatPhone(customer.telefone) || customer.telefone || '')}
+        </span>
+      `)
       .join('');
 
+    const remaining = Math.max(0, Number(total || 0) - sample.length);
+    if (remaining > 0) {
+      audienceSampleEl.innerHTML += `
+        <span class="broadcast-audience-chip muted">
+          +${remaining} outro(s)
+        </span>
+      `;
+    }
+  }
+
+  function setAudiencePreviewLoading() {
+    audiencePreviewEl?.classList.add('is-loading');
+    if (audiencePreviewCaptionEl) {
+      audiencePreviewCaptionEl.textContent = 'Atualizando a estimativa com os filtros atuais...';
+    }
+    if (!lastPreviewTotal) {
+      renderAudienceSample([], 0, 'Consultando a base de clientes...');
+    }
+    syncAudienceSaveState();
+  }
+
+  function resetAudiencePreview({
+    caption = 'Adicione filtros para estimar quantos clientes entram nessa lista.',
+    sampleLabel = 'Amostra da lista aparece aqui.',
+    clearMessage = false,
+  } = {}) {
+    cancelAudiencePreviewTimer();
+    audiencePreviewRequestId += 1;
+    lastPreviewTotal = 0;
+    audiencePreviewEl?.classList.remove('is-loading');
+    if (audienceTotalEl) audienceTotalEl.textContent = '0';
+    if (audiencePreviewCaptionEl) audiencePreviewCaptionEl.textContent = caption;
+    renderAudienceSample([], 0, sampleLabel);
+    if (clearMessage) {
+      clearStatus(audienceStatusEl);
+    }
+    syncAudienceSaveState();
+  }
+
+  function getAudiencePayload() {
+    return {
+      logic: audienceLogicEl?.value || 'and',
+      rules: audienceRules.map((rule) => normalizeAudienceRule(rule)),
+    };
+  }
+
+  function buildAudienceConnector(index) {
+    const activeLogic = audienceLogicEl?.value || 'and';
+
+    if (index === 0) return '';
+
+    return `
+      <div class="broadcast-audience-connector">
+        <span>Combinar com o filtro acima</span>
+        <div class="broadcast-audience-logic-toggle" role="group" aria-label="Logica entre filtros">
+          <button
+            class="broadcast-audience-logic-btn ${activeLogic === 'and' ? 'active' : ''}"
+            type="button"
+            data-audience-logic-value="and"
+          >
+            E
+          </button>
+          <button
+            class="broadcast-audience-logic-btn ${activeLogic === 'or' ? 'active' : ''}"
+            type="button"
+            data-audience-logic-value="or"
+          >
+            OU
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildRuleEl(rule, index) {
+    const fieldMeta = getAudienceFieldMeta(rule.field);
+    const categoryMeta = AUDIENCE_CATEGORY_META[fieldMeta.category] || AUDIENCE_CATEGORY_META.behavior;
     const operatorOptions = (AUDIENCE_OPERATORS[rule.field] || [])
       .map((operator) => (
         `<option value="${operator.value}" ${rule.operator === operator.value ? 'selected' : ''}>${escapeHtml(operator.label)}</option>`
@@ -828,44 +1185,143 @@ export function bindBroadcastSection(ctx) {
       .join('');
 
     const noValue = FIELDS_NO_VALUE.includes(rule.field);
-    const isNumeric = FIELDS_NUMERIC.includes(rule.field);
+    const inputType = FIELDS_NUMERIC.includes(rule.field) ? 'number' : 'text';
     const hasWindow = FIELDS_WITH_WINDOW.includes(rule.field);
-    const placeholder = isNumeric ? 'Ex.: 30' : 'Ex.: Nutella';
+    const isSelect = fieldMeta.inputKind === 'select' && Array.isArray(fieldMeta.options);
 
     const valueMarkup = noValue
-      ? '<span class="broadcast-inline-note">Automatico</span>'
+      ? `
+        <div class="broadcast-audience-rule-auto">
+          <span>Regra automatica</span>
+          <strong>Clientes sem nenhum pedido registrado entram automaticamente.</strong>
+        </div>
+      `
+      : isSelect
+        ? `
+        <label class="broadcast-audience-control">
+          <span>${escapeHtml(fieldMeta.valueLabel || 'Valor')}</span>
+          <select data-rule-value="${index}">
+            ${fieldMeta.options.map((option) => `
+              <option value="${escapeHtml(option.value)}" ${String(rule.value || '') === String(option.value) ? 'selected' : ''}>
+                ${escapeHtml(option.label)}
+              </option>
+            `).join('')}
+          </select>
+        </label>
+      `
       : `
-        <input
-          type="${isNumeric ? 'number' : 'text'}"
-          min="${isNumeric ? '0' : ''}"
-          placeholder="${placeholder}"
-          value="${escapeHtml(rule.value || '')}"
-          data-rule-value="${index}"
-        />
+        <label class="broadcast-audience-control">
+          <span>${escapeHtml(fieldMeta.valueLabel || 'Valor')}</span>
+          <input
+            type="${inputType}"
+            min="${inputType === 'number' ? '0' : ''}"
+            placeholder="${escapeHtml(fieldMeta.placeholder || 'Digite um valor')}"
+            value="${escapeHtml(rule.value || '')}"
+            data-rule-value="${index}"
+          />
+        </label>
       `;
 
     const windowMarkup = hasWindow
       ? `
-        <div class="broadcast-audience-rule-window">
-          <label>nos ultimos</label>
-          <input
-            type="number"
-            min="1"
-            placeholder="dias"
-            value="${escapeHtml(rule.window_days || '')}"
-            data-rule-window="${index}"
-          />
-        </div>
+        <label class="broadcast-audience-control">
+          <span>Janela de tempo</span>
+          <div class="broadcast-audience-rule-window">
+            <input
+              type="number"
+              min="1"
+              placeholder="Ex.: 90"
+              value="${escapeHtml(rule.window_days || '')}"
+              data-rule-window="${index}"
+            />
+            <span>dias</span>
+          </div>
+        </label>
       `
-      : '<span></span>';
+      : '';
 
     return `
-      <div class="broadcast-audience-rule" data-rule-index="${index}">
-        <select data-rule-field="${index}">${fieldOptions}</select>
-        <select data-rule-operator="${index}">${operatorOptions}</select>
-        ${valueMarkup}
-        ${windowMarkup}
-        <button class="ghost-btn" type="button" data-rule-remove="${index}" style="white-space: nowrap;">Remover</button>
+      ${buildAudienceConnector(index)}
+      <article class="broadcast-audience-rule-card" data-rule-index="${index}" data-category="${escapeHtml(fieldMeta.category || 'behavior')}">
+        <div class="broadcast-audience-rule-head">
+          <div class="broadcast-audience-rule-head-main">
+            <span class="broadcast-audience-rule-category">${escapeHtml(categoryMeta.label)}</span>
+            <h4>${escapeHtml(fieldMeta.label)}</h4>
+            <p>${escapeHtml(fieldMeta.description || '')}</p>
+          </div>
+
+          <button class="ghost-btn" type="button" data-rule-remove="${index}">Remover</button>
+        </div>
+
+        <div class="broadcast-audience-rule-body">
+          <label class="broadcast-audience-control">
+            <span>Condicao</span>
+            <select data-rule-operator="${index}">${operatorOptions}</select>
+          </label>
+
+          ${valueMarkup}
+
+          ${windowMarkup}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderAudiencePicker(search = '') {
+    if (!audiencePickerResultsEl) return;
+
+    const query = String(search || '').trim().toLowerCase();
+    const sections = AUDIENCE_CATEGORY_ORDER
+      .map((categoryKey) => {
+        const categoryMeta = AUDIENCE_CATEGORY_META[categoryKey];
+        const items = AUDIENCE_FIELDS.filter((field) => {
+          if (field.category !== categoryKey) return false;
+          if (!query) return true;
+
+          return [
+            field.label,
+            field.description,
+            field.valueLabel,
+            field.options?.map((option) => option.label).join(' '),
+            categoryMeta?.label,
+          ]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(query));
+        });
+
+        if (!items.length) return '';
+
+        return `
+          <section class="broadcast-audience-picker-group">
+            <div class="broadcast-audience-picker-group-head">
+              <strong>${escapeHtml(categoryMeta?.label || 'Filtros')}</strong>
+            </div>
+
+            <div class="broadcast-audience-picker-list">
+              ${items.map((field) => `
+                <button
+                  class="broadcast-audience-picker-item"
+                  type="button"
+                  data-audience-pick-field="${field.value}"
+                  data-category="${field.category}"
+                >
+                  <span class="broadcast-audience-picker-item-main">
+                    <span class="broadcast-audience-picker-item-icon" aria-hidden="true"></span>
+                    <strong>${escapeHtml(field.label)}</strong>
+                  </span>
+                  <span class="broadcast-audience-picker-tag ${escapeHtml(field.category)}">${escapeHtml(categoryMeta?.shortLabel || 'Filtro')}</span>
+                </button>
+              `).join('')}
+            </div>
+          </section>
+        `;
+      })
+      .filter(Boolean)
+      .join('');
+
+    audiencePickerResultsEl.innerHTML = sections || `
+      <div class="broadcast-audience-empty">
+        <p>Nenhum filtro encontrado para essa busca.</p>
       </div>
     `;
   }
@@ -875,97 +1331,163 @@ export function bindBroadcastSection(ctx) {
 
     if (!audienceRules.length) {
       audienceRulesEl.innerHTML = `
-        <div class="broadcast-empty">
-          <p>Adicione pelo menos uma regra para filtrar os clientes.</p>
+        <div class="broadcast-audience-empty">
+          <p>Nenhum filtro ativo ainda. Abra a biblioteca para adicionar a primeira regra dessa lista.</p>
         </div>
       `;
+      syncAudienceSummary();
       return;
     }
 
     audienceRulesEl.innerHTML = audienceRules.map((rule, index) => buildRuleEl(rule, index)).join('');
-  }
-
-  function resetAudiencePreview() {
-    lastPreviewTotal = 0;
-    audiencePreviewEl?.classList.add('hidden');
-    if (audienceTotalEl) audienceTotalEl.textContent = '0';
-    if (audienceSampleEl) audienceSampleEl.innerHTML = '';
-    if (saveSegmentBtnEl) saveSegmentBtnEl.disabled = true;
-    clearStatus(audienceStatusEl);
-  }
-
-  function getAudiencePayload() {
-    return {
-      logic: audienceLogicEl?.value || 'and',
-      rules: audienceRules
-        .map((rule) => ({
-          field: rule.field,
-          operator: rule.operator,
-          value: FIELDS_NO_VALUE.includes(rule.field) ? '' : String(rule.value || '').trim(),
-          window_days: rule.window_days ? Number(rule.window_days) : null,
-        }))
-        .filter((rule) => FIELDS_NO_VALUE.includes(rule.field) || rule.value),
-    };
+    syncAudienceSummary();
   }
 
   function addAudienceRule(field = 'last_order_days') {
     audienceRules.push(createDefaultAudienceRule(field));
     renderAudienceRules();
-    resetAudiencePreview();
+    syncAudienceSaveState();
+
+    const insertedIndex = audienceRules.length - 1;
+    if (!FIELDS_NO_VALUE.includes(field) && !FIELDS_NUMERIC.includes(field)) {
+      window.requestAnimationFrame(() => {
+        audienceRulesEl?.querySelector(`[data-rule-value="${insertedIndex}"]`)?.focus();
+      });
+    }
   }
 
   function removeAudienceRule(index) {
     audienceRules.splice(index, 1);
     renderAudienceRules();
-    resetAudiencePreview();
+    syncAudienceSaveState();
   }
 
   function updateAudienceRule(index, key, value) {
     if (!audienceRules[index]) return;
 
     audienceRules[index][key] = value;
-
-    if (key === 'field') {
-      const nextRule = createDefaultAudienceRule(value);
-      audienceRules[index] = {
-        ...audienceRules[index],
-        field: nextRule.field,
-        operator: nextRule.operator,
-        value: nextRule.value,
-        window_days: nextRule.window_days,
-      };
-      renderAudienceRules();
-    }
-
-    resetAudiencePreview();
+    syncAudienceSaveState();
   }
 
-  function renderAudiencePreview(data) {
-    lastPreviewTotal = Number(data?.total || 0);
-    if (audienceTotalEl) audienceTotalEl.textContent = String(lastPreviewTotal);
+  async function runAudiencePreview({ manual = false } = {}) {
+    const filter = getAudiencePayload();
 
-    if (audienceSampleEl) {
-      const sample = Array.isArray(data?.sample) ? data.sample : [];
-      audienceSampleEl.innerHTML = sample
-        .map((customer) => `
-          <span class="broadcast-audience-chip">
-            ${escapeHtml(customer.nome || 'Sem nome')} · ${escapeHtml(helpers.formatPhone(customer.telefone) || customer.telefone || '')}
-          </span>
-        `)
-        .join('');
-
-      const remaining = Math.max(0, lastPreviewTotal - sample.length);
-      if (remaining > 0) {
-        audienceSampleEl.innerHTML += `
-          <span class="broadcast-audience-chip">
-            +${remaining} outro(s)
-          </span>
-        `;
-      }
+    if (!filter.rules.length) {
+      resetAudiencePreview({
+        caption: 'Adicione pelo menos um filtro para calcular a audiencia.',
+        sampleLabel: 'Amostra da lista aparece aqui.',
+      });
+      setStatus(audienceStatusEl, 'Adicione pelo menos um filtro antes de consultar a audiencia.', manual ? 'err' : 'muted');
+      return null;
     }
 
-    audiencePreviewEl?.classList.remove('hidden');
-    if (saveSegmentBtnEl) saveSegmentBtnEl.disabled = lastPreviewTotal === 0;
+    if (hasIncompleteAudienceRules()) {
+      resetAudiencePreview({
+        caption: 'Complete os filtros ativos para atualizar a audiencia.',
+        sampleLabel: 'Preencha todos os campos para gerar a amostra.',
+      });
+      setStatus(audienceStatusEl, 'Preencha todos os filtros ativos antes de consultar a audiencia.', manual ? 'err' : 'muted');
+      return null;
+    }
+
+    cancelAudiencePreviewTimer();
+    const requestId = ++audiencePreviewRequestId;
+    if (manual && previewAudienceBtnEl) previewAudienceBtnEl.disabled = true;
+    setAudiencePreviewLoading();
+    setStatus(
+      audienceStatusEl,
+      manual ? 'Consultando base de clientes...' : 'Atualizando a previa automaticamente...',
+      'muted',
+    );
+
+    try {
+      const data = await request('/admin/broadcast/audience/preview', {
+        method: 'POST',
+        body: filter,
+      });
+
+      if (requestId !== audiencePreviewRequestId) {
+        return null;
+      }
+
+      lastPreviewTotal = Number(data?.total || 0);
+      audiencePreviewEl?.classList.remove('is-loading');
+      if (audienceTotalEl) audienceTotalEl.textContent = String(lastPreviewTotal);
+      if (audiencePreviewCaptionEl) {
+        audiencePreviewCaptionEl.textContent = lastPreviewTotal
+          ? 'Clientes que entram nessa lista com as regras atuais.'
+          : 'Nenhum cliente corresponde aos filtros configurados agora.';
+      }
+      renderAudienceSample(Array.isArray(data?.sample) ? data.sample : [], lastPreviewTotal, 'Nenhum cliente encontrado com esses filtros.');
+      syncAudienceSaveState();
+
+      setStatus(
+        audienceStatusEl,
+        lastPreviewTotal
+          ? `Audiencia estimada atual: ${lastPreviewTotal} cliente(s).`
+          : 'Nenhum cliente encontrado com os filtros atuais.',
+        lastPreviewTotal ? 'ok' : 'muted',
+      );
+
+      return data;
+    } catch (error) {
+      if (requestId !== audiencePreviewRequestId) {
+        return null;
+      }
+
+      resetAudiencePreview({
+        caption: 'Nao foi possivel atualizar a audiencia agora.',
+        sampleLabel: 'Tente novamente para carregar a amostra de clientes.',
+      });
+      setStatus(audienceStatusEl, error.message, 'err');
+      return null;
+    } finally {
+      if (manual && previewAudienceBtnEl) previewAudienceBtnEl.disabled = false;
+      if (requestId === audiencePreviewRequestId) {
+        audiencePreviewEl?.classList.remove('is-loading');
+        syncAudienceSaveState();
+      }
+    }
+  }
+
+  function scheduleAudiencePreview({ immediate = false } = {}) {
+    cancelAudiencePreviewTimer();
+
+    if (!state.accessToken) {
+      resetAudiencePreview({
+        caption: 'Faca login para consultar a audiencia dessa lista.',
+        sampleLabel: 'Amostra disponivel apos o login.',
+      });
+      return;
+    }
+
+    if (!audienceRules.length) {
+      resetAudiencePreview({
+        caption: 'Adicione filtros para estimar quantos clientes entram nessa lista.',
+        sampleLabel: 'Amostra da lista aparece aqui.',
+      });
+      setStatus(audienceStatusEl, 'Adicione um filtro para iniciar a segmentacao.', 'muted');
+      return;
+    }
+
+    if (hasIncompleteAudienceRules()) {
+      resetAudiencePreview({
+        caption: 'Complete os filtros ativos para atualizar a audiencia.',
+        sampleLabel: 'Preencha todos os campos para ver a amostra dos clientes.',
+      });
+      setStatus(audienceStatusEl, 'Preencha todos os filtros ativos para atualizar a audiencia.', 'muted');
+      return;
+    }
+
+    setAudiencePreviewLoading();
+    if (immediate) {
+      runAudiencePreview().catch(() => {});
+      return;
+    }
+
+    audiencePreviewTimer = window.setTimeout(() => {
+      runAudiencePreview().catch(() => {});
+    }, 450);
   }
 
   async function loadLists(options = {}) {
@@ -1123,7 +1645,7 @@ export function bindBroadcastSection(ctx) {
       setStatus(listsStatusEl, `${localState.lists.length} lista(s) pronta(s) para uso.`, 'ok');
       setStatus(templatesStatusEl, `${localState.templates.length} template(s) carregado(s).`, 'ok');
       setStatus(campaignsStatusEl, `${localState.campaigns.length} campanha(s) sincronizada(s).`, 'ok');
-      setStatus(audienceStatusEl, 'Monte as regras e gere uma previa antes de salvar a lista.', 'muted');
+      setStatus(audienceStatusEl, 'Defina o nome da lista, adicione filtros e acompanhe a audiencia em tempo real.', 'muted');
     } catch (error) {
       setStatus(campaignsStatusEl, error.message, 'err');
       setStatus(templatesStatusEl, error.message, 'err');
@@ -1701,16 +2223,17 @@ export function bindBroadcastSection(ctx) {
   });
 
   audienceRulesEl?.addEventListener('change', (event) => {
-    const fieldSelect = event.target.closest('[data-rule-field]');
     const operatorSelect = event.target.closest('[data-rule-operator]');
-
-    if (fieldSelect) {
-      updateAudienceRule(Number(fieldSelect.dataset.ruleField || 0), 'field', fieldSelect.value);
-      return;
-    }
+    const valueSelect = event.target.closest('select[data-rule-value]');
 
     if (operatorSelect) {
       updateAudienceRule(Number(operatorSelect.dataset.ruleOperator || 0), 'operator', operatorSelect.value);
+      scheduleAudiencePreview();
+    }
+
+    if (valueSelect) {
+      updateAudienceRule(Number(valueSelect.dataset.ruleValue || 0), 'value', valueSelect.value);
+      scheduleAudiencePreview();
     }
   });
 
@@ -1720,50 +2243,77 @@ export function bindBroadcastSection(ctx) {
 
     if (valueInput) {
       updateAudienceRule(Number(valueInput.dataset.ruleValue || 0), 'value', valueInput.value);
+      scheduleAudiencePreview();
     }
 
     if (windowInput) {
       updateAudienceRule(Number(windowInput.dataset.ruleWindow || 0), 'window_days', windowInput.value || null);
+      scheduleAudiencePreview();
     }
   });
 
   audienceRulesEl?.addEventListener('click', (event) => {
     const removeButton = event.target.closest('[data-rule-remove]');
-    if (!removeButton) return;
-    removeAudienceRule(Number(removeButton.dataset.ruleRemove || 0));
-  });
+    const logicButton = event.target.closest('[data-audience-logic-value]');
 
-  audienceLogicEl?.addEventListener('change', () => {
-    resetAudiencePreview();
-  });
-
-  addRuleBtnEl?.addEventListener('click', () => {
-    addAudienceRule();
-  });
-
-  previewAudienceBtnEl?.addEventListener('click', async () => {
-    const filter = getAudiencePayload();
-
-    if (!filter.rules.length) {
-      setStatus(audienceStatusEl, 'Adicione pelo menos uma regra antes de visualizar.', 'err');
+    if (logicButton) {
+      if (audienceLogicEl) {
+        audienceLogicEl.value = logicButton.dataset.audienceLogicValue || 'and';
+      }
+      renderAudienceRules();
+      scheduleAudiencePreview({ immediate: true });
       return;
     }
 
-    previewAudienceBtnEl.disabled = true;
-    setStatus(audienceStatusEl, 'Consultando base de clientes...', 'muted');
+    if (!removeButton) return;
+    removeAudienceRule(Number(removeButton.dataset.ruleRemove || 0));
+    scheduleAudiencePreview({ immediate: true });
+  });
 
-    try {
-      const data = await request('/admin/broadcast/audience/preview', {
-        method: 'POST',
-        body: filter,
-      });
-      renderAudiencePreview(data);
-      setStatus(audienceStatusEl, `Previa gerada: ${Number(data?.total || 0)} cliente(s) encontrado(s).`, 'ok');
-    } catch (error) {
-      setStatus(audienceStatusEl, error.message, 'err');
-    } finally {
-      previewAudienceBtnEl.disabled = false;
+  audienceLogicEl?.addEventListener('change', () => {
+    renderAudienceRules();
+    scheduleAudiencePreview({ immediate: true });
+  });
+
+  addRuleBtnEl?.addEventListener('click', () => {
+    setAudiencePickerOpen(!isAudiencePickerOpen());
+  });
+
+  audiencePickerCloseBtnEl?.addEventListener('click', () => {
+    setAudiencePickerOpen(false);
+  });
+
+  audiencePickerSearchEl?.addEventListener('input', () => {
+    renderAudiencePicker(audiencePickerSearchEl.value);
+  });
+
+  audiencePickerSearchEl?.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      setAudiencePickerOpen(false);
     }
+  });
+
+  audiencePickerResultsEl?.addEventListener('click', (event) => {
+    const pickButton = event.target.closest('[data-audience-pick-field]');
+    if (!pickButton) return;
+
+    addAudienceRule(pickButton.dataset.audiencePickField || 'last_order_days');
+    setAudiencePickerOpen(false);
+    scheduleAudiencePreview({ immediate: true });
+  });
+
+  audienceListNameEl?.addEventListener('input', () => {
+    syncAudienceSaveState();
+  });
+
+  audienceBuilderEl?.addEventListener('click', (event) => {
+    if (!isAudiencePickerOpen()) return;
+    if (event.target.closest('#broadcastAudiencePicker') || event.target.closest('#broadcastAddRuleBtn')) return;
+    setAudiencePickerOpen(false);
+  });
+
+  previewAudienceBtnEl?.addEventListener('click', async () => {
+    await runAudiencePreview({ manual: true });
   });
 
   saveSegmentBtnEl?.addEventListener('click', async () => {
@@ -1774,16 +2324,23 @@ export function bindBroadcastSection(ctx) {
       return;
     }
 
-    if (!lastPreviewTotal) {
-      setStatus(audienceStatusEl, 'Gere a previa antes de salvar a lista.', 'err');
+    if (hasIncompleteAudienceRules()) {
+      setStatus(audienceStatusEl, 'Preencha todos os filtros ativos antes de salvar a lista.', 'err');
       return;
     }
 
-    const suggestedName = `Segmento ${new Date().toLocaleDateString('pt-BR')}`;
-    const name = window.prompt('Nome da nova lista de audiencia:', suggestedName);
-    if (!name?.trim()) return;
+    if (!lastPreviewTotal) {
+      setStatus(audienceStatusEl, 'A audiencia precisa ser maior que zero para salvar a lista.', 'err');
+      return;
+    }
 
-    const description = window.prompt('Descricao (opcional):') || null;
+    const name = String(audienceListNameEl?.value || '').trim();
+    const description = String(audienceDescriptionEl?.value || '').trim() || null;
+    if (!name) {
+      setStatus(audienceStatusEl, 'Defina um nome para a lista antes de salvar.', 'err');
+      audienceListNameEl?.focus();
+      return;
+    }
 
     saveSegmentBtnEl.disabled = true;
     setStatus(audienceStatusEl, 'Criando lista segmentada...', 'muted');
@@ -1803,8 +2360,14 @@ export function bindBroadcastSection(ctx) {
       await loadMembers(localState.selectedListId);
 
       audienceRules = [];
+      if (audienceListNameEl) audienceListNameEl.value = '';
+      if (audienceDescriptionEl) audienceDescriptionEl.value = '';
+      if (audiencePickerSearchEl) audiencePickerSearchEl.value = '';
       renderAudienceRules();
-      resetAudiencePreview();
+      resetAudiencePreview({
+        caption: 'Adicione filtros para estimar quantos clientes entram nessa lista.',
+        sampleLabel: 'Amostra da lista aparece aqui.',
+      });
       setActiveTab('lists');
 
       setStatus(
@@ -1815,7 +2378,7 @@ export function bindBroadcastSection(ctx) {
       setStatus(listsStatusEl, `Lista "${created.name}" criada por filtro.`, 'ok');
     } catch (error) {
       setStatus(audienceStatusEl, error.message, 'err');
-      saveSegmentBtnEl.disabled = lastPreviewTotal === 0;
+      syncAudienceSaveState();
     }
   });
 
@@ -1846,12 +2409,12 @@ export function bindBroadcastSection(ctx) {
     closeDialog(logsDialogEl);
   });
 
-  if (audienceRulesEl && audienceRules.length === 0) {
-    addAudienceRule();
-  } else {
-    renderAudienceRules();
-    resetAudiencePreview();
-  }
+  renderAudiencePicker();
+  renderAudienceRules();
+  resetAudiencePreview({
+    caption: 'Adicione filtros para estimar quantos clientes entram nessa lista.',
+    sampleLabel: 'Amostra da lista aparece aqui.',
+  });
 
   bindDialogCloseButtons();
   setActiveTab('lists');

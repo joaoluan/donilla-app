@@ -18,6 +18,7 @@ model clientes {
   nome              String      @db.VarChar(100)
   telefone_whatsapp String      @unique @db.VarChar(20)
   whatsapp_lid      String?     @unique @db.VarChar(40)
+  data_aniversario  DateTime?   @db.Date
   bot_tags          Json        @default("[]")
   bot_handoff_active Boolean    @default(false)
   bot_handoff_updated_at DateTime?

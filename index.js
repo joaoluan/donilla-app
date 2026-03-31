@@ -37,7 +37,7 @@ async function checkDatabaseSchema() {
     await prisma.$queryRawUnsafe('SELECT id, name, trigger_keyword FROM bot_flows LIMIT 1')
     await prisma.$queryRawUnsafe('SELECT id, phone, flow_id FROM client_flow_sessions LIMIT 1')
     await prisma.$queryRawUnsafe(
-      'SELECT id, bot_tags, bot_handoff_active, bot_handoff_updated_at FROM clientes LIMIT 1',
+      'SELECT id, data_aniversario, bot_tags, bot_handoff_active, bot_handoff_updated_at FROM clientes LIMIT 1',
     )
     console.log('Schema do banco validado com sucesso.')
     return true
@@ -66,6 +66,7 @@ async function checkDatabaseSchema() {
         '20260325_add_whatsapp_bot_pause_flag.sql',
         '20260330_add_broadcast_human_behavior.sql',
         '20260330_add_broadcast_module.sql',
+        '20260330_add_clientes_data_aniversario.sql',
         '20260330_add_flow_builder.sql',
         '20260330_add_order_tracking_token.sql',
         '20260330_expand_flow_trigger_keyword_aliases.sql',

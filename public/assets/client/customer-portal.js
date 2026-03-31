@@ -36,6 +36,7 @@ const passwordToggleEls = Array.from(document.querySelectorAll('[data-password-t
 
 const registerFormEl = document.getElementById('registerForm');
 const registerNameEl = document.getElementById('registerName');
+const registerBirthdayEl = document.getElementById('registerBirthday');
 const registerUserEl = document.getElementById('registerUser');
 const registerPhoneStatusEl = document.getElementById('registerPhoneStatus');
 const registerPasswordEl = document.getElementById('registerPassword');
@@ -78,6 +79,7 @@ const customerSessionAddressEl = document.getElementById('customerSessionAddress
 
 const profileFormEl = document.getElementById('profileForm');
 const profileNameEl = document.getElementById('profileName');
+const profileBirthdayEl = document.getElementById('profileBirthday');
 const profileSaveBtnEl = document.getElementById('profileSaveBtn');
 const profileStatusEl = document.getElementById('profileStatus');
 
@@ -148,6 +150,19 @@ let menuRefreshTimerId = 0;
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '').trim();
+}
+
+function normalizeBirthdayInputValue(value) {
+  const normalized = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : '';
+}
+
+function formatBirthdayLabel(value) {
+  const normalized = normalizeBirthdayInputValue(value);
+  if (!normalized) return 'Nao informado';
+
+  const [year, month, day] = normalized.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 function setStatus(target, message, type = 'muted') {
@@ -352,6 +367,7 @@ function setRegisterStep(step, { focusField = false } = {}) {
 function readRegisterDraft() {
   return {
     nome: registerNameEl.value.trim(),
+    data_aniversario: normalizeBirthdayInputValue(registerBirthdayEl.value),
     phone: normalizePhone(registerUserEl.value),
     senha: registerPasswordEl.value.trim(),
     senhaConfirm: registerPasswordConfirmEl.value.trim(),
@@ -602,12 +618,14 @@ function normalizeSession(payload) {
   if (!payload) return null;
   const nome = payload?.cliente?.nome || payload?.nome || '';
   const telefone = payload?.cliente?.telefone_whatsapp || payload?.telefone || payload?.telefone_whatsapp || '';
+  const dataAniversario = payload?.cliente?.data_aniversario || payload?.data_aniversario || '';
   const endereco = payload?.endereco && typeof payload.endereco === 'object' ? payload.endereco : null;
 
   return {
     ...payload,
     nome: String(nome).trim(),
     telefone: normalizePhone(telefone),
+    data_aniversario: normalizeBirthdayInputValue(dataAniversario),
     endereco,
     cliente_session_token: payload.cliente_session_token || '',
   };
@@ -908,6 +926,7 @@ function syncSessionUI() {
   sessionCustomerPhoneEl.textContent = `WhatsApp ${session.telefone || '--'}`;
   dashboardWelcomeEl.textContent = 'Faça seu pedido e acompanhe tudo pelo celular.';
   profileNameEl.value = session.nome || '';
+  profileBirthdayEl.value = session.data_aniversario || '';
   addressRuaEl.value = session.endereco?.rua || '';
   addressNumeroEl.value = session.endereco?.numero || '';
   addressBairroEl.value = session.endereco?.bairro || '';
@@ -916,7 +935,11 @@ function syncSessionUI() {
   addressReferenciaEl.value = session.endereco?.referencia || '';
 
   setStatus(customerSessionStatusEl, `Cliente ativo: ${session.nome}`, 'ok');
-  setStatus(customerSessionAddressEl, `Endereço salvo: ${formatAddress(session.endereco || null)}`, 'muted');
+  setStatus(
+    customerSessionAddressEl,
+    `Endereço salvo: ${formatAddress(session.endereco || null)} · Aniversario: ${formatBirthdayLabel(session.data_aniversario)}`,
+    'muted',
+  );
 
   renderCart();
   syncOrderPanel(session);
@@ -1510,10 +1533,12 @@ async function handleLogin(event) {
       nome: customer.nome || '',
       telefone: phone,
       telefone_whatsapp: phone,
+      data_aniversario: customer.data_aniversario || '',
       endereco: customer.endereco || null,
       cliente: {
         nome: customer.nome || '',
         telefone_whatsapp: phone,
+        data_aniversario: customer.data_aniversario || '',
       },
     });
 
@@ -1571,8 +1596,9 @@ async function handleRegister(event) {
     return;
   }
 
-  const { nome, phone, senha, endereco } = {
+  const { nome, data_aniversario, phone, senha, endereco } = {
     nome: draft.nome,
+    data_aniversario: draft.data_aniversario || null,
     phone: draft.phone,
     senha: draft.senha,
     endereco: draft.endereco,
@@ -1582,7 +1608,13 @@ async function handleRegister(event) {
   setStatus(registerStatusEl, 'Criando cadastro...', 'muted');
 
   try {
-    const customer = normalizeSession(await customerRegister({ nome, telefone_whatsapp: phone, senha, endereco }));
+    const customer = normalizeSession(await customerRegister({
+      nome,
+      telefone_whatsapp: phone,
+      senha,
+      data_aniversario,
+      endereco,
+    }));
 
     if (!customer?.cliente_session_token) {
       throw new Error('Não foi possível concluir o cadastro.');
@@ -1593,8 +1625,13 @@ async function handleRegister(event) {
       nome,
       telefone: phone,
       telefone_whatsapp: phone,
+      data_aniversario: customer.data_aniversario || data_aniversario || '',
       endereco: customer.endereco || endereco,
-      cliente: { nome, telefone_whatsapp: phone },
+      cliente: {
+        nome,
+        telefone_whatsapp: phone,
+        data_aniversario: customer.data_aniversario || data_aniversario || '',
+      },
     });
 
     setStatus(registerStatusEl, 'Cadastro criado com sucesso.', 'ok');
@@ -1633,6 +1670,7 @@ async function handleProfileSave(event) {
   event.preventDefault();
   const current = getCurrentSession();
   const nome = profileNameEl.value.trim();
+  const dataAniversario = normalizeBirthdayInputValue(profileBirthdayEl.value);
   if (!current?.cliente_session_token) {
     syncSessionUI();
     return;
@@ -1643,16 +1681,19 @@ async function handleProfileSave(event) {
     return;
   }
 
-  if (nome === current.nome) {
-    setStatus(profileStatusEl, 'Nome sem alteração.', 'muted');
+  if (nome === current.nome && dataAniversario === normalizeBirthdayInputValue(current.data_aniversario)) {
+    setStatus(profileStatusEl, 'Dados sem alteracao.', 'muted');
     return;
   }
 
   setLoading(profileSaveBtnEl, true);
-  setStatus(profileStatusEl, 'Atualizando nome...', 'muted');
+  setStatus(profileStatusEl, 'Atualizando dados...', 'muted');
 
   try {
-    const updated = normalizeSession(await updateCustomerProfile({ nome }));
+    const updated = normalizeSession(await updateCustomerProfile({
+      nome,
+      data_aniversario: dataAniversario || null,
+    }));
     if (!updated?.cliente_session_token) {
       throw new Error('Não foi possível atualizar seus dados.');
     }
@@ -1661,16 +1702,18 @@ async function handleProfileSave(event) {
       ...current,
       ...updated,
       nome: updated.nome,
+      data_aniversario: updated.data_aniversario || '',
       endereco: updated.endereco || current.endereco,
       cliente_session_token: updated.cliente_session_token,
       cliente: {
         ...(current.cliente || {}),
         nome: updated.nome,
         telefone_whatsapp: current.telefone,
+        data_aniversario: updated.data_aniversario || '',
       },
     });
 
-    setStatus(profileStatusEl, 'Nome atualizado com sucesso.', 'ok');
+    setStatus(profileStatusEl, 'Dados atualizados com sucesso.', 'ok');
     syncSessionUI();
   } catch (error) {
     if (!showAuthError(error)) {

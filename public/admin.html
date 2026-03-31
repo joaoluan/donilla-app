@@ -2076,43 +2076,114 @@
                 </article>
 
                 <article class="broadcast-card broadcast-audience-builder" id="broadcastAudienceBuilder">
-                  <div class="broadcast-card-head">
+                  <div class="broadcast-card-head broadcast-audience-builder-head">
                     <div>
+                      <span class="broadcast-eyebrow">Segmentacao dinamica</span>
                       <h3>Criar lista por filtro</h3>
                       <p class="muted">
                         Monte regras de segmentacao baseadas no comportamento de compra.
-                        A previa mostra quantos clientes serao incluidos antes de criar a lista.
+                        O tamanho da audiencia aparece em tempo real antes de salvar a lista.
                       </p>
+                    </div>
+
+                    <div class="broadcast-audience-head-stats">
+                      <div class="broadcast-audience-head-stat">
+                        <strong id="broadcastAudienceRuleCount">0</strong>
+                        <span>filtros ativos</span>
+                      </div>
+                      <div class="broadcast-audience-head-stat">
+                        <strong id="broadcastAudienceLogicLabel">E</strong>
+                        <span>combinacao dos filtros</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div id="broadcastAudienceRules" class="broadcast-audience-rules"></div>
+                  <div class="broadcast-audience-intro-grid">
+                    <label class="broadcast-field">
+                      <strong>Nome da lista</strong>
+                      <input
+                        id="broadcastAudienceListName"
+                        type="text"
+                        maxlength="255"
+                        placeholder="Ex.: Clientes inativos ha 30 dias"
+                      />
+                      <span class="broadcast-field-hint">De um nome claro antes de salvar para facilitar a busca depois.</span>
+                    </label>
 
-                  <div class="broadcast-audience-toolbar">
-                    <button id="broadcastAddRuleBtn" class="ghost-btn" type="button">+ Adicionar regra</button>
-                    <select id="broadcastAudienceLogic" class="broadcast-audience-logic-select">
+                    <label class="broadcast-field">
+                      <strong>Descricao</strong>
+                      <textarea
+                        id="broadcastAudienceDescription"
+                        rows="3"
+                        maxlength="2000"
+                        placeholder="Opcional. Explique rapidamente o criterio dessa segmentacao."
+                      ></textarea>
+                    </label>
+                  </div>
+
+                  <div class="broadcast-audience-workspace">
+                    <div class="broadcast-audience-toolbar">
+                      <div class="broadcast-audience-toolbar-copy">
+                        <strong>Filtros ativos</strong>
+                        <span>Cada regra aparece como um card. Adicione quantas combinacoes fizerem sentido.</span>
+                      </div>
+
+                      <div class="broadcast-audience-toolbar-actions">
+                        <button id="broadcastAddRuleBtn" class="ghost-btn" type="button" aria-expanded="false">
+                          + Adicionar filtro
+                        </button>
+
+                        <div id="broadcastAudiencePicker" class="broadcast-audience-picker hidden">
+                          <div class="broadcast-audience-picker-head">
+                            <strong>Biblioteca de filtros</strong>
+                            <button id="broadcastAudiencePickerCloseBtn" class="ghost-btn" type="button">
+                              Fechar
+                            </button>
+                          </div>
+
+                          <label class="broadcast-field">
+                            <input
+                              id="broadcastAudiencePickerSearch"
+                              type="search"
+                              placeholder="Buscar filtro..."
+                            />
+                          </label>
+
+                          <div id="broadcastAudiencePickerResults" class="broadcast-audience-picker-results"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <select id="broadcastAudienceLogic" class="broadcast-audience-logic-select hidden" aria-hidden="true" tabindex="-1">
                       <option value="and">Todos os filtros (E)</option>
                       <option value="or">Qualquer filtro (OU)</option>
                     </select>
+
+                    <div id="broadcastAudienceRules" class="broadcast-audience-rules"></div>
                   </div>
 
-                  <div id="broadcastAudiencePreview" class="broadcast-audience-preview hidden">
-                    <div class="broadcast-audience-preview-count">
-                      <strong id="broadcastAudienceTotal">0</strong>
-                      <span>clientes encontrados</span>
+                  <div id="broadcastAudiencePreview" class="broadcast-audience-preview">
+                    <div class="broadcast-audience-preview-main">
+                      <div class="broadcast-audience-preview-count">
+                        <span class="broadcast-audience-preview-label">Audiencia estimada</span>
+                        <strong id="broadcastAudienceTotal">0</strong>
+                        <span id="broadcastAudiencePreviewCaption">Adicione filtros para estimar quantos clientes entram nessa lista.</span>
+                      </div>
+                      <div id="broadcastAudienceSample" class="broadcast-audience-sample"></div>
                     </div>
-                    <div id="broadcastAudienceSample" class="broadcast-audience-sample"></div>
-                  </div>
 
-                  <p id="broadcastAudienceStatus" class="status-text muted"></p>
+                    <div class="broadcast-audience-preview-side">
+                      <p id="broadcastAudienceStatus" class="status-text muted"></p>
 
-                  <div class="broadcast-audience-actions">
-                    <button id="broadcastPreviewAudienceBtn" class="ghost-btn" type="button">
-                      Previa da audiencia
-                    </button>
-                    <button id="broadcastSaveSegmentBtn" class="primary-btn" type="button" disabled>
-                      Salvar como lista
-                    </button>
+                      <div class="broadcast-audience-actions">
+                        <button id="broadcastPreviewAudienceBtn" class="ghost-btn" type="button">
+                          Atualizar agora
+                        </button>
+                        <button id="broadcastSaveSegmentBtn" class="primary-btn" type="button" disabled>
+                          Salvar como lista
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </article>
               </div>
@@ -2363,6 +2434,6 @@
 
   <script src="/assets/ui/custom-select.js?v=20260327a"></script>
   <script src="/assets/admin/theme.js?v=20260330a"></script>
-  <script type="module" src="/assets/admin/app.js?v=20260331a"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260331b"></script>
 </body>
 </html>

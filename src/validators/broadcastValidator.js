@@ -155,12 +155,18 @@ module.exports = {
 const audienceRuleSchema = z.object({
   field: z.enum([
     'last_order_days',
+    'registration_days',
+    'birthday_month',
+    'age_years',
     'total_orders',
     'product_bought',
     'category_bought',
     'total_spent',
     'never_ordered',
     'city',
+    'bairro',
+    'payment_method',
+    'customer_tag',
   ]),
   operator: z.enum([
     'gte',

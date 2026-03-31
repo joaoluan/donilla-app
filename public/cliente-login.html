@@ -119,6 +119,12 @@
                 <input id="registerName" type="text" placeholder="Seu nome" />
               </label>
 
+              <label class="customer-auth-field">
+                <span>Data de aniversario</span>
+                <input id="registerBirthday" type="date" />
+                <small class="muted">Opcional. Isso ajuda a liberar campanhas e beneficios de aniversario.</small>
+              </label>
+
               <div class="split-2 customer-auth-grid">
                 <label class="customer-auth-field">
                   <span>WhatsApp</span>
@@ -319,10 +325,13 @@
         <section id="panelConta" class="admin-card panel-view hidden" style="display: block; margin-bottom: 12px;">
           <h3>Meus dados</h3>
           <form id="profileForm" class="checkout-form" style="margin-top: 8px;">
-            <h4>Alterar nome</h4>
-            <input id="profileName" type="text" placeholder="Nome completo" />
+            <h4>Dados principais</h4>
+            <div class="split-2">
+              <input id="profileName" type="text" placeholder="Nome completo" />
+              <input id="profileBirthday" type="date" />
+            </div>
             <div class="lookup-row">
-              <button id="profileSaveBtn" class="primary-btn" type="submit">Salvar nome</button>
+              <button id="profileSaveBtn" class="primary-btn" type="submit">Salvar dados</button>
             </div>
             <p id="profileStatus" class="status-text muted"></p>
           </form>
@@ -373,6 +382,6 @@
   </button>
 
   <script src="/assets/ui/custom-select.js?v=20260327a"></script>
-  <script type="module" src="/assets/client/customer-portal.js?v=20260329a"></script>
+  <script type="module" src="/assets/client/customer-portal.js?v=20260330a"></script>
 </body>
 </html>
