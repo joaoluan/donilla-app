@@ -50,8 +50,27 @@ async function checkDatabaseSchema() {
     if (isMissingSchemaArtifact) {
       console.error('Falha ao validar o schema do banco.')
       console.error(
-        'Motivo: tabela/coluna ausente. Aplique as atualizacoes SQL em prisma/sql/20260311_add_produtos_estoque_disponivel.sql, prisma/sql/20260311_add_taxas_entrega_por_local.sql, prisma/sql/20260311_add_tempo_entrega_max_minutos.sql, prisma/sql/20260311_add_pedidos_observacoes.sql, prisma/sql/20260311_add_whatsapp_bot_settings.sql, prisma/sql/20260312_add_clientes_whatsapp_lid.sql, prisma/sql/20260323_add_asaas_webhook_events.sql, prisma/sql/20260323_add_pedidos_auditoria.sql e prisma/sql/20260330_add_flow_builder.sql',
+        'Motivo: tabela/coluna ausente. Aplique as atualizacoes SQL em prisma/sql/:',
       )
+      const migrations = [
+        '20260311_add_produtos_estoque_disponivel.sql',
+        '20260311_add_taxas_entrega_por_local.sql',
+        '20260311_add_tempo_entrega_max_minutos.sql',
+        '20260311_add_pedidos_observacoes.sql',
+        '20260311_add_whatsapp_bot_settings.sql',
+        '20260312_add_clientes_whatsapp_lid.sql',
+        '20260323_add_asaas_webhook_events.sql',
+        '20260323_add_order_payment_metadata.sql',
+        '20260323_add_pedidos_auditoria.sql',
+        '20260325_add_store_hours_schedule.sql',
+        '20260325_add_whatsapp_bot_pause_flag.sql',
+        '20260330_add_broadcast_human_behavior.sql',
+        '20260330_add_broadcast_module.sql',
+        '20260330_add_flow_builder.sql',
+        '20260330_add_order_tracking_token.sql',
+        '20260330_expand_flow_trigger_keyword_aliases.sql',
+      ]
+      console.error('  - ' + migrations.join('\n  - '))
       return false
     }
 

@@ -148,7 +148,7 @@ function renderFlowsTable() {
       const canDelete = flow.status === 'draft';
       const templateDetails = getTemplateDetails(flow);
       const actionButtons = [
-        `<a class="flow-inline-btn" href="/admin/fluxos/editor?id=${flow.id}">Editar</a>`,
+        `<a class="flow-inline-btn" href="/admin/bot-whatsapp/fluxos/editor?id=${flow.id}">Editar</a>`,
         flow.status === 'published'
           ? `<button class="flow-inline-btn" type="button" data-flow-action="unpublish" data-flow-id="${flow.id}">Despublicar</button>`
           : `<button class="flow-inline-btn" type="button" data-flow-action="publish" data-flow-id="${flow.id}">Publicar</button>`,
@@ -262,7 +262,7 @@ async function handleCreateFlow(event) {
     const created = await session.run((api) => api.createFlow(payload));
     showToast(dom.toast, `Fluxo "${created.name}" criado com sucesso.`, 'ok');
     closeDialog();
-    window.location.href = `/admin/fluxos/editor?id=${created.id}`;
+    window.location.href = `/admin/bot-whatsapp/fluxos/editor?id=${created.id}`;
   } catch (error) {
     setInlineStatus(dom.createStatus, error.message, 'err');
   }

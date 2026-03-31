@@ -1,4 +1,5 @@
 const { getCorsHeaders, getNoStoreHeaders, getSecurityHeaders } = require('../utils/security')
+const { ManagedInterval } = require('../utils/syncUtility')
 
 function formatSseChunk({ id = null, event = null, data = undefined, comment = null } = {}) {
   const lines = []
@@ -25,7 +26,7 @@ function formatSseChunk({ id = null, event = null, data = undefined, comment = n
   return `${lines.join('\n')}\n\n`
 }
 
-function createAdminEventsBroker({ heartbeatIntervalMs = 25_000 } = {}) {
+function createAdminEventsBroker({ heartbeatIntervalMs = 25_000, logger = console } = {}) {
   const clients = new Map()
   let nextClientId = 1
   let nextEventId = 1
@@ -35,7 +36,13 @@ function createAdminEventsBroker({ heartbeatIntervalMs = 25_000 } = {}) {
     if (!client) return
 
     if (client.heartbeatTimer) {
-      clearInterval(client.heartbeatTimer)
+      if (typeof client.heartbeatTimer.cancel === 'function') {
+        // ManagedInterval
+        client.heartbeatTimer.cancel()
+      } else {
+        // Fallback para casos legados
+        clearInterval(client.heartbeatTimer)
+      }
     }
 
     clients.delete(clientId)
@@ -96,8 +103,13 @@ function createAdminEventsBroker({ heartbeatIntervalMs = 25_000 } = {}) {
       removeClient(clientId)
     }
 
-    const heartbeatTimer = setInterval(() => {
-      writeChunk(clientId, formatSseChunk({ comment: 'ping' }))
+    const heartbeatTimer = new ManagedInterval(() => {
+      if (writeChunk(clientId, formatSseChunk({ comment: 'ping' }))) {
+        return
+      }
+
+      heartbeatTimer.cancel()
+      logger.warn?.('[admin-events] Cliente SSE removido durante heartbeat.', { clientId })
     }, heartbeatIntervalMs)
 
     clients.set(clientId, {

@@ -2,6 +2,7 @@ const { createFlowRepository } = require('./flowRepository')
 const { getPhoneSearchVariants, normalizeWhatsAppPhone } = require('../utils/phone')
 const { buildPublicOrderTrackingPath, buildPublicOrderTrackingUrl } = require('../utils/orderTracking')
 const { PAYMENT_STATUS_LABELS, STATUS_LABELS } = require('./whatsappNotificationService')
+const { ManagedTimer } = require('../utils/syncUtility')
 
 const MAX_AUTO_STEPS = 40
 const INPUT_VARIABLE_KEY_PATTERN = /^[a-z][a-z0-9_]{1,39}$/
@@ -339,7 +340,13 @@ function createFlowEngine(prisma, deps = {}) {
     const currentTimer = pendingWaitTimers.get(normalizedPhone)
     if (!currentTimer) return
 
-    clearTimeoutFn(currentTimer)
+    if (typeof currentTimer.cancel === 'function') {
+      // ManagedTimer
+      currentTimer.cancel()
+    } else {
+      // Fallback para casos legados
+      clearTimeoutFn(currentTimer)
+    }
     pendingWaitTimers.delete(normalizedPhone)
   }
 
@@ -448,13 +455,22 @@ function createFlowEngine(prisma, deps = {}) {
     cancelWaitTimer(phone)
 
     const normalizedPhone = normalizeWhatsAppPhone(phone) || String(phone || '').replace(/\D/g, '').trim()
-    const timer = setTimeoutFn(async () => {
-      pendingWaitTimers.delete(normalizedPhone)
-
+    const timer = new ManagedTimer(async () => {
       try {
         const session = await repository.getClientSession(normalizedPhone)
+        if (!session) {
+          logger.warn('[flows] Session não encontrada ao retomar timer:', { normalizedPhone, nodeId })
+          return
+        }
+
         const resumeNodeId = String(session?.context_data?.resume_node_id || '').trim()
-        if (!session || session.waiting_for !== WAITING_FOR.waitTimer || resumeNodeId !== String(nodeId || '').trim()) {
+        if (session.waiting_for !== WAITING_FOR.waitTimer || resumeNodeId !== String(nodeId || '').trim()) {
+          logger.warn('[flows] Session state inválido ao retomar:', {
+            normalizedPhone,
+            nodeId,
+            waiting_for: session.waiting_for,
+            resumeNodeId,
+          })
           return
         }
 
@@ -465,6 +481,9 @@ function createFlowEngine(prisma, deps = {}) {
         await executeNode(normalizedPhone, flow, nodeId, '', sendMessage, runtimeContext)
       } catch (error) {
         logger.error('[flows] Falha ao retomar no de espera:', error?.message || error)
+      } finally {
+        // Cleanup automático
+        pendingWaitTimers.delete(normalizedPhone)
       }
     }, Math.max(1, Number(waitSeconds || 0)) * 1000)
 

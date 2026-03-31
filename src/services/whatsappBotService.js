@@ -2,10 +2,12 @@ const { STATUS_LABELS, PAYMENT_STATUS_LABELS } = require('./whatsappNotification
 const { createFlowEngine } = require('./flowEngine')
 const { getPhoneSearchVariants, normalizeLidKey, normalizeWhatsAppId } = require('../utils/phone')
 const { normalizePhone } = require('./wppConnectService')
+const { KeyedMutexMap } = require('../utils/syncUtility')
 
 const HUMAN_HANDOFF_WINDOW_MS = 30 * 60 * 1000
 const OBSERVATION_MAX_LENGTH = 500
 const conversationStates = new Map()
+const conversationStateMutexes = new KeyedMutexMap()
 
 function removeDiacritics(value) {
   return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -493,22 +495,32 @@ function getConversationState(phone) {
 
   if (state.mode === 'human_handoff' && Number(state.expiresAt || 0) <= Date.now()) {
     conversationStates.delete(key)
+    conversationStateMutexes.clearMutex(key)
     return null
   }
 
   return state
 }
 
-function setConversationState(phone, state) {
+async function setConversationState(phone, state) {
   const key = normalizePhone(phone)
   if (!key) return
-  conversationStates.set(key, state)
+
+  // Sincroniza acesso para evitar race conditions
+  await conversationStateMutexes.runExclusive(key, () => {
+    conversationStates.set(key, state)
+  })
 }
 
-function clearConversationState(phone) {
+async function clearConversationState(phone) {
   const key = normalizePhone(phone)
   if (!key) return
-  conversationStates.delete(key)
+
+  // Sincroniza acesso para evitar race conditions
+  await conversationStateMutexes.runExclusive(key, () => {
+    conversationStates.delete(key)
+    conversationStateMutexes.clearMutex(key)
+  })
 }
 
 function statusLabel(value) {
@@ -973,7 +985,7 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
 
     if (state?.mode === 'human_handoff') {
       if (extractMenuOption(tokens) === 0 || isResetIntent(tokens)) {
-        clearConversationState(from)
+        await clearConversationState(from)
       } else {
         return null
       }
@@ -994,7 +1006,7 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
       ])
 
       if (!normalized || extractMenuOption(tokens) === 0 || isResetIntent(tokens)) {
-        clearConversationState(from)
+        await clearConversationState(from)
         return buildHelpMessage(profileName, latestOrder, storeUrl)
       }
 
@@ -1004,7 +1016,7 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
           : null) ||
         (await findLatestOrderByPhone(from, { activeOnly: true, fallbackPhones: stateLookupPhones }))
 
-      clearConversationState(from)
+      await clearConversationState(from)
 
       if (!targetOrder) {
         return buildObservationUnavailableMessage(storeUrl)
@@ -1016,7 +1028,7 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
 
     if (state?.mode === 'awaiting_lookup_phone') {
       if (!normalized || extractMenuOption(tokens) === 0 || isResetIntent(tokens)) {
-        clearConversationState(from)
+        await clearConversationState(from)
         return buildHelpMessage(profileName, latestOrder, storeUrl)
       }
 
@@ -1026,7 +1038,7 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
       }
 
       const confirmedLookupPhones = dedupe([confirmedPhone, ...getPhoneSearchVariants(confirmedPhone)])
-      clearConversationState(from)
+      await clearConversationState(from)
 
       if (state.intent === 'observation') {
         const activeOrder = await findLatestOrderByPhone(confirmedPhone, {
@@ -1038,7 +1050,7 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
           return buildLookupPhoneNotFoundMessage(confirmedPhone)
         }
 
-        setConversationState(from, {
+        await setConversationState(from, {
           mode: 'awaiting_observation',
           orderId: activeOrder.id,
           lookupPhones: confirmedLookupPhones,
@@ -1082,7 +1094,7 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
     }
 
     if (isHumanHandoffIntent(tokens) || menuOption === (hasKnownOrder ? 4 : 2)) {
-      setConversationState(from, {
+      await setConversationState(from, {
         mode: 'human_handoff',
         expiresAt: Date.now() + HUMAN_HANDOFF_WINDOW_MS,
       })
@@ -1095,14 +1107,14 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
         fallbackPhones: phoneLookupSet,
       })
       if (!activeOrder) {
-        setConversationState(from, {
+        await setConversationState(from, {
           mode: 'awaiting_lookup_phone',
           intent: 'observation',
         })
         return buildLookupPhonePrompt('observation')
       }
 
-      setConversationState(from, {
+      await setConversationState(from, {
         mode: 'awaiting_observation',
         orderId: activeOrder.id,
         lookupPhones: phoneLookupSet,
@@ -1124,7 +1136,7 @@ function createWhatsAppBotService(prisma, { transportService, logger = console, 
 
     if (isLatestOrderIntent(tokens) || menuOption === (hasKnownOrder ? 1 : 3)) {
       if (!latestOrder) {
-        setConversationState(from, {
+        await setConversationState(from, {
           mode: 'awaiting_lookup_phone',
           intent: 'track',
         })

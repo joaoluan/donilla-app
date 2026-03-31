@@ -927,12 +927,16 @@
 }
 
 .page-admin :is(.customers-admin-tab, .catalog-admin-tab, .orders-admin-tab, .admin-settings-tab) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 34px;
   padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid var(--admin-card-border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--admin-text-secondary);
+  text-decoration: none;
   font-size: 0.74rem;
   font-weight: 500;
   letter-spacing: 0.02em;

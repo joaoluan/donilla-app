@@ -9,6 +9,8 @@ const {
   validateAddBroadcastMember,
   validateCreateBroadcastTemplate,
   validateCreateBroadcastCampaign,
+  validateAudienceFilter,
+  validateCreateListFromFilter,
 } = require('../validators/broadcastValidator')
 
 function broadcastController(service) {
@@ -86,6 +88,20 @@ function broadcastController(service) {
       const body = await parseJsonBody(req)
       const payload = validateCreateBroadcastCampaign(body)
       const data = await service.createCampaign(payload)
+      return { statusCode: 201, data }
+    },
+
+    async previewAudience(req) {
+      const body = await parseJsonBody(req)
+      const filter = validateAudienceFilter(body)
+      const data = await service.previewAudience(filter)
+      return { statusCode: 200, data }
+    },
+
+    async createListFromFilter(req) {
+      const body = await parseJsonBody(req)
+      const payload = validateCreateListFromFilter(body)
+      const data = await service.createListFromFilter(payload)
       return { statusCode: 201, data }
     },
 

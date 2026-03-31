@@ -314,7 +314,7 @@ const ADMIN_VIEW_PATH_SEGMENTS = {
   clientes: 'clientes',
   cardapio: 'cardapio',
   pedidos: 'pedidos',
-  broadcast: 'disparos',
+  broadcast: 'bot-whatsapp/disparos',
   config: 'configuracoes',
   whatsapp: 'bot-whatsapp',
 };
@@ -325,6 +325,7 @@ const ADMIN_VIEW_ALIASES = {
   cardapio: 'cardapio',
   pedidos: 'pedidos',
   disparos: 'broadcast',
+  'bot-whatsapp/disparos': 'broadcast',
   broadcast: 'broadcast',
   configuracoes: 'config',
   config: 'config',
@@ -711,6 +712,16 @@ function setAdminTopbarDescription(view) {
   adminTopbarDescriptionEl.textContent = ADMIN_VIEW_DESCRIPTIONS[view] || ADMIN_VIEW_DESCRIPTIONS[DEFAULT_ADMIN_VIEW];
 }
 
+function adminLinkMatchesView(link, activeView) {
+  const rawMatches = String(link?.dataset?.adminViewMatch || link?.dataset?.adminViewLink || '');
+  if (!rawMatches) return false;
+
+  return rawMatches
+    .split(',')
+    .map((value) => normalizeAdminView(value))
+    .includes(activeView);
+}
+
 function renderAdminView(view) {
   const activeView = normalizeAdminView(view);
 
@@ -719,7 +730,7 @@ function renderAdminView(view) {
   });
 
   adminViewLinks.forEach((link) => {
-    link.classList.toggle('active', link.dataset.adminViewLink === activeView);
+    link.classList.toggle('active', adminLinkMatchesView(link, activeView));
   });
 
   setAdminTopbarDescription(activeView);

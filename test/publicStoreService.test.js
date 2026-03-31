@@ -602,6 +602,51 @@ test('createOrder deve ignorar preco, frete, total e status enviados pelo client
   }
 })
 
+test('createOrder deve rejeitar itens duplicados antes de persistir o pedido', async () => {
+  const originalSecret = process.env.JWT_SECRET
+  process.env.JWT_SECRET = 'test-secret'
+
+  const { prisma, calls } = createOrderPrismaMock()
+  const service = publicStoreService(prisma)
+
+  const sessionToken = signToken(
+    {
+      purpose: 'customer_session',
+      customer_id: null,
+      telefone_whatsapp: '11999999999',
+      nome: 'Maria Duplicada',
+      endereco: {
+        rua: 'Rua das Flores',
+        numero: '20',
+        bairro: 'Centro',
+        cidade: 'Sapiranga',
+      },
+    },
+    process.env.JWT_SECRET,
+    3600,
+  )
+
+  try {
+    await assert.rejects(
+      () =>
+        service.createOrder({
+          cliente_session_token: sessionToken,
+          metodo_pagamento: 'pix',
+          itens: [
+            { produto_id: 1, quantidade: 1 },
+            { produto_id: 1, quantidade: 2 },
+          ],
+        }),
+      /duplicado/i,
+    )
+
+    assert.equal(calls.pedidoCreate, null)
+    assert.equal(calls.createMany, null)
+  } finally {
+    process.env.JWT_SECRET = originalSecret
+  }
+})
+
 test('createOrder deve criar checkout do Asaas e devolver checkout_url', async () => {
   const originalSecret = process.env.JWT_SECRET
   process.env.JWT_SECRET = 'test-secret'

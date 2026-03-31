@@ -705,37 +705,7 @@
             </span>
           </a>
 
-          <a href="/admin/disparos" data-admin-view-link="broadcast" class="admin-nav-link">
-            <span class="admin-nav-link-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M5 7h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M5 12h9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M5 17h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M16 11l3 3-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
-            </span>
-            <span class="admin-nav-link-copy">
-              <span class="admin-nav-link-label">Disparos</span>
-              <small>Listas, campanhas e logs</small>
-            </span>
-          </a>
-
-          <a href="/admin/fluxos" class="admin-nav-link">
-            <span class="admin-nav-link-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M6 6h5v5H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
-                <path d="M13 13h5v5h-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
-                <path d="M11 8.5h4.5c1.4 0 2.5 1.1 2.5 2.5V13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M8.5 11v3.5c0 1.4 1.1 2.5 2.5 2.5H13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-              </svg>
-            </span>
-            <span class="admin-nav-link-copy">
-              <span class="admin-nav-link-label">Flow Builder</span>
-              <small>Fluxos visuais e automações</small>
-            </span>
-          </a>
-
-          <a href="/admin/bot-whatsapp" data-admin-view-link="whatsapp" class="admin-nav-link">
+          <a href="/admin/bot-whatsapp" data-admin-view-link="whatsapp" data-admin-view-match="whatsapp,broadcast" class="admin-nav-link">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M8 19l-3 1 1-3a8 8 0 1 1 2 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
@@ -1738,6 +1708,12 @@
                 <h2>Bot WhatsApp</h2>
                 <p class="muted">Conexão do número, automações, mensagens e testes do atendimento em uma área só para o bot.</p>
               </div>
+
+              <nav class="admin-settings-tabs" aria-label="Áreas do módulo Bot WhatsApp">
+                <a href="/admin/bot-whatsapp" data-admin-view-link="whatsapp" class="admin-settings-tab active">Bot WhatsApp</a>
+                <a href="/admin/bot-whatsapp/disparos" data-admin-view-link="broadcast" class="admin-settings-tab">Disparos</a>
+                <a href="/admin/bot-whatsapp/fluxos" class="admin-settings-tab">Fluxos</a>
+              </nav>
             </section>
 
             <form id="whatsappSettingsForm" class="settings-form">
@@ -1949,6 +1925,12 @@
                   <small>Atualizacao automatica a cada 5s</small>
                 </article>
               </div>
+
+              <nav class="admin-settings-tabs" aria-label="Áreas do módulo Bot WhatsApp">
+                <a href="/admin/bot-whatsapp" data-admin-view-link="whatsapp" class="admin-settings-tab">Bot WhatsApp</a>
+                <a href="/admin/bot-whatsapp/disparos" data-admin-view-link="broadcast" class="admin-settings-tab active">Disparos</a>
+                <a href="/admin/bot-whatsapp/fluxos" class="admin-settings-tab">Fluxos</a>
+              </nav>
             </section>
 
             <nav class="broadcast-tabs" aria-label="Seções do modulo de disparos">
@@ -1991,6 +1973,47 @@
 
                   <p id="broadcastMembersStatus" class="status-text muted">Faça login para gerenciar os contatos das listas.</p>
                   <div id="broadcastMembersList"></div>
+                </article>
+
+                <article class="broadcast-card broadcast-audience-builder" id="broadcastAudienceBuilder">
+                  <div class="broadcast-card-head">
+                    <div>
+                      <h3>Criar lista por filtro</h3>
+                      <p class="muted">
+                        Monte regras de segmentacao baseadas no comportamento de compra.
+                        A previa mostra quantos clientes serao incluidos antes de criar a lista.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div id="broadcastAudienceRules" class="broadcast-audience-rules"></div>
+
+                  <div class="broadcast-audience-toolbar">
+                    <button id="broadcastAddRuleBtn" class="ghost-btn" type="button">+ Adicionar regra</button>
+                    <select id="broadcastAudienceLogic" class="broadcast-audience-logic-select">
+                      <option value="and">Todos os filtros (E)</option>
+                      <option value="or">Qualquer filtro (OU)</option>
+                    </select>
+                  </div>
+
+                  <div id="broadcastAudiencePreview" class="broadcast-audience-preview hidden">
+                    <div class="broadcast-audience-preview-count">
+                      <strong id="broadcastAudienceTotal">0</strong>
+                      <span>clientes encontrados</span>
+                    </div>
+                    <div id="broadcastAudienceSample" class="broadcast-audience-sample"></div>
+                  </div>
+
+                  <p id="broadcastAudienceStatus" class="status-text muted"></p>
+
+                  <div class="broadcast-audience-actions">
+                    <button id="broadcastPreviewAudienceBtn" class="ghost-btn" type="button">
+                      Previa da audiencia
+                    </button>
+                    <button id="broadcastSaveSegmentBtn" class="primary-btn" type="button" disabled>
+                      Salvar como lista
+                    </button>
+                  </div>
                 </article>
               </div>
             </section>

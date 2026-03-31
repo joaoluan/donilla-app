@@ -151,3 +151,56 @@ module.exports = {
   validateCreateBroadcastTemplate,
   validateCreateBroadcastCampaign,
 }
+
+const audienceRuleSchema = z.object({
+  field: z.enum([
+    'last_order_days',
+    'total_orders',
+    'product_bought',
+    'category_bought',
+    'total_spent',
+    'never_ordered',
+    'city',
+  ]),
+  operator: z.enum([
+    'gte',
+    'lte',
+    'eq',
+    'contains',
+    'not_gte',
+  ]),
+  value: z.union([z.string(), z.number()]).transform(String),
+  window_days: z.coerce.number().int().positive().optional().nullable(),
+})
+
+const audienceFilterSchema = z.object({
+  logic: z.enum(['and', 'or']).default('and'),
+  rules: z.array(audienceRuleSchema).min(1).max(10),
+})
+
+function validateAudienceFilter(body) {
+  const result = audienceFilterSchema.safeParse(body)
+  if (!result.success) {
+    throw new AppError(400, result.error.issues.map((issue) => issue.message).join(', '))
+  }
+
+  return result.data
+}
+
+const createListFromFilterSchema = z.object({
+  name: z.string().min(1).max(255).transform((value) => value.trim()),
+  description: z.string().max(2000).optional().nullable().transform((value) => value?.trim() || null),
+  filter: audienceFilterSchema,
+})
+
+function validateCreateListFromFilter(body) {
+  const result = createListFromFilterSchema.safeParse(body)
+  if (!result.success) {
+    throw new AppError(400, result.error.issues.map((issue) => issue.message).join(', '))
+  }
+
+  return result.data
+}
+
+module.exports.validateAudienceFilter = validateAudienceFilter
+module.exports.validateCreateListFromFilter = validateCreateListFromFilter

@@ -10,6 +10,8 @@ const {
   generateOrderTrackingToken,
 } = require('../utils/orderTracking')
 const { createOrderAuditService } = require('./orderAuditService')
+const { validateAddressData, validateOrderItems } = require('../utils/orderValidation')
+const { retryWithBackoff } = require('../utils/retryHelper')
 const {
   isStrongCustomerPassword,
   CUSTOMER_PASSWORD_RULE_MESSAGE,
@@ -947,10 +949,26 @@ function publicStoreService(prisma, deps = {}) {
   function scheduleQueuedAsaasWebhookEvent(recordId) {
     if (!recordId) return
 
-    scheduleTask(() => {
-      return Promise.resolve(processQueuedAsaasWebhookEvent(recordId)).catch((error) => {
-        logger.error('Falha ao processar webhook do Asaas em segundo plano:', error)
-      })
+    scheduleTask(async () => {
+      try {
+        await retryWithBackoff(
+          () => processQueuedAsaasWebhookEvent(recordId),
+          {
+            maxAttempts: 3,
+            initialDelayMs: 2000,
+            maxDelayMs: 10000,
+            logger,
+            context: `Webhook ASAAS recordId=${recordId}`,
+          }
+        )
+      } catch (error) {
+        logger.error('[CRITICAL] Webhook ASAAS esgotou tentativas:', {
+          recordId,
+          error: error?.message,
+          timestamp: new Date().toISOString(),
+        })
+        // TODO: Registrar em tabela de dead-letter queue para intervenção manual
+      }
     })
   }
 
@@ -1230,6 +1248,8 @@ function publicStoreService(prisma, deps = {}) {
     },
 
     async createOrder(input) {
+      validateOrderItems(input?.itens)
+
       const [config, taxasEntrega] = await Promise.all([getStoreConfig(), listActiveDeliveryFees()])
       const availability = resolveStoreAvailability(config)
       if (!availability.isOpen) {
@@ -1294,6 +1314,7 @@ function publicStoreService(prisma, deps = {}) {
       if (!enderecoPayload) {
         throw new AppError(400, 'Endereco obrigatorio para finalizar o pedido.')
       }
+      validateAddressData(enderecoPayload)
 
       const resolvedDeliveryFee = resolveDeliveryFee(enderecoPayload, taxasEntrega, config?.taxa_entrega_padrao)
       const valorEntrega = toMoney(resolvedDeliveryFee.amount)

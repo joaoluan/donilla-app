@@ -33,7 +33,7 @@ async function connectNodes(page, fromSelector, toSelector) {
 
 async function runFlowBuilderSmoke() {
   const baseUrl = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:3100'
-  const pagePath = process.env.SMOKE_PATH || '/admin/fluxos'
+  const pagePath = process.env.SMOKE_PATH || '/admin/bot-whatsapp/fluxos'
   const adminUsername = process.env.SMOKE_ADMIN_USERNAME || ''
   const adminPassword = process.env.SMOKE_ADMIN_PASSWORD || ''
   const creationMode = process.env.SMOKE_FLOW_CREATION_MODE === 'legacy'
@@ -121,7 +121,7 @@ async function runFlowBuilderSmoke() {
     }, { timeout: 30000 })
     result.loginWorked = true
 
-    await page.waitForSelector('a[href="/admin/fluxos"]', { timeout: 15000 })
+    await page.waitForSelector('a[href="/admin/bot-whatsapp"]', { timeout: 15000 })
     result.adminLoaded = true
 
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
@@ -144,7 +144,7 @@ async function runFlowBuilderSmoke() {
     await page.fill('#newFlowTrigger', smokeTrigger)
     await page.click('#newFlowForm button[type="submit"]')
 
-    await page.waitForURL(/\/admin\/fluxos\/editor\?id=\d+/, { timeout: 30000 })
+    await page.waitForURL(/\/admin\/bot-whatsapp\/fluxos\/editor\?id=\d+/, { timeout: 30000 })
     result.flowCreated = true
 
     await page.waitForFunction(() => {

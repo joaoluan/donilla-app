@@ -398,6 +398,16 @@ function createRouter(prisma, deps = {}) {
       return broadcast.createList(req)
     }
 
+    if (method === 'POST' && path === '/admin/broadcast/audience/preview') {
+      requireRole(req, 'admin')
+      return broadcast.previewAudience(req)
+    }
+
+    if (method === 'POST' && path === '/admin/broadcast/audience/create-list') {
+      requireRole(req, 'admin')
+      return broadcast.createListFromFilter(req)
+    }
+
     const broadcastListByIdMatch = matchRoute(path, ROUTE_PATTERNS.broadcastListById)
     if (broadcastListByIdMatch) {
       if (method === 'DELETE') {

@@ -40,7 +40,7 @@ async function acceptConfirmation(page, trigger) {
 
 async function runBroadcastSmoke() {
   const baseUrl = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:3000'
-  const pagePath = process.env.SMOKE_PATH || '/admin/disparos'
+  const pagePath = process.env.SMOKE_PATH || '/admin/bot-whatsapp/disparos'
   const adminUsername = process.env.SMOKE_ADMIN_USERNAME || ''
   const adminPassword = process.env.SMOKE_ADMIN_PASSWORD || ''
   const smokePrefix = process.env.SMOKE_PREFIX || 'SMOKE-BROADCAST'

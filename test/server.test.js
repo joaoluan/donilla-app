@@ -149,6 +149,22 @@ test('rotas web canonicas devem servir as paginas corretas', async () => {
   assert.equal(adminConfigResponse.statusCode, 200)
   assert.match(adminConfigResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
 
+  const adminWhatsAppResponse = await requestApp(app, { url: '/admin/bot-whatsapp' })
+  assert.equal(adminWhatsAppResponse.statusCode, 200)
+  assert.match(adminWhatsAppResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
+
+  const adminBroadcastResponse = await requestApp(app, { url: '/admin/bot-whatsapp/disparos' })
+  assert.equal(adminBroadcastResponse.statusCode, 200)
+  assert.match(adminBroadcastResponse.body, /<title>Donilla - Portal de Controle<\/title>/)
+
+  const adminBotFlowsResponse = await requestApp(app, { url: '/admin/bot-whatsapp/fluxos' })
+  assert.equal(adminBotFlowsResponse.statusCode, 200)
+  assert.match(adminBotFlowsResponse.body, /<title>Donilla - Flow Builder<\/title>/)
+
+  const adminBotFlowBuilderResponse = await requestApp(app, { url: '/admin/bot-whatsapp/fluxos/editor?id=1' })
+  assert.equal(adminBotFlowBuilderResponse.statusCode, 200)
+  assert.match(adminBotFlowBuilderResponse.body, /<title>Donilla - Editor de Fluxo<\/title>/)
+
   const adminFlowsResponse = await requestApp(app, { url: '/admin/fluxos' })
   assert.equal(adminFlowsResponse.statusCode, 200)
   assert.match(adminFlowsResponse.body, /<title>Donilla - Flow Builder<\/title>/)

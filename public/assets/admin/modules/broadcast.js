@@ -41,6 +41,15 @@ export function bindBroadcastSection(ctx) {
   const membersListEl = document.getElementById('broadcastMembersList');
   const addMemberBtnEl = document.getElementById('broadcastAddMemberBtn');
   const importClientsBtnEl = document.getElementById('broadcastImportClientsBtn');
+  const audienceRulesEl = document.getElementById('broadcastAudienceRules');
+  const audienceLogicEl = document.getElementById('broadcastAudienceLogic');
+  const audiencePreviewEl = document.getElementById('broadcastAudiencePreview');
+  const audienceTotalEl = document.getElementById('broadcastAudienceTotal');
+  const audienceSampleEl = document.getElementById('broadcastAudienceSample');
+  const audienceStatusEl = document.getElementById('broadcastAudienceStatus');
+  const addRuleBtnEl = document.getElementById('broadcastAddRuleBtn');
+  const previewAudienceBtnEl = document.getElementById('broadcastPreviewAudienceBtn');
+  const saveSegmentBtnEl = document.getElementById('broadcastSaveSegmentBtn');
 
   const templatesStatusEl = document.getElementById('broadcastTemplatesStatus');
   const templatesGridEl = document.getElementById('broadcastTemplatesGrid');
@@ -111,6 +120,9 @@ export function bindBroadcastSection(ctx) {
   const confirmState = {
     resolve: null,
   };
+
+  let audienceRules = [];
+  let lastPreviewTotal = 0;
 
   function isViewActive() {
     return !viewEl.classList.contains('hidden');
@@ -697,11 +709,14 @@ export function bindBroadcastSection(ctx) {
     renderTemplates();
     renderCampaigns();
     renderLogs();
+    resetAudiencePreview();
+    renderAudienceRules();
     setStatus(listsStatusEl, 'Faça login para carregar listas de disparo.', 'muted');
     setStatus(membersStatusEl, 'Faça login para gerenciar contatos.', 'muted');
     setStatus(templatesStatusEl, 'Faça login para visualizar templates.', 'muted');
     setStatus(campaignStatusEl, 'Faça login para montar uma campanha.', 'muted');
     setStatus(campaignsStatusEl, 'Faça login para acompanhar as campanhas.', 'muted');
+    setStatus(audienceStatusEl, 'Faça login para usar filtros de audiencia.', 'muted');
     updatePolling();
   }
 
@@ -729,6 +744,228 @@ export function bindBroadcastSection(ctx) {
     }
 
     return envelope ? helpers.parseEnvelope(response) : helpers.parseResponse(response);
+  }
+
+  // Exemplos sugeridos:
+  // Clientes inativos: last_order_days gte 30
+  // Clientes recorrentes: total_orders gte 5
+  // Fas de Nutella: product_bought contains Nutella
+  // Nunca compraram: never_ordered eq
+  // Top clientes: total_spent gte 200
+  const AUDIENCE_FIELDS = [
+    { value: 'last_order_days', label: 'Dias desde o ultimo pedido' },
+    { value: 'total_orders', label: 'Total de pedidos' },
+    { value: 'total_spent', label: 'Total gasto (R$)' },
+    { value: 'product_bought', label: 'Produto comprado' },
+    { value: 'category_bought', label: 'Categoria comprada' },
+    { value: 'never_ordered', label: 'Nunca fez pedido' },
+    { value: 'city', label: 'Cidade' },
+  ];
+
+  const AUDIENCE_OPERATORS = {
+    last_order_days: [
+      { value: 'gte', label: 'nao pede ha pelo menos (dias)' },
+      { value: 'lte', label: 'pediu nos ultimos (dias)' },
+    ],
+    total_orders: [
+      { value: 'gte', label: 'fez pelo menos' },
+      { value: 'lte', label: 'fez no maximo' },
+      { value: 'eq', label: 'fez exatamente' },
+    ],
+    total_spent: [
+      { value: 'gte', label: 'gastou pelo menos R$' },
+      { value: 'lte', label: 'gastou no maximo R$' },
+      { value: 'eq', label: 'gastou exatamente R$' },
+    ],
+    product_bought: [
+      { value: 'contains', label: 'contem' },
+      { value: 'eq', label: 'igual a' },
+    ],
+    category_bought: [
+      { value: 'contains', label: 'contem' },
+      { value: 'eq', label: 'igual a' },
+    ],
+    never_ordered: [
+      { value: 'eq', label: '(automatico)' },
+    ],
+    city: [
+      { value: 'contains', label: 'contem' },
+      { value: 'eq', label: 'igual a' },
+    ],
+  };
+
+  const FIELDS_WITH_WINDOW = ['product_bought', 'category_bought'];
+  const FIELDS_NO_VALUE = ['never_ordered'];
+  const FIELDS_NUMERIC = ['last_order_days', 'total_orders', 'total_spent'];
+
+  function defaultAudienceValue(field) {
+    if (field === 'last_order_days') return '30';
+    if (field === 'total_orders') return '5';
+    if (field === 'total_spent') return '200';
+    return '';
+  }
+
+  function createDefaultAudienceRule(field = 'last_order_days') {
+    return {
+      field,
+      operator: AUDIENCE_OPERATORS[field]?.[0]?.value || 'eq',
+      value: defaultAudienceValue(field),
+      window_days: null,
+    };
+  }
+
+  function buildRuleEl(rule, index) {
+    const fieldOptions = AUDIENCE_FIELDS
+      .map((field) => (
+        `<option value="${field.value}" ${rule.field === field.value ? 'selected' : ''}>${escapeHtml(field.label)}</option>`
+      ))
+      .join('');
+
+    const operatorOptions = (AUDIENCE_OPERATORS[rule.field] || [])
+      .map((operator) => (
+        `<option value="${operator.value}" ${rule.operator === operator.value ? 'selected' : ''}>${escapeHtml(operator.label)}</option>`
+      ))
+      .join('');
+
+    const noValue = FIELDS_NO_VALUE.includes(rule.field);
+    const isNumeric = FIELDS_NUMERIC.includes(rule.field);
+    const hasWindow = FIELDS_WITH_WINDOW.includes(rule.field);
+    const placeholder = isNumeric ? 'Ex.: 30' : 'Ex.: Nutella';
+
+    const valueMarkup = noValue
+      ? '<span class="broadcast-inline-note">Automatico</span>'
+      : `
+        <input
+          type="${isNumeric ? 'number' : 'text'}"
+          min="${isNumeric ? '0' : ''}"
+          placeholder="${placeholder}"
+          value="${escapeHtml(rule.value || '')}"
+          data-rule-value="${index}"
+        />
+      `;
+
+    const windowMarkup = hasWindow
+      ? `
+        <div class="broadcast-audience-rule-window">
+          <label>nos ultimos</label>
+          <input
+            type="number"
+            min="1"
+            placeholder="dias"
+            value="${escapeHtml(rule.window_days || '')}"
+            data-rule-window="${index}"
+          />
+        </div>
+      `
+      : '<span></span>';
+
+    return `
+      <div class="broadcast-audience-rule" data-rule-index="${index}">
+        <select data-rule-field="${index}">${fieldOptions}</select>
+        <select data-rule-operator="${index}">${operatorOptions}</select>
+        ${valueMarkup}
+        ${windowMarkup}
+        <button class="ghost-btn" type="button" data-rule-remove="${index}" style="white-space: nowrap;">Remover</button>
+      </div>
+    `;
+  }
+
+  function renderAudienceRules() {
+    if (!audienceRulesEl) return;
+
+    if (!audienceRules.length) {
+      audienceRulesEl.innerHTML = `
+        <div class="broadcast-empty">
+          <p>Adicione pelo menos uma regra para filtrar os clientes.</p>
+        </div>
+      `;
+      return;
+    }
+
+    audienceRulesEl.innerHTML = audienceRules.map((rule, index) => buildRuleEl(rule, index)).join('');
+  }
+
+  function resetAudiencePreview() {
+    lastPreviewTotal = 0;
+    audiencePreviewEl?.classList.add('hidden');
+    if (audienceTotalEl) audienceTotalEl.textContent = '0';
+    if (audienceSampleEl) audienceSampleEl.innerHTML = '';
+    if (saveSegmentBtnEl) saveSegmentBtnEl.disabled = true;
+    clearStatus(audienceStatusEl);
+  }
+
+  function getAudiencePayload() {
+    return {
+      logic: audienceLogicEl?.value || 'and',
+      rules: audienceRules
+        .map((rule) => ({
+          field: rule.field,
+          operator: rule.operator,
+          value: FIELDS_NO_VALUE.includes(rule.field) ? '' : String(rule.value || '').trim(),
+          window_days: rule.window_days ? Number(rule.window_days) : null,
+        }))
+        .filter((rule) => FIELDS_NO_VALUE.includes(rule.field) || rule.value),
+    };
+  }
+
+  function addAudienceRule(field = 'last_order_days') {
+    audienceRules.push(createDefaultAudienceRule(field));
+    renderAudienceRules();
+    resetAudiencePreview();
+  }
+
+  function removeAudienceRule(index) {
+    audienceRules.splice(index, 1);
+    renderAudienceRules();
+    resetAudiencePreview();
+  }
+
+  function updateAudienceRule(index, key, value) {
+    if (!audienceRules[index]) return;
+
+    audienceRules[index][key] = value;
+
+    if (key === 'field') {
+      const nextRule = createDefaultAudienceRule(value);
+      audienceRules[index] = {
+        ...audienceRules[index],
+        field: nextRule.field,
+        operator: nextRule.operator,
+        value: nextRule.value,
+        window_days: nextRule.window_days,
+      };
+      renderAudienceRules();
+    }
+
+    resetAudiencePreview();
+  }
+
+  function renderAudiencePreview(data) {
+    lastPreviewTotal = Number(data?.total || 0);
+    if (audienceTotalEl) audienceTotalEl.textContent = String(lastPreviewTotal);
+
+    if (audienceSampleEl) {
+      const sample = Array.isArray(data?.sample) ? data.sample : [];
+      audienceSampleEl.innerHTML = sample
+        .map((customer) => `
+          <span class="broadcast-audience-chip">
+            ${escapeHtml(customer.nome || 'Sem nome')} · ${escapeHtml(helpers.formatPhone(customer.telefone) || customer.telefone || '')}
+          </span>
+        `)
+        .join('');
+
+      const remaining = Math.max(0, lastPreviewTotal - sample.length);
+      if (remaining > 0) {
+        audienceSampleEl.innerHTML += `
+          <span class="broadcast-audience-chip">
+            +${remaining} outro(s)
+          </span>
+        `;
+      }
+    }
+
+    audiencePreviewEl?.classList.remove('hidden');
+    if (saveSegmentBtnEl) saveSegmentBtnEl.disabled = lastPreviewTotal === 0;
   }
 
   async function loadLists(options = {}) {
@@ -886,10 +1123,12 @@ export function bindBroadcastSection(ctx) {
       setStatus(listsStatusEl, `${localState.lists.length} lista(s) pronta(s) para uso.`, 'ok');
       setStatus(templatesStatusEl, `${localState.templates.length} template(s) carregado(s).`, 'ok');
       setStatus(campaignsStatusEl, `${localState.campaigns.length} campanha(s) sincronizada(s).`, 'ok');
+      setStatus(audienceStatusEl, 'Monte as regras e gere uma previa antes de salvar a lista.', 'muted');
     } catch (error) {
       setStatus(campaignsStatusEl, error.message, 'err');
       setStatus(templatesStatusEl, error.message, 'err');
       setStatus(listsStatusEl, error.message, 'err');
+      setStatus(audienceStatusEl, error.message, 'err');
       throw error;
     } finally {
       localState.loadPromise = null;
@@ -1461,6 +1700,125 @@ export function bindBroadcastSection(ctx) {
     }
   });
 
+  audienceRulesEl?.addEventListener('change', (event) => {
+    const fieldSelect = event.target.closest('[data-rule-field]');
+    const operatorSelect = event.target.closest('[data-rule-operator]');
+
+    if (fieldSelect) {
+      updateAudienceRule(Number(fieldSelect.dataset.ruleField || 0), 'field', fieldSelect.value);
+      return;
+    }
+
+    if (operatorSelect) {
+      updateAudienceRule(Number(operatorSelect.dataset.ruleOperator || 0), 'operator', operatorSelect.value);
+    }
+  });
+
+  audienceRulesEl?.addEventListener('input', (event) => {
+    const valueInput = event.target.closest('[data-rule-value]');
+    const windowInput = event.target.closest('[data-rule-window]');
+
+    if (valueInput) {
+      updateAudienceRule(Number(valueInput.dataset.ruleValue || 0), 'value', valueInput.value);
+    }
+
+    if (windowInput) {
+      updateAudienceRule(Number(windowInput.dataset.ruleWindow || 0), 'window_days', windowInput.value || null);
+    }
+  });
+
+  audienceRulesEl?.addEventListener('click', (event) => {
+    const removeButton = event.target.closest('[data-rule-remove]');
+    if (!removeButton) return;
+    removeAudienceRule(Number(removeButton.dataset.ruleRemove || 0));
+  });
+
+  audienceLogicEl?.addEventListener('change', () => {
+    resetAudiencePreview();
+  });
+
+  addRuleBtnEl?.addEventListener('click', () => {
+    addAudienceRule();
+  });
+
+  previewAudienceBtnEl?.addEventListener('click', async () => {
+    const filter = getAudiencePayload();
+
+    if (!filter.rules.length) {
+      setStatus(audienceStatusEl, 'Adicione pelo menos uma regra antes de visualizar.', 'err');
+      return;
+    }
+
+    previewAudienceBtnEl.disabled = true;
+    setStatus(audienceStatusEl, 'Consultando base de clientes...', 'muted');
+
+    try {
+      const data = await request('/admin/broadcast/audience/preview', {
+        method: 'POST',
+        body: filter,
+      });
+      renderAudiencePreview(data);
+      setStatus(audienceStatusEl, `Previa gerada: ${Number(data?.total || 0)} cliente(s) encontrado(s).`, 'ok');
+    } catch (error) {
+      setStatus(audienceStatusEl, error.message, 'err');
+    } finally {
+      previewAudienceBtnEl.disabled = false;
+    }
+  });
+
+  saveSegmentBtnEl?.addEventListener('click', async () => {
+    const filter = getAudiencePayload();
+
+    if (!filter.rules.length) {
+      setStatus(audienceStatusEl, 'Adicione pelo menos uma regra antes de salvar.', 'err');
+      return;
+    }
+
+    if (!lastPreviewTotal) {
+      setStatus(audienceStatusEl, 'Gere a previa antes de salvar a lista.', 'err');
+      return;
+    }
+
+    const suggestedName = `Segmento ${new Date().toLocaleDateString('pt-BR')}`;
+    const name = window.prompt('Nome da nova lista de audiencia:', suggestedName);
+    if (!name?.trim()) return;
+
+    const description = window.prompt('Descricao (opcional):') || null;
+
+    saveSegmentBtnEl.disabled = true;
+    setStatus(audienceStatusEl, 'Criando lista segmentada...', 'muted');
+
+    try {
+      const created = await request('/admin/broadcast/audience/create-list', {
+        method: 'POST',
+        body: {
+          name: name.trim(),
+          description,
+          filter,
+        },
+      });
+
+      await loadLists({ silent: true });
+      localState.selectedListId = Number(created?.id || 0) || null;
+      await loadMembers(localState.selectedListId);
+
+      audienceRules = [];
+      renderAudienceRules();
+      resetAudiencePreview();
+      setActiveTab('lists');
+
+      setStatus(
+        audienceStatusEl,
+        `Lista "${created.name}" criada com ${Number(created.member_count || 0)} contato(s).`,
+        'ok',
+      );
+      setStatus(listsStatusEl, `Lista "${created.name}" criada por filtro.`, 'ok');
+    } catch (error) {
+      setStatus(audienceStatusEl, error.message, 'err');
+      saveSegmentBtnEl.disabled = lastPreviewTotal === 0;
+    }
+  });
+
   document.addEventListener('admin:view-change', (event) => {
     const nextView = event?.detail?.view || '';
     if (nextView === 'broadcast') {
@@ -1487,6 +1845,13 @@ export function bindBroadcastSection(ctx) {
     closeDialog(templatePickerDialogEl);
     closeDialog(logsDialogEl);
   });
+
+  if (audienceRulesEl && audienceRules.length === 0) {
+    addAudienceRule();
+  } else {
+    renderAudienceRules();
+    resetAudiencePreview();
+  }
 
   bindDialogCloseButtons();
   setActiveTab('lists');

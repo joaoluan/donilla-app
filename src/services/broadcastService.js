@@ -1,5 +1,8 @@
 const { AppError } = require('../utils/errors')
 const { getPhoneSearchVariants, normalizeWhatsAppPhone } = require('../utils/phone')
+const { SynchedMap } = require('../utils/synchedMap')
+const { ManagedTimer } = require('../utils/syncUtility')
+const { retryWithBackoff } = require('../utils/retryHelper')
 
 const CAMPAIGN_STATUS = {
   draft: 'draft',
@@ -50,9 +53,9 @@ function createBroadcastService(prisma, deps = {}) {
   const minDelayMs = Math.max(0, toFiniteNumber(deps.minDelayMs, DEFAULT_MIN_DELAY_MS))
   const maxDelayMs = Math.max(minDelayMs, toFiniteNumber(deps.maxDelayMs, DEFAULT_MAX_DELAY_MS))
   const replyTimeoutMs = Math.max(60_000, toFiniteNumber(deps.replyTimeoutMs, DEFAULT_REPLY_TIMEOUT_MS))
-  const scheduledTimers = new Map()
-  const interactionTimers = new Map()
-  const runningCampaigns = new Map()
+  const scheduledTimers = new SynchedMap('broadcast:scheduledTimers')
+  const interactionTimers = new SynchedMap('broadcast:interactionTimers')
+  const runningCampaigns = new SynchedMap('broadcast:runningCampaigns')
   const processingReplyInteractions = new Set()
   let bootstrapPromise = null
   let memberPhoneNormalizationPromise = null
@@ -466,14 +469,18 @@ function createBroadcastService(prisma, deps = {}) {
     const active = scheduledTimers.get(campaignId)
     if (!active) return
     clearTimeoutFn(active.timeoutId)
-    scheduledTimers.delete(campaignId)
+    scheduledTimers.delete(campaignId).catch((error) => {
+      logger.warn?.('[broadcast] Falha ao deletar timer agendado:', error?.message)
+    })
   }
 
   function clearInteractionTimer(interactionId) {
     const active = interactionTimers.get(interactionId)
     if (!active) return
     clearTimeoutFn(active.timeoutId)
-    interactionTimers.delete(interactionId)
+    interactionTimers.delete(interactionId).catch((error) => {
+      logger.warn?.('[broadcast] Falha ao deletar interaction timer:', error?.message)
+    })
   }
 
   function scheduleCampaignTimer(campaignId, scheduledAt) {
@@ -517,7 +524,9 @@ function createBroadcastService(prisma, deps = {}) {
         }
       }, nextDelay)
 
-      scheduledTimers.set(campaignId, { timeoutId, scheduled_at: targetAt.toISOString() })
+      scheduledTimers.set(campaignId, { timeoutId, scheduled_at: targetAt.toISOString() }).catch((error) => {
+        logger.error?.('[broadcast] Falha ao registrar timer agendado:', error?.message)
+      })
     }
 
     armNextTimeout()
@@ -593,7 +602,7 @@ function createBroadcastService(prisma, deps = {}) {
           return
         }
 
-        interactionTimers.delete(interactionId)
+        await interactionTimers.delete(interactionId)
 
         try {
           await expireInteraction(interactionId)
@@ -605,6 +614,8 @@ function createBroadcastService(prisma, deps = {}) {
       interactionTimers.set(interactionId, {
         timeoutId,
         expires_at: targetAt.toISOString(),
+      }).catch((error) => {
+        logger.error?.('[broadcast] Falha ao registrar interaction timer:', error?.message)
       })
     }
 
@@ -696,16 +707,30 @@ function createBroadcastService(prisma, deps = {}) {
         const campaignId = toNumber(campaign.id)
         const nextStatus = await syncCampaignLifecycle(campaignId)
 
-        if (nextStatus === CAMPAIGN_STATUS.running && !runningCampaigns.has(campaignId)) {
-          runningCampaigns.set(campaignId, {
+        if (nextStatus === CAMPAIGN_STATUS.running) {
+          const claimed = await runningCampaigns.setIfAbsent(campaignId, {
             started_at: nowProvider().toISOString(),
             source: 'recovery',
           })
+          if (!claimed) {
+            continue
+          }
 
-          setTimeoutFn(() => {
-            runCampaign(campaignId).catch((error) => {
-              logger.error?.('[broadcast] Falha ao retomar campanha apos reinicio:', error?.message || error)
-            })
+          setTimeoutFn(async () => {
+            try {
+              await retryWithBackoff(
+                () => runCampaign(campaignId),
+                {
+                  maxAttempts: 2,
+                  initialDelayMs: 3000,
+                  maxDelayMs: 10000,
+                  logger,
+                  context: `Campaign recovery campaignId=${campaignId}`,
+                }
+              )
+            } catch (error) {
+              logger.error?.('[broadcast] Campaign recovery esgotou tentativas:', { campaignId, error: error?.message })
+            }
           }, 0)
         }
       }
@@ -1019,6 +1044,358 @@ function createBroadcastService(prisma, deps = {}) {
     return {
       imported_count: toNumber(inserted),
       total_members: await countListMembers(listId),
+    }
+  }
+
+  function buildNormalizedCustomerPhoneSql(alias = 'c') {
+    return `
+      CASE
+        WHEN COALESCE(NULLIF(REGEXP_REPLACE(${alias}.telefone_whatsapp, '\\D', '', 'g'), ''), '') = '' THEN ''
+        WHEN REGEXP_REPLACE(${alias}.telefone_whatsapp, '\\D', '', 'g') LIKE '55%'
+          AND LENGTH(REGEXP_REPLACE(${alias}.telefone_whatsapp, '\\D', '', 'g')) IN (12, 13)
+          THEN REGEXP_REPLACE(${alias}.telefone_whatsapp, '\\D', '', 'g')
+        WHEN LENGTH(REGEXP_REPLACE(${alias}.telefone_whatsapp, '\\D', '', 'g')) IN (10, 11)
+          THEN '55' || REGEXP_REPLACE(${alias}.telefone_whatsapp, '\\D', '', 'g')
+        ELSE REGEXP_REPLACE(${alias}.telefone_whatsapp, '\\D', '', 'g')
+      END
+    `
+  }
+
+  function parseAudienceNumericValue(value, label) {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      throw new AppError(400, `Valor invalido para ${label}.`)
+    }
+
+    return parsed
+  }
+
+  /**
+   * Exemplos sugeridos para o builder:
+   * Clientes inativos: last_order_days gte 30
+   * Clientes recorrentes: total_orders gte 5
+   * Fas de Nutella: product_bought contains Nutella
+   * Nunca compraram: never_ordered eq
+   * Top clientes: total_spent gte 200
+   */
+  function buildAudienceWhereClause(filter, startParamIndex = 1) {
+    const conditions = []
+    const params = []
+    let paramIdx = startParamIndex
+
+    const pushParam = (value) => {
+      params.push(value)
+      const currentIndex = paramIdx
+      paramIdx += 1
+      return currentIndex
+    }
+
+    const buildTextFilter = (fieldValue, operator, { exactLabel, containsLabel }) => {
+      const normalized = trimNullable(fieldValue)
+      if (!normalized) {
+        throw new AppError(400, `Informe um valor para ${containsLabel || exactLabel}.`)
+      }
+
+      if (operator === 'eq') {
+        const paramRef = pushParam(normalized)
+        return `LOWER(%COLUMN%) = LOWER($${paramRef})`
+      }
+
+      if (operator === 'contains') {
+        const paramRef = pushParam(`%${normalized}%`)
+        return `%COLUMN% ILIKE $${paramRef}`
+      }
+
+      throw new AppError(400, `Operador invalido para ${exactLabel || containsLabel}.`)
+    }
+
+    for (const rule of filter.rules || []) {
+      const field = trimNullable(rule.field)
+      const operator = trimNullable(rule.operator)
+      const value = rule.value
+      const windowDays = rule.window_days == null ? null : parseAudienceNumericValue(rule.window_days, 'janela em dias')
+
+      if (field === 'never_ordered') {
+        conditions.push(`
+          c.id NOT IN (
+            SELECT DISTINCT p.cliente_id
+            FROM pedidos p
+            WHERE p.cliente_id IS NOT NULL
+          )
+        `)
+        continue
+      }
+
+      if (field === 'last_order_days') {
+        const numericValue = parseAudienceNumericValue(value, 'dias desde o ultimo pedido')
+        const numericParam = pushParam(numericValue)
+
+        if (operator === 'gte' || operator === 'not_gte') {
+          conditions.push(`
+            c.id IN (
+              SELECT p.cliente_id
+              FROM pedidos p
+              WHERE p.cliente_id IS NOT NULL
+              GROUP BY p.cliente_id
+              HAVING MAX(p.criado_em) <= NOW() - ($${numericParam}::numeric * INTERVAL '1 day')
+            )
+          `)
+          continue
+        }
+
+        if (operator === 'lte') {
+          conditions.push(`
+            c.id IN (
+              SELECT p.cliente_id
+              FROM pedidos p
+              WHERE p.cliente_id IS NOT NULL
+              GROUP BY p.cliente_id
+              HAVING MAX(p.criado_em) >= NOW() - ($${numericParam}::numeric * INTERVAL '1 day')
+            )
+          `)
+          continue
+        }
+
+        if (operator === 'eq') {
+          conditions.push(`
+            c.id IN (
+              SELECT p.cliente_id
+              FROM pedidos p
+              WHERE p.cliente_id IS NOT NULL
+              GROUP BY p.cliente_id
+              HAVING FLOOR(EXTRACT(EPOCH FROM (NOW() - MAX(p.criado_em))) / 86400) = $${numericParam}::numeric
+            )
+          `)
+          continue
+        }
+
+        throw new AppError(400, 'Operador invalido para dias desde o ultimo pedido.')
+      }
+
+      if (field === 'total_orders') {
+        const numericValue = parseAudienceNumericValue(value, 'total de pedidos')
+        const numericParam = pushParam(numericValue)
+        const pgOperator = operator === 'gte' ? '>=' : operator === 'lte' ? '<=' : operator === 'eq' ? '=' : null
+        if (!pgOperator) {
+          throw new AppError(400, 'Operador invalido para total de pedidos.')
+        }
+
+        conditions.push(`
+          c.id IN (
+            SELECT p.cliente_id
+            FROM pedidos p
+            WHERE p.cliente_id IS NOT NULL
+            GROUP BY p.cliente_id
+            HAVING COUNT(p.id) ${pgOperator} $${numericParam}::numeric
+          )
+        `)
+        continue
+      }
+
+      if (field === 'total_spent') {
+        const numericValue = parseAudienceNumericValue(value, 'total gasto')
+        const numericParam = pushParam(numericValue)
+        const pgOperator = operator === 'gte' ? '>=' : operator === 'lte' ? '<=' : operator === 'eq' ? '=' : null
+        if (!pgOperator) {
+          throw new AppError(400, 'Operador invalido para total gasto.')
+        }
+
+        conditions.push(`
+          c.id IN (
+            SELECT p.cliente_id
+            FROM pedidos p
+            WHERE p.cliente_id IS NOT NULL
+              AND p.status_pagamento = 'pago'
+            GROUP BY p.cliente_id
+            HAVING SUM(p.valor_total::numeric) ${pgOperator} $${numericParam}::numeric
+          )
+        `)
+        continue
+      }
+
+      if (field === 'product_bought') {
+        const textCondition = buildTextFilter(value, operator, {
+          exactLabel: 'produto comprado',
+          containsLabel: 'produto comprado',
+        }).replace('%COLUMN%', "COALESCE(NULLIF(TRIM(ip.nome_snapshot), ''), pr.nome_doce)")
+
+        let windowCondition = ''
+        if (windowDays !== null) {
+          const windowParam = pushParam(windowDays)
+          windowCondition = `AND p.criado_em >= NOW() - ($${windowParam}::numeric * INTERVAL '1 day')`
+        }
+
+        conditions.push(`
+          c.id IN (
+            SELECT DISTINCT p.cliente_id
+            FROM pedidos p
+            JOIN itens_pedido ip ON ip.pedido_id = p.id
+            JOIN produtos pr ON pr.id = ip.produto_id
+            WHERE p.cliente_id IS NOT NULL
+              ${windowCondition}
+              AND ${textCondition}
+          )
+        `)
+        continue
+      }
+
+      if (field === 'category_bought') {
+        const textCondition = buildTextFilter(value, operator, {
+          exactLabel: 'categoria comprada',
+          containsLabel: 'categoria comprada',
+        }).replace('%COLUMN%', 'cat.nome')
+
+        let windowCondition = ''
+        if (windowDays !== null) {
+          const windowParam = pushParam(windowDays)
+          windowCondition = `AND p.criado_em >= NOW() - ($${windowParam}::numeric * INTERVAL '1 day')`
+        }
+
+        conditions.push(`
+          c.id IN (
+            SELECT DISTINCT p.cliente_id
+            FROM pedidos p
+            JOIN itens_pedido ip ON ip.pedido_id = p.id
+            JOIN produtos pr ON pr.id = ip.produto_id
+            JOIN categorias cat ON cat.id = pr.categoria_id
+            WHERE p.cliente_id IS NOT NULL
+              ${windowCondition}
+              AND ${textCondition}
+          )
+        `)
+        continue
+      }
+
+      if (field === 'city') {
+        const textCondition = buildTextFilter(value, operator, {
+          exactLabel: 'cidade',
+          containsLabel: 'cidade',
+        }).replace('%COLUMN%', 'latest_address.cidade')
+
+        conditions.push(`
+          c.id IN (
+            SELECT latest_address.cliente_id
+            FROM (
+              SELECT DISTINCT ON (e.cliente_id)
+                e.cliente_id,
+                e.cidade
+              FROM enderecos e
+              WHERE e.cliente_id IS NOT NULL
+              ORDER BY e.cliente_id, e.id DESC
+            ) latest_address
+            WHERE COALESCE(NULLIF(TRIM(latest_address.cidade), ''), '') <> ''
+              AND ${textCondition}
+          )
+        `)
+        continue
+      }
+
+      throw new AppError(400, 'Campo de filtro de audiencia invalido.')
+    }
+
+    if (!conditions.length) {
+      return { whereClause: '1=1', params: [] }
+    }
+
+    const joiner = filter.logic === 'or' ? ' OR ' : ' AND '
+    return {
+      whereClause: conditions.map((condition) => `(${condition.trim()})`).join(joiner),
+      params,
+    }
+  }
+
+  async function previewAudience(filter) {
+    const { whereClause, params } = buildAudienceWhereClause(filter, 1)
+
+    const countRows = await query(
+      `
+        SELECT COUNT(DISTINCT c.id)::int AS total
+        FROM clientes c
+        WHERE COALESCE(NULLIF(TRIM(c.telefone_whatsapp), ''), '') <> ''
+          AND (${whereClause})
+      `,
+      ...params,
+    )
+
+    const sampleRows = await query(
+      `
+        SELECT DISTINCT c.id, c.nome, c.telefone_whatsapp
+        FROM clientes c
+        WHERE COALESCE(NULLIF(TRIM(c.telefone_whatsapp), ''), '') <> ''
+          AND (${whereClause})
+        ORDER BY c.id DESC
+        LIMIT 10
+      `,
+      ...params,
+    )
+
+    return {
+      total: toNumber(countRows?.[0]?.total),
+      sample: (sampleRows || []).map((row) => ({
+        id: toNumber(row.id),
+        nome: trimNullable(row.nome) || 'Sem nome',
+        telefone: trimNullable(row.telefone_whatsapp) || '',
+      })),
+    }
+  }
+
+  async function createListFromFilter(payload) {
+    await normalizeLegacyMemberPhonesOnce()
+
+    const { filter, name, description } = payload
+    const { whereClause, params } = buildAudienceWhereClause(filter, 2)
+    const normalizedPhoneSql = buildNormalizedCustomerPhoneSql('c')
+
+    const listRows = await query(
+      `
+        INSERT INTO broadcast_lists (name, description)
+        VALUES ($1, $2)
+        RETURNING id, name, description, created_at
+      `,
+      name,
+      description,
+    )
+
+    const list = listRows?.[0] || null
+    if (!list) {
+      throw new AppError(500, 'Falha ao criar a lista de audiencia.')
+    }
+
+    const listId = toNumber(list.id)
+    const inserted = await execute(
+      `
+        WITH audience_matches AS (
+          SELECT
+            c.id,
+            c.nome,
+            ${normalizedPhoneSql} AS normalized_phone
+          FROM clientes c
+          WHERE COALESCE(NULLIF(TRIM(c.telefone_whatsapp), ''), '') <> ''
+            AND (${whereClause})
+        ),
+        deduped_matches AS (
+          SELECT DISTINCT ON (normalized_phone)
+            normalized_phone,
+            nome
+          FROM audience_matches
+          WHERE COALESCE(NULLIF(normalized_phone, ''), '') <> ''
+          ORDER BY normalized_phone, id DESC
+        )
+        INSERT INTO broadcast_list_members (list_id, client_phone, client_name)
+        SELECT
+          $1,
+          normalized_phone,
+          nome
+        FROM deduped_matches
+      `,
+      listId,
+      ...params,
+    )
+
+    return {
+      ...mapList({ ...list, member_count: toNumber(inserted) }),
+      member_count: toNumber(inserted),
+      filter_applied: filter,
     }
   }
 
@@ -1751,7 +2128,7 @@ function createBroadcastService(prisma, deps = {}) {
       logger.error?.('[broadcast] Falha na execucao da campanha:', error?.message || error)
       await finalizeCampaign(campaignId, CAMPAIGN_STATUS.failed)
     } finally {
-      runningCampaigns.delete(campaignId)
+      await runningCampaigns.delete(campaignId)
     }
   }
 
@@ -1760,22 +2137,38 @@ function createBroadcastService(prisma, deps = {}) {
 
     clearScheduledTimer(campaignId)
 
-    if (runningCampaigns.has(campaignId)) {
+    const execution = {
+      started_at: nowProvider().toISOString(),
+      source: options.source || 'manual',
+    }
+    const claimed = await runningCampaigns.setIfAbsent(campaignId, execution)
+    if (!claimed) {
       throw new AppError(409, 'Esta campanha ja esta em execucao.')
     }
 
     const preserveScheduledAt = options.source === 'scheduled'
-    await prepareCampaignRun(campaignId, { preserveScheduledAt })
+    try {
+      await prepareCampaignRun(campaignId, { preserveScheduledAt })
+    } catch (error) {
+      await runningCampaigns.delete(campaignId)
+      throw error
+    }
 
-    runningCampaigns.set(campaignId, {
-      started_at: nowProvider().toISOString(),
-      source: options.source || 'manual',
-    })
-
-    setTimeoutFn(() => {
-      runCampaign(campaignId).catch((error) => {
-        logger.error?.('[broadcast] Falha inesperada ao disparar campanha:', error?.message || error)
-      })
+    setTimeoutFn(async () => {
+      try {
+        await retryWithBackoff(
+          () => runCampaign(campaignId),
+          {
+            maxAttempts: 2,
+            initialDelayMs: 1000,
+            maxDelayMs: 5000,
+            logger,
+            context: `Campaign execution campaignId=${campaignId}`,
+          }
+        )
+      } catch (error) {
+        logger.error?.('[broadcast] Campaign execution esgotou tentativas:', { campaignId, error: error?.message })
+      }
     }, 0)
 
     return getCampaign(campaignId)
@@ -1922,9 +2315,23 @@ function createBroadcastService(prisma, deps = {}) {
   }
 
   if (hasRawQuerySupport()) {
-    void bootstrapScheduledCampaigns().catch((error) => {
-      logger.error?.('[broadcast] Falha ao inicializar campanhas agendadas:', error?.message || error)
-    })
+    // Bootstrap sem bloquear
+    void (async () => {
+      try {
+        await retryWithBackoff(
+          () => bootstrapScheduledCampaigns(),
+          {
+            maxAttempts: 2,
+            initialDelayMs: 2000,
+            maxDelayMs: 10000,
+            logger,
+            context: 'Bootstrap scheduled campaigns',
+          }
+        )
+      } catch (error) {
+        logger.error?.('[broadcast] Bootstrap esgotou tentativas:', error?.message)
+      }
+    })()
   }
 
   return {
@@ -1935,6 +2342,8 @@ function createBroadcastService(prisma, deps = {}) {
     addMember,
     removeMember,
     importClients,
+    previewAudience,
+    createListFromFilter,
     listTemplates,
     createTemplate,
     removeTemplate,
