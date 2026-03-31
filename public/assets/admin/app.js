@@ -1,4 +1,4 @@
-import { bindNavigationSection } from './modules/navigation.js?v=20260330a'
+import { bindNavigationSection } from './modules/navigation.js?v=20260331a'
 import { bindDashboardSection } from './modules/dashboard.js?v=20260328a'
 import { bindRealtimeSection } from './modules/realtime.js?v=20260328b'
 import { bindCustomersSection } from './modules/customers.js?v=20260325o'
@@ -730,7 +730,15 @@ function renderAdminView(view) {
   });
 
   adminViewLinks.forEach((link) => {
-    link.classList.toggle('active', adminLinkMatchesView(link, activeView));
+    const isActive = adminLinkMatchesView(link, activeView);
+    const exactView = normalizeAdminView(link.dataset.adminViewLink);
+    link.classList.toggle('active', isActive);
+
+    if (exactView === activeView) {
+      link.setAttribute('aria-current', 'page');
+    } else {
+      link.removeAttribute('aria-current');
+    }
   });
 
   setAdminTopbarDescription(activeView);
@@ -1730,27 +1738,73 @@ function renderSidebarStoreStatus(config = state.currentStoreSettings) {
 
   const hasSession = Boolean(state.accessToken && state.currentUser);
   if (!hasSession) {
+    sidebarStoreStatusCardEl.disabled = true;
+    sidebarStoreStatusCardEl.setAttribute('aria-pressed', 'false');
     sidebarStoreStatusCardEl.classList.remove('is-open');
     sidebarStoreStatusCardEl.classList.add('is-closed');
-    sidebarStoreStatusTextEl.textContent = 'Status da loja';
+    sidebarStoreStatusTextEl.textContent = 'Loja fechada';
     sidebarStoreStatusMetaEl.textContent = 'Faça login para carregar a operação.';
+    sidebarStoreStatusCardEl.title = 'Faça login para alterar a abertura manual da loja.';
     return;
   }
 
   if (!config) {
+    sidebarStoreStatusCardEl.disabled = true;
+    sidebarStoreStatusCardEl.setAttribute('aria-pressed', 'false');
     sidebarStoreStatusCardEl.classList.remove('is-open');
     sidebarStoreStatusCardEl.classList.add('is-closed');
-    sidebarStoreStatusTextEl.textContent = 'Consultando status';
+    sidebarStoreStatusTextEl.textContent = 'Consultando';
     sidebarStoreStatusMetaEl.textContent = 'Carregando horário e operação da loja.';
+    sidebarStoreStatusCardEl.title = 'Carregando a operação da loja.';
     return;
   }
 
   const openNow = Boolean(config.loja_aberta_agora);
+  const manualOpen = config.loja_aberta !== false;
+  sidebarStoreStatusCardEl.disabled = false;
+  sidebarStoreStatusCardEl.setAttribute('aria-pressed', manualOpen ? 'true' : 'false');
   sidebarStoreStatusCardEl.classList.toggle('is-open', openNow);
   sidebarStoreStatusCardEl.classList.toggle('is-closed', !openNow);
   sidebarStoreStatusTextEl.textContent = openNow ? 'Loja aberta' : 'Loja fechada';
   sidebarStoreStatusMetaEl.textContent = config.loja_status_descricao
     || (openNow ? 'Recebendo pedidos neste momento.' : 'Fora do horário de atendimento.');
+  sidebarStoreStatusCardEl.title = manualOpen
+    ? 'Clique para fechar manualmente a loja.'
+    : 'Clique para abrir manualmente a loja.';
+}
+
+async function toggleSidebarStoreStatus() {
+  if (!state.accessToken) {
+    throw new Error('Faça login antes de alterar a abertura da loja.');
+  }
+
+  if (!state.currentStoreSettings) {
+    return loadStoreSettings();
+  }
+
+  const nextManualOpen = state.currentStoreSettings.loja_aberta === false;
+  if (sidebarStoreStatusCardEl) {
+    sidebarStoreStatusCardEl.disabled = true;
+  }
+  if (sidebarStoreStatusMetaEl) {
+    sidebarStoreStatusMetaEl.textContent = nextManualOpen
+      ? 'Aplicando abertura manual...'
+      : 'Fechando manualmente...';
+  }
+
+  try {
+    const response = await fetch('/admin/store-settings', {
+      method: 'PUT',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ loja_aberta: nextManualOpen }),
+    });
+
+    await parseResponse(response);
+    return await loadStoreSettings();
+  } catch (error) {
+    renderSidebarStoreStatus(state.currentStoreSettings);
+    throw error;
+  }
 }
 
 function renderCustomersSummary(summary = null) {
@@ -3656,6 +3710,7 @@ const api = {
   ensureOrderAuditVisible,
   hideOrderAudit,
   loadStoreSettings,
+  toggleSidebarStoreStatus,
   readStoreHoursScheduleFromForm,
   syncStoreHoursInputsState,
   renderStoreHoursStatus,

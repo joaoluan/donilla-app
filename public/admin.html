@@ -16,7 +16,10 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="/styles.css?v=20260330c" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css?v=20260331a" />
   <link rel="stylesheet" href="/assets/admin/broadcast.css?v=20260330b" />
   <style>
     .crm-customer-list {
@@ -607,46 +610,83 @@
 </head>
 <body class="page-admin">
   <div id="adminLayout" class="admin-layout logged-out">
-    <aside class="admin-sidebar">
+    <aside id="adminSidebarPanel" class="admin-sidebar">
       <div class="admin-sidebar-header">
-        <div class="sidebar-brand admin-portal-brand">
-          <div class="admin-portal-logo" aria-hidden="true">
-            <img src="/logo-donilla.png" alt="" />
+        <div class="admin-sidebar-header-top">
+          <div class="sidebar-brand admin-portal-brand">
+            <div class="admin-portal-logo" aria-hidden="true">
+              <img src="/logo-donilla.png" alt="" />
+            </div>
+            <div class="admin-portal-brand-copy">
+              <strong>DONILLA</strong>
+              <small>Portal da Loja</small>
+            </div>
           </div>
-          <div class="admin-portal-brand-copy">
-            <strong>DONILLA</strong>
-            <small>Portal da loja</small>
+
+          <div class="admin-sidebar-header-actions">
+            <button class="admin-sidebar-utility-btn" type="button" data-theme-toggle aria-label="Alternar tema do painel" data-tooltip="Tema">
+              <span class="admin-sidebar-utility-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M12 3v2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <path d="M12 18.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <path d="M4.64 4.64l1.77 1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <path d="M17.59 17.59l1.77 1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <path d="M3 12h2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <path d="M18.5 12H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <path d="M4.64 19.36l1.77-1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <path d="M17.59 6.41l1.77-1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"></circle>
+                </svg>
+              </span>
+              <span class="admin-visually-hidden" data-theme-toggle-label>Tema claro</span>
+              <span class="admin-visually-hidden" data-theme-toggle-hint>Usar visual claro</span>
+            </button>
+
+            <button id="adminSidebarCloseBtn" class="admin-sidebar-close-btn" type="button" aria-label="Fechar menu lateral">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6l12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+              </svg>
+            </button>
           </div>
         </div>
 
-        <div id="sidebarStoreStatus" class="admin-store-status-card is-closed" role="status" aria-live="polite">
-          <span class="admin-store-status-indicator" aria-hidden="true"></span>
-          <div class="admin-store-status-copy">
-            <strong id="sidebarStoreStatusText">Status da loja</strong>
-            <small id="sidebarStoreStatusMeta">Faça login para carregar a operação.</small>
-          </div>
-        </div>
+        <button
+          id="sidebarStoreStatus"
+          class="admin-store-status-card is-closed"
+          type="button"
+          aria-live="polite"
+          aria-pressed="false"
+          data-tooltip="Status da loja"
+          disabled
+        >
+          <span class="admin-store-status-pill">
+            <span class="admin-store-status-indicator" aria-hidden="true"></span>
+            <strong id="sidebarStoreStatusText">Loja fechada</strong>
+          </span>
+          <small id="sidebarStoreStatusMeta">Faça login para carregar a operação.</small>
+        </button>
       </div>
 
-      <nav class="sidebar-nav admin-sidebar-nav" aria-label="Navegação do portal administrativo">
+      <nav class="sidebar-nav admin-sidebar-nav" role="navigation" aria-label="Navegação do portal administrativo">
         <section class="admin-nav-group" aria-label="Seção principal">
           <span class="admin-nav-group-label">Principal</span>
 
-          <a href="/admin/resumo" data-admin-view-link="dashboard" class="admin-nav-link active">
+          <a href="/admin/resumo" data-admin-view-link="dashboard" class="admin-nav-link active" aria-current="page" data-tooltip="Resumo" style="--nav-order: 0;">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
-                <path d="M4 6.5h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M4 17.5h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M4 5.5h7v6H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                <path d="M13 5.5h7v3H13z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                <path d="M13 10.5h7v8H13z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                <path d="M4 13.5h7v5H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
               </svg>
             </span>
             <span class="admin-nav-link-copy">
               <span class="admin-nav-link-label">Resumo</span>
-              <small>Visão do dia</small>
             </span>
           </a>
 
-          <a href="/admin/pedidos" data-admin-view-link="pedidos" class="admin-nav-link">
+          <a href="/admin/pedidos" data-admin-view-link="pedidos" class="admin-nav-link" data-tooltip="Pedidos" style="--nav-order: 1;">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M6 7h12l-1 10H7L6 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
@@ -655,27 +695,27 @@
             </span>
             <span class="admin-nav-link-copy">
               <span class="admin-nav-link-label">Pedidos</span>
-              <small>Fila e operação</small>
             </span>
             <span id="navOrdersBadge" class="admin-nav-badge hidden">0</span>
           </a>
 
-          <a href="/admin/cardapio" data-admin-view-link="cardapio" class="admin-nav-link">
+          <a href="/admin/cardapio" data-admin-view-link="cardapio" class="admin-nav-link" data-tooltip="Cardápio" style="--nav-order: 2;">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
-                <path d="M6 4h12v4H6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
-                <path d="M6 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M8 17h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M7 4v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M10 4v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M8.5 12v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M16 4c1.7 2.2 1.7 5.8 0 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M16 12v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
               </svg>
             </span>
             <span class="admin-nav-link-copy">
               <span class="admin-nav-link-label">Cardápio</span>
-              <small>Itens, estoque e destaques</small>
             </span>
             <span id="navCatalogBadge" class="admin-nav-badge hidden">0</span>
           </a>
 
-          <a href="/admin/clientes" data-admin-view-link="clientes" class="admin-nav-link">
+          <a href="/admin/clientes" data-admin-view-link="clientes" class="admin-nav-link" data-tooltip="Clientes" style="--nav-order: 3;">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5Z" stroke="currentColor" stroke-width="1.8"></path>
@@ -684,15 +724,94 @@
             </span>
             <span class="admin-nav-link-copy">
               <span class="admin-nav-link-label">Clientes</span>
-              <small>Carteira e histórico</small>
             </span>
           </a>
         </section>
 
-        <section class="admin-nav-group" aria-label="Seção de gerenciamento">
-          <span class="admin-nav-group-label">Gerenciar</span>
+        <section class="admin-nav-group" aria-label="Seção de automação">
+          <span class="admin-nav-group-label">Automação</span>
 
-          <a href="/admin/configuracoes" data-admin-view-link="config" class="admin-nav-link">
+          <div id="adminAutomationGroup" class="admin-nav-automation">
+            <div class="admin-nav-automation-head">
+              <a
+                href="/admin/bot-whatsapp"
+                data-admin-view-link="whatsapp"
+                data-admin-view-match="whatsapp,broadcast"
+                class="admin-nav-link admin-nav-link-branch"
+                data-tooltip="Bot WhatsApp"
+                style="--nav-order: 4;"
+              >
+                <span class="admin-nav-link-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M8 19l-3 1 1-3a8 8 0 1 1 2 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                    <path d="M9 10.5c.5 1.7 1.8 3 3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                    <path d="M10 14c1.2.9 2.8 1.2 4.2.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  </svg>
+                </span>
+                <span class="admin-nav-link-copy">
+                  <span class="admin-nav-link-label">Bot WhatsApp</span>
+                </span>
+              </a>
+
+              <button
+                id="adminAutomationToggle"
+                class="admin-nav-branch-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="adminAutomationSubnav"
+                aria-label="Expandir menu do Bot WhatsApp"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </button>
+            </div>
+
+            <div id="adminAutomationSubnav" class="admin-nav-children">
+              <a
+                href="/admin/bot-whatsapp/disparos"
+                data-admin-view-link="broadcast"
+                class="admin-nav-sublink"
+                data-tooltip="Disparos"
+                style="--nav-order: 5;"
+              >
+                <span class="admin-nav-link-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                  </svg>
+                </span>
+                <span class="admin-nav-link-copy">
+                  <span class="admin-nav-link-label">Disparos</span>
+                </span>
+              </a>
+
+              <a
+                href="/admin/bot-whatsapp/fluxos"
+                class="admin-nav-sublink"
+                data-tooltip="Flow Builder"
+                style="--nav-order: 6;"
+              >
+                <span class="admin-nav-link-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <circle cx="6" cy="6" r="2.5" stroke="currentColor" stroke-width="1.8"></circle>
+                    <circle cx="18" cy="6" r="2.5" stroke="currentColor" stroke-width="1.8"></circle>
+                    <circle cx="18" cy="18" r="2.5" stroke="currentColor" stroke-width="1.8"></circle>
+                    <path d="M8.5 6H15.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                    <path d="M18 8.5V15.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  </svg>
+                </span>
+                <span class="admin-nav-link-copy">
+                  <span class="admin-nav-link-label">Flow Builder</span>
+                </span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-nav-group" aria-label="Seção de configurações">
+          <span class="admin-nav-group-label">Configurações</span>
+
+          <a href="/admin/configuracoes" data-admin-view-link="config" class="admin-nav-link" data-tooltip="Configurações" style="--nav-order: 7;">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5A3.5 3.5 0 1 0 12 8.5Z" stroke="currentColor" stroke-width="1.8"></path>
@@ -701,60 +820,25 @@
             </span>
             <span class="admin-nav-link-copy">
               <span class="admin-nav-link-label">Configurações</span>
-              <small>Operação, horários e taxas</small>
-            </span>
-          </a>
-
-          <a href="/admin/bot-whatsapp" data-admin-view-link="whatsapp" data-admin-view-match="whatsapp,broadcast" class="admin-nav-link">
-            <span class="admin-nav-link-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M8 19l-3 1 1-3a8 8 0 1 1 2 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
-                <path d="M9 10.5c.5 1.7 1.8 3 3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M10 14c1.2.9 2.8 1.2 4.2.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-              </svg>
-            </span>
-            <span class="admin-nav-link-copy">
-              <span class="admin-nav-link-label">Bot WhatsApp</span>
-              <small>Conexão, automações e testes</small>
             </span>
           </a>
         </section>
 
-        <section class="admin-nav-group admin-nav-group-secondary" aria-label="Atalhos da loja">
-          <button class="sidebar-nav-action admin-nav-link admin-nav-link-secondary" type="button" data-theme-toggle>
+        <section class="admin-nav-group admin-nav-group-secondary" aria-label="Ações rápidas do painel">
+          <a href="/" target="_blank" rel="noreferrer noopener" class="admin-nav-link admin-nav-link-secondary" data-tooltip="Ir para loja" style="--nav-order: 8;">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
-                <path d="M12 3v2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M12 18.5V21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M4.64 4.64l1.77 1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M17.59 17.59l1.77 1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M3 12h2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M18.5 12H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M4.64 19.36l1.77-1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <path d="M17.59 6.41l1.77-1.77" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"></circle>
-              </svg>
-            </span>
-            <span class="admin-nav-link-copy">
-              <span class="admin-nav-link-label" data-theme-toggle-label>Tema claro</span>
-              <small data-theme-toggle-hint>Usar visual claro</small>
-            </span>
-          </button>
-
-          <a href="/" class="admin-nav-link admin-nav-link-secondary">
-            <span class="admin-nav-link-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <path d="M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
-                <path d="M19 12H5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M14 5h5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M10 14L19 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                <path d="M19 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
               </svg>
             </span>
             <span class="admin-nav-link-copy">
               <span class="admin-nav-link-label">Ir para loja</span>
-              <small>Voltar para a vitrine</small>
             </span>
           </a>
 
-          <button id="logoutBtn" class="sidebar-nav-action sidebar-logout-btn admin-nav-link admin-nav-link-secondary admin-nav-link-danger" type="button">
+          <button id="logoutBtn" class="sidebar-nav-action sidebar-logout-btn admin-nav-link admin-nav-link-secondary admin-nav-link-danger" type="button" data-tooltip="Sair" style="--nav-order: 9;">
             <span class="admin-nav-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
@@ -764,12 +848,28 @@
             </span>
             <span class="admin-nav-link-copy">
               <span class="admin-nav-link-label">Sair</span>
-              <small>Encerrar a sessão</small>
             </span>
           </button>
         </section>
       </nav>
     </aside>
+
+    <button id="adminSidebarOverlay" class="admin-sidebar-overlay" type="button" aria-label="Fechar menu lateral"></button>
+
+    <button
+      id="adminSidebarToggleBtn"
+      class="admin-sidebar-mobile-toggle"
+      type="button"
+      aria-label="Abrir menu lateral"
+      aria-controls="adminSidebarPanel"
+      aria-expanded="false"
+    >
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 7h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        <path d="M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        <path d="M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+      </svg>
+    </button>
 
     <main class="admin-main">
       <section id="loginCard" class="card admin-card login-card admin-auth-card">
@@ -2263,6 +2363,6 @@
 
   <script src="/assets/ui/custom-select.js?v=20260327a"></script>
   <script src="/assets/admin/theme.js?v=20260330a"></script>
-  <script type="module" src="/assets/admin/app.js?v=20260330b"></script>
+  <script type="module" src="/assets/admin/app.js?v=20260331a"></script>
 </body>
 </html>
