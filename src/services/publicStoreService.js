@@ -1,3 +1,4 @@
+const { createHash } = require('node:crypto')
 const { AppError } = require('../utils/errors')
 const { signToken, verifyToken } = require('../utils/jwt')
 const { hashPassword, verifyPassword } = require('../utils/password')
@@ -23,6 +24,62 @@ const {
 } = require('../validators/publicOrderValidator')
 
 const CLIENT_SESSION_TTL_SECONDS = 3600
+const PRODUCT_IMAGE_CACHE_CONTROL = 'public, max-age=31536000, immutable'
+
+function parseImageDataUrl(dataUrl) {
+  const normalized = String(dataUrl || '').trim()
+  if (!normalized) return null
+
+  const match = normalized.match(/^data:image\/([a-z0-9.+-]+);base64,(.*)$/i)
+  if (!match) return null
+
+  const [, mimeSubtype, base64Payload = ''] = match
+  const base64 = base64Payload.replace(/\s/g, '')
+  if (!base64) return null
+
+  return {
+    mimeSubtype: mimeSubtype.toLowerCase(),
+    base64,
+    normalized,
+  }
+}
+
+function buildImageVersion(value) {
+  return createHash('sha1').update(String(value || '')).digest('hex').slice(0, 12)
+}
+
+function buildPublicProductImagePath(productId, imageUrl) {
+  const parsedId = Number(productId || 0)
+  if (!Number.isInteger(parsedId) || parsedId <= 0) return null
+
+  const parsedImage = parseImageDataUrl(imageUrl)
+  if (!parsedImage) return null
+
+  return `/public/produtos/${parsedId}/imagem?v=${buildImageVersion(parsedImage.normalized)}`
+}
+
+function normalizePublicCatalogProduct(product) {
+  if (!product || typeof product !== 'object') return product
+
+  const imagePath = buildPublicProductImagePath(product.id, product.imagem_url)
+  return {
+    ...product,
+    imagem_url: imagePath || product.imagem_url || null,
+  }
+}
+
+function normalizePublicMenuCategory(category) {
+  if (!category || typeof category !== 'object') return category
+
+  const products = Array.isArray(category.produtos)
+    ? category.produtos.map(normalizePublicCatalogProduct)
+    : []
+
+  return {
+    ...category,
+    produtos: products,
+  }
+}
 
 function toMoney(value) {
   const n = Number(value || 0)
@@ -1277,14 +1334,55 @@ function publicStoreService(prisma, deps = {}) {
     async getMenu() {
       const categorias = await prisma.categorias.findMany({
         orderBy: [{ ordem_exibicao: 'asc' }, { id: 'asc' }],
-        include: {
+        select: {
+          id: true,
+          nome: true,
+          ordem_exibicao: true,
           produtos: {
             where: { ativo: true },
             orderBy: { id: 'asc' },
+            select: {
+              id: true,
+              nome_doce: true,
+              descricao: true,
+              preco: true,
+              imagem_url: true,
+              estoque_disponivel: true,
+              ativo: true,
+            },
           },
         },
       })
-      return categorias
+      return categorias.map(normalizePublicMenuCategory)
+    },
+
+    async getProductImage(id) {
+      const produto = await prisma.produtos.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          imagem_url: true,
+        },
+      })
+
+      if (!produto?.imagem_url) {
+        throw new AppError(404, 'Imagem do produto nao encontrada.')
+      }
+
+      const parsedImage = parseImageDataUrl(produto.imagem_url)
+      if (!parsedImage) {
+        throw new AppError(404, 'Imagem do produto indisponivel para entrega publica.')
+      }
+
+      const buffer = Buffer.from(parsedImage.base64, 'base64')
+      const version = buildImageVersion(parsedImage.normalized)
+
+      return {
+        buffer,
+        contentType: `image/${parsedImage.mimeSubtype}`,
+        etag: `"product-image-${produto.id}-${version}"`,
+        cacheControl: PRODUCT_IMAGE_CACHE_CONTROL,
+      }
     },
 
     async createOrder(input) {

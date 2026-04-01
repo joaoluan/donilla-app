@@ -39,7 +39,8 @@ const PAYMENT_STATUS_LABELS = {
 };
 
 const CUSTOMER_SESSION_KEY = 'donilla_customer_session';
-const MENU_REFRESH_INTERVAL_MS = 60000;
+const MENU_REFRESH_INTERVAL_MS = 180000;
+const MENU_REFRESH_MIN_GAP_MS = 20000;
 const cartController = initCart({
   cartItemsEl,
   cartCountEl,
@@ -75,6 +76,7 @@ let storeConfig = {
 };
 let menuRefreshPromise = null;
 let menuRefreshTimerId = 0;
+let lastMenuRefreshAt = 0;
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -213,11 +215,17 @@ function applyMenuSnapshot(menu) {
 }
 
 async function refreshMenu({ announceRemoved = false, statusType = 'muted', reviewRequired = false } = {}) {
+  if (!menuRefreshPromise && lastMenuRefreshAt && Date.now() - lastMenuRefreshAt < MENU_REFRESH_MIN_GAP_MS) {
+    return [];
+  }
+
   if (!menuRefreshPromise) {
     menuRefreshPromise = (async () => {
       const response = await fetch('/public/menu');
       const menu = await parseResponse(response);
-      return applyMenuSnapshot(menu);
+      const removedItems = applyMenuSnapshot(menu);
+      lastMenuRefreshAt = Date.now();
+      return removedItems;
     })().finally(() => {
       menuRefreshPromise = null;
     });
@@ -422,6 +430,7 @@ async function init() {
 
     updateStoreHeader(store || {});
     applyMenuSnapshot(menu);
+    lastMenuRefreshAt = Date.now();
     startMenuRefreshSync();
   } catch (error) {
     catalogController.renderError(error.message || 'Erro ao carregar cardápio.');

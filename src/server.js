@@ -39,6 +39,7 @@ const STATIC_ROUTES = {
   '/admin/fluxos/editor': { type: 'file', fileName: 'flow-builder.html' },
   '/site': { type: 'redirect', location: '/', statusCode: 308 },
   '/cliente': { type: 'redirect', location: '/', statusCode: 308 },
+  '/favicon.ico': { type: 'redirect', location: '/logo-donilla.png?v=20260331a', statusCode: 308 },
   '/styles.css': { type: 'file', fileName: 'styles.css' },
   '/logo-donilla.png': { type: 'file', fileName: 'logo-donilla.png' },
 }
@@ -82,12 +83,46 @@ function resolvePublicAssetPath(routePath) {
   return filePath
 }
 
-function buildStaticHeaders(contentType, size, extraHeaders = {}) {
+function matchesEtagHeader(headerValue, etag) {
+  if (!headerValue || !etag) return false
+
+  return String(headerValue)
+    .split(',')
+    .map((value) => value.trim())
+    .includes(etag)
+}
+
+function buildStaticCacheHeaders(routePath, contentType) {
+  if (String(contentType || '').startsWith('text/html')) {
+    return getNoStoreHeaders()
+  }
+
+  if (routePath === '/logo-donilla.png') {
+    return { 'Cache-Control': 'public, max-age=604800, stale-while-revalidate=2592000' }
+  }
+
+  if (routePath === '/styles.css' || routePath.startsWith('/assets/')) {
+    return { 'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800' }
+  }
+
+  return getNoStoreHeaders()
+}
+
+function buildStaticEtag(file) {
+  const sizePart = Number(file?.size || 0).toString(16)
+  const mtimePart = Math.trunc(Number(file?.mtimeMs || 0)).toString(16)
+  return `"static-${sizePart}-${mtimePart}"`
+}
+
+function buildStaticHeaders(routePath, contentType, size, file, extraHeaders = {}) {
+  const etag = buildStaticEtag(file)
   return {
     ...getSecurityHeaders(),
-    ...getNoStoreHeaders(),
+    ...buildStaticCacheHeaders(routePath, contentType),
     'Content-Type': contentType,
     'Content-Length': String(size),
+    ETag: etag,
+    'Last-Modified': new Date(Number(file?.mtimeMs || Date.now())).toUTCString(),
     ...extraHeaders,
   }
 }
@@ -114,6 +149,7 @@ async function openStaticFile(filePath) {
 
     return {
       size: stats.size,
+      mtimeMs: stats.mtimeMs,
       stream: fileHandle.createReadStream(),
     }
   } catch (error) {
@@ -127,11 +163,27 @@ async function openStaticFile(filePath) {
   }
 }
 
-async function streamStaticFile(res, filePath, contentType, headers = {}) {
+async function streamStaticFile(req, res, routePath, filePath, contentType, headers = {}) {
   const file = await openStaticFile(filePath)
   if (!file) return false
 
-  res.writeHead(200, buildStaticHeaders(contentType, file.size, headers))
+  const responseHeaders = buildStaticHeaders(routePath, contentType, file.size, file, headers)
+  if (matchesEtagHeader(req?.headers?.['if-none-match'], responseHeaders.ETag)) {
+    if (typeof file.stream?.destroy === 'function') {
+      file.stream.destroy()
+    }
+    res.writeHead(304, {
+      ...getSecurityHeaders(),
+      ...buildStaticCacheHeaders(routePath, contentType),
+      ETag: responseHeaders.ETag,
+      'Last-Modified': responseHeaders['Last-Modified'],
+      ...headers,
+    })
+    res.end()
+    return true
+  }
+
+  res.writeHead(200, responseHeaders)
   try {
     await pipeline(file.stream, res)
   } catch (error) {
@@ -160,12 +212,12 @@ async function serveStatic(req, res, routePath) {
 
   const assetPath = resolvePublicAssetPath(routePath)
   if (assetPath) {
-    return streamStaticFile(res, assetPath, resolveStaticContentType(assetPath), corsHeaders)
+    return streamStaticFile(req, res, routePath, assetPath, resolveStaticContentType(assetPath), corsHeaders)
   }
 
   if (PUBLIC_TRACKING_PAGE_PATTERN.test(routePath)) {
     const trackingPagePath = pathLib.join(PUBLIC_DIR, 'pedido.html')
-    return streamStaticFile(res, trackingPagePath, resolveStaticContentType(trackingPagePath), corsHeaders)
+    return streamStaticFile(req, res, routePath, trackingPagePath, resolveStaticContentType(trackingPagePath), corsHeaders)
   }
 
   const route = STATIC_ROUTES[routePath]
@@ -181,7 +233,7 @@ async function serveStatic(req, res, routePath) {
 
   const fileName = route.fileName
   const filePath = pathLib.join(PUBLIC_DIR, fileName)
-  return streamStaticFile(res, filePath, resolveStaticContentType(fileName), corsHeaders)
+  return streamStaticFile(req, res, routePath, filePath, resolveStaticContentType(fileName), corsHeaders)
 }
 
 function handleError(req, res, error) {

@@ -144,9 +144,12 @@ let highlightedOrderId = null;
 const REGISTER_TOTAL_STEPS = 2;
 const CUSTOMER_PASSWORD_RULE_MESSAGE =
   'A senha deve ter pelo menos 6 caracteres, com 1 letra maiuscula, 1 minuscula e 1 numero.';
-const MENU_REFRESH_INTERVAL_MS = 60000;
+const MENU_REFRESH_INTERVAL_MS = 180000;
+const MENU_REFRESH_MIN_GAP_MS = 20000;
 let menuRefreshPromise = null;
 let menuRefreshTimerId = 0;
+let lastMenuRefreshAt = 0;
+let activePanelId = 'panelPedidos';
 
 function normalizePhone(value) {
   return String(value || '').replace(/\D/g, '').trim();
@@ -844,12 +847,18 @@ function buildCartRemovalNotice(removedItems, { reviewRequired = false } = {}) {
 }
 
 async function refreshMenu({ announceRemoved = false, statusType = 'muted', reviewRequired = false } = {}) {
+  if (!menuRefreshPromise && lastMenuRefreshAt && Date.now() - lastMenuRefreshAt < MENU_REFRESH_MIN_GAP_MS) {
+    return [];
+  }
+
   if (!menuRefreshPromise) {
     menuRefreshPromise = (async () => {
       const response = await fetch('/public/menu');
       const menu = await parseResponse(response);
       setCategorias(menu);
-      return syncCartWithCatalog();
+      const removedItems = syncCartWithCatalog();
+      lastMenuRefreshAt = Date.now();
+      return removedItems;
     })().finally(() => {
       menuRefreshPromise = null;
     });
@@ -867,12 +876,17 @@ function startMenuRefreshLoop() {
   if (menuRefreshTimerId) return;
 
   menuRefreshTimerId = window.setInterval(() => {
-    if (document.visibilityState === 'hidden' || !storeInitialized) return;
+    if (document.visibilityState === 'hidden' || !shouldRefreshMenu()) return;
     refreshMenu({ announceRemoved: true }).catch(() => {});
   }, MENU_REFRESH_INTERVAL_MS);
 }
 
+function shouldRefreshMenu() {
+  return storeInitialized && (activePanelId === 'panelPedidos' || carrinho.size > 0);
+}
+
 function applyActivePanel(panelId) {
+  activePanelId = panelId;
   panelPedidosEl.classList.toggle('hidden', panelId !== 'panelPedidos');
   panelCarrinhoEl.classList.toggle('hidden', panelId !== 'panelCarrinho');
   panelContaEl.classList.toggle('hidden', panelId !== 'panelConta');
@@ -964,6 +978,7 @@ async function initStore() {
     const menu = await parseResponse(menuRes);
 
     setCategorias(menu);
+    lastMenuRefreshAt = Date.now();
 
     storeConfig = {
       loja_aberta: Boolean(store?.loja_aberta),
@@ -1005,7 +1020,9 @@ async function initStore() {
 let storeInitialized = false;
 function initStoreIfNeeded() {
   if (storeInitialized) {
-    refreshMenu({ announceRemoved: true }).catch(() => {});
+    if (shouldRefreshMenu()) {
+      refreshMenu({ announceRemoved: true }).catch(() => {});
+    }
     return;
   }
   storeInitialized = true;
@@ -1064,7 +1081,7 @@ function renderMenu() {
           const mediaMarkup = imagemUrl
             ? `
               <div class="product-media">
-                <img class="product-media-image" src="${escapeHtml(imagemUrl)}" alt="${nomeDoce}" loading="lazy" />
+                <img class="product-media-image" src="${escapeHtml(imagemUrl)}" alt="${nomeDoce}" loading="lazy" decoding="async" />
               </div>
             `
             : `
@@ -2006,12 +2023,12 @@ cartItemsEl.addEventListener('click', (event) => {
 checkoutFormEl.addEventListener('submit', handleOrderSubmit);
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible' || !storeInitialized) return;
+  if (document.visibilityState !== 'visible' || !shouldRefreshMenu()) return;
   refreshMenu({ announceRemoved: true }).catch(() => {});
 });
 
 window.addEventListener('focus', () => {
-  if (!storeInitialized) return;
+  if (!shouldRefreshMenu()) return;
   refreshMenu({ announceRemoved: true }).catch(() => {});
 });
 

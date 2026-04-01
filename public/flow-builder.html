@@ -1,18 +1,22 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Donilla - Editor de Fluxo</title>
+    <link rel="icon" type="image/png" href="/logo-donilla.png?v=20260331a" />
     <script>
       (function () {
         try {
-          var theme = localStorage.getItem('donilla_admin_theme') === 'light' ? 'light' : 'dark';
+          var theme =
+            localStorage.getItem("donilla_admin_theme") === "light"
+              ? "light"
+              : "dark";
           document.documentElement.dataset.adminTheme = theme;
           document.documentElement.style.colorScheme = theme;
         } catch (error) {
-          document.documentElement.dataset.adminTheme = 'dark';
-          document.documentElement.style.colorScheme = 'dark';
+          document.documentElement.dataset.adminTheme = "dark";
+          document.documentElement.style.colorScheme = "dark";
         }
       })();
     </script>
@@ -29,22 +33,41 @@
           <span class="flow-topbar-eyebrow">Editor visual</span>
           <h1 id="builderFlowTitle">Carregando fluxo...</h1>
           <p>
-            Arraste blocos, conecte saídas e ajuste as propriedades à direita. O bot antigo continua em pé até este
-            fluxo ser publicado.
+            Monte o caminho da conversa no canvas, conecte os blocos e ajuste o
+            conteúdo na lateral antes de publicar.
           </p>
-          <nav class="flow-module-tabs" aria-label="Áreas do módulo Bot WhatsApp">
-            <a class="flow-module-tab" href="/admin/bot-whatsapp">Bot WhatsApp</a>
-            <a class="flow-module-tab" href="/admin/bot-whatsapp/disparos">Disparos</a>
-            <a class="flow-module-tab active" href="/admin/bot-whatsapp/fluxos">Fluxos</a>
+          <nav
+            class="flow-module-tabs"
+            aria-label="Áreas do módulo Bot WhatsApp"
+          >
+            <a class="flow-module-tab" href="/admin/bot-whatsapp"
+              >Bot WhatsApp</a
+            >
+            <a class="flow-module-tab" href="/admin/bot-whatsapp/disparos"
+              >Disparos</a
+            >
+            <a class="flow-module-tab active" href="/admin/bot-whatsapp/fluxos"
+              >Fluxos</a
+            >
           </nav>
         </div>
         <div class="flow-topbar-actions">
           <button class="flow-btn-ghost" type="button" data-theme-toggle>
             <span data-theme-toggle-label>Tema claro</span>
           </button>
-          <button id="builderUnpublishBtn" class="flow-btn-ghost hidden" type="button">Despublicar</button>
-          <button id="builderSaveBtn" class="flow-btn-ghost" type="button">Salvar rascunho</button>
-          <button id="builderPublishBtn" class="flow-btn" type="button">Publicar fluxo</button>
+          <button
+            id="builderUnpublishBtn"
+            class="flow-btn-ghost hidden"
+            type="button"
+          >
+            Despublicar
+          </button>
+          <button id="builderSaveBtn" class="flow-btn-ghost" type="button">
+            Salvar rascunho
+          </button>
+          <button id="builderPublishBtn" class="flow-btn" type="button">
+            Publicar fluxo
+          </button>
         </div>
       </header>
 
@@ -55,7 +78,10 @@
         </div>
         <div class="builder-field">
           <label for="builderFlowTrigger">Gatilho</label>
-          <input id="builderFlowTrigger" placeholder="Ex.: oi, ola, olá, boa noite" />
+          <input
+            id="builderFlowTrigger"
+            placeholder="Ex.: oi, ola, olá, boa noite"
+          />
         </div>
         <div class="builder-meta-status">
           <span>Status atual</span>
@@ -63,7 +89,11 @@
         </div>
       </section>
 
-      <section id="builderTemplateNotice" class="flow-guide-card hidden" aria-live="polite">
+      <section
+        id="builderTemplateNotice"
+        class="flow-guide-card hidden"
+        aria-live="polite"
+      >
         <strong id="builderTemplateNoticeTitle">Fluxo legado guiado</strong>
         <p id="builderTemplateNoticeText"></p>
       </section>
@@ -78,34 +108,92 @@
           <div class="builder-legend">
             <strong>Atalhos úteis</strong>
             <ul>
-              <li><span class="builder-legend-dot builder-legend-dot-green"></span> Duplo clique no canvas para abrir o menu rápido.</li>
-              <li><span class="builder-legend-dot builder-legend-dot-blue"></span> Arraste da bolinha verde até o próximo bloco para conectar.</li>
-              <li><span class="builder-legend-dot builder-legend-dot-amber"></span> Clique com o botão direito em um bloco para duplicar ou remover.</li>
+              <li>
+                <span
+                  class="builder-legend-dot builder-legend-dot-green"
+                ></span>
+                Duplo clique no canvas para abrir o menu rápido.
+              </li>
+              <li>
+                <span class="builder-legend-dot builder-legend-dot-blue"></span>
+                Arraste da bolinha verde até o próximo bloco para conectar.
+              </li>
+              <li>
+                <span
+                  class="builder-legend-dot builder-legend-dot-amber"
+                ></span>
+                Clique com o botão direito em um bloco para duplicar ou remover.
+              </li>
             </ul>
           </div>
           <div class="builder-variable-guide">
             <strong>Variáveis úteis</strong>
-            <p>Use estas chaves dentro dos textos, como <code>{cliente_nome}</code> ou <code>{pedido_resumo}</code>.</p>
+            <p>
+              Use estas chaves dentro dos textos, como
+              <code>{cliente_nome}</code> ou <code>{pedido_resumo}</code>.
+            </p>
             <div id="builderVariableList" class="builder-variable-list"></div>
           </div>
         </aside>
 
         <section class="builder-canvas-shell">
           <div class="builder-canvas-toolbar">
-            <div>
-              <strong>Canvas do fluxo</strong>
-              <small id="builderPageStatus">Abrindo o fluxo e preparando o layout visual...</small>
+            <div class="builder-canvas-toolbar-copy">
+              <span class="builder-canvas-kicker">Canvas do fluxo</span>
+              <strong>Desenhe o fluxo de forma direta</strong>
+              <small id="builderPageStatus"
+                >Abrindo o fluxo e preparando o layout visual...</small
+              >
             </div>
             <div class="builder-canvas-toolbar-actions">
-              <button id="builderCenterBtn" class="flow-btn-ghost" type="button">Centralizar</button>
-              <button id="builderAutoLayoutBtn" class="flow-btn-ghost" type="button">Organizar</button>
+              <button id="builderQuickAddBtn" class="flow-btn" type="button">
+                Novo bloco
+              </button>
+              <button
+                id="builderCenterBtn"
+                class="flow-btn-ghost"
+                type="button"
+              >
+                Centralizar
+              </button>
+              <button
+                id="builderAutoLayoutBtn"
+                class="flow-btn-ghost"
+                type="button"
+              >
+                Organizar
+              </button>
             </div>
           </div>
+          <div
+            id="builderCanvasState"
+            class="builder-canvas-statebar"
+            aria-live="polite"
+          ></div>
           <div id="builderViewport" class="builder-canvas-viewport">
-            <svg id="builderConnections" class="builder-connections" aria-hidden="true"></svg>
+            <svg
+              id="builderConnections"
+              class="builder-connections"
+              aria-hidden="true"
+            ></svg>
             <div id="builderCanvas" class="builder-canvas"></div>
-            <div class="builder-canvas-empty">
-              Dica: comece clicando em “Mensagem” ou “Menu”, depois conecte a saída do Trigger até o bloco novo.
+            <div id="builderCanvasEmpty" class="builder-canvas-empty">
+              Dica: comece clicando em “Mensagem” ou “Menu”, depois conecte a
+              saída do Trigger até o bloco novo.
+            </div>
+            <div class="builder-canvas-guide" aria-hidden="true">
+              <strong>Como mexer</strong>
+              <ul>
+                <li>Clique em um bloco para editar o conteúdo na lateral.</li>
+                <li>
+                  Arraste o ponto verde da direita até o próximo bloco para
+                  conectar.
+                </li>
+                <li>
+                  Arraste o fundo para navegar e dê duplo clique para abrir o
+                  menu rápido.
+                </li>
+              </ul>
             </div>
           </div>
         </section>
@@ -116,7 +204,8 @@
             <p>Selecione um bloco para editar o conteúdo e o comportamento.</p>
           </div>
           <div id="builderInspectorEmpty" class="builder-empty-state">
-            Nenhum bloco selecionado ainda. Clique em um nó do canvas para editar texto, opções, tempo de espera ou tag.
+            Nenhum bloco selecionado ainda. Clique em um nó do canvas para
+            editar texto, opções, tempo de espera ou tag.
           </div>
           <div id="builderInspectorPanel" class="hidden"></div>
         </aside>
@@ -125,9 +214,17 @@
 
     <div id="builderContextMenu" class="builder-context-menu hidden"></div>
     <div id="builderAddMenu" class="builder-add-menu hidden"></div>
-    <div id="builderToast" class="flow-toast hidden" data-tone="ok" aria-live="polite"></div>
+    <div
+      id="builderToast"
+      class="flow-toast hidden"
+      data-tone="ok"
+      aria-live="polite"
+    ></div>
 
     <script src="/assets/admin/theme.js?v=20260330a"></script>
-    <script type="module" src="/assets/admin/flow-builder.js?v=20260330d"></script>
+    <script
+      type="module"
+      src="/assets/admin/flow-builder.js?v=20260330d"
+    ></script>
   </body>
 </html>

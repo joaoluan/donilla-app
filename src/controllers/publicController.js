@@ -8,6 +8,17 @@ const {
   validateCustomerLogin,
   validateUpdateCustomerProfile,
 } = require('../validators/publicOrderValidator')
+const { parseProdutoId } = require('../validators/produtosValidator')
+
+function requestHasMatchingEtag(req, etag) {
+  const header = req?.headers?.['if-none-match'] || req?.headers?.['If-None-Match']
+  if (!header || !etag) return false
+
+  return String(header)
+    .split(',')
+    .map((value) => value.trim())
+    .includes(etag)
+}
 
 function publicController(service) {
   function getCustomerSessionToken(req) {
@@ -33,6 +44,34 @@ function publicController(service) {
     async menu() {
       const data = await service.getMenu()
       return { statusCode: 200, data }
+    },
+
+    async productImage(idParam, req) {
+      const id = parseProdutoId(idParam)
+      const image = await service.getProductImage(id)
+      const headers = {
+        'Cache-Control': image.cacheControl,
+        ETag: image.etag,
+      }
+
+      if (requestHasMatchingEtag(req, image.etag)) {
+        return {
+          statusCode: 304,
+          rawBody: '',
+          contentType: image.contentType,
+          headers,
+        }
+      }
+
+      return {
+        statusCode: 200,
+        rawBody: image.buffer,
+        contentType: image.contentType,
+        headers: {
+          ...headers,
+          'Content-Length': String(image.buffer.length),
+        },
+      }
     },
 
     async createOrder(req) {

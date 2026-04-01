@@ -178,23 +178,35 @@ test('rotas web canonicas devem servir as paginas corretas', async () => {
   assert.match(trackingResponse.body, /<title>Donilla - Acompanhar Pedido<\/title>/)
 })
 
-test('assets do admin modularizado devem ser servidos como javascript', async () => {
+test('assets do admin modularizado devem ser servidos como javascript com cache revalidavel', async () => {
   const app = createApp({})
 
   const appModuleResponse = await requestApp(app, { url: '/assets/admin/app.js' })
   assert.equal(appModuleResponse.statusCode, 200)
   assert.equal(appModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
-  assert.equal(appModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
+  assert.equal(appModuleResponse.headers['Cache-Control'], 'public, max-age=86400, stale-while-revalidate=604800')
   assert.equal(appModuleResponse.headers['X-Content-Type-Options'], 'nosniff')
+  assert.ok(appModuleResponse.headers.ETag)
   assert.ok(Number(appModuleResponse.headers['Content-Length']) > 0)
   assert.match(appModuleResponse.body, /from '\.\/modules\/navigation\.js(\?v=[0-9]{8}[a-z])?'/)
 
   const nestedModuleResponse = await requestApp(app, { url: '/assets/admin/modules/navigation.js' })
   assert.equal(nestedModuleResponse.statusCode, 200)
   assert.equal(nestedModuleResponse.headers['Content-Type'], 'text/javascript; charset=utf-8')
-  assert.equal(nestedModuleResponse.headers['Cache-Control'], 'no-store, max-age=0')
+  assert.equal(nestedModuleResponse.headers['Cache-Control'], 'public, max-age=86400, stale-while-revalidate=604800')
+  assert.ok(nestedModuleResponse.headers.ETag)
   assert.ok(Number(nestedModuleResponse.headers['Content-Length']) > 0)
   assert.match(nestedModuleResponse.body, /export function bindNavigationSection/)
+
+  const cachedModuleResponse = await requestApp(app, {
+    url: '/assets/admin/app.js',
+    headers: {
+      'if-none-match': appModuleResponse.headers.ETag,
+    },
+  })
+  assert.equal(cachedModuleResponse.statusCode, 304)
+  assert.equal(cachedModuleResponse.body, '')
+  assert.equal(cachedModuleResponse.headers.ETag, appModuleResponse.headers.ETag)
 })
 
 test('resolveStaticContentType cobre extensoes comuns do frontend', () => {
@@ -205,6 +217,39 @@ test('resolveStaticContentType cobre extensoes comuns do frontend', () => {
   assert.equal(resolveStaticContentType('/assets/font.woff2'), 'font/woff2')
   assert.equal(resolveStaticContentType('/assets/app.webmanifest'), 'application/manifest+json; charset=utf-8')
   assert.equal(resolveStaticContentType('/assets/unknown.bin'), 'application/octet-stream')
+})
+
+test('rota publica de imagem do produto deve reutilizar etag quando nao mudou', async () => {
+  const app = createApp({}, {
+    storeService: {
+      getProductImage(id) {
+        assert.equal(id, 7)
+        return Promise.resolve({
+          buffer: Buffer.from('hello'),
+          contentType: 'image/png',
+          etag: '"product-image-7-cachetest"',
+          cacheControl: 'public, max-age=31536000, immutable',
+        })
+      },
+    },
+  })
+
+  const firstResponse = await requestApp(app, { url: '/public/produtos/7/imagem' })
+  assert.equal(firstResponse.statusCode, 200)
+  assert.equal(firstResponse.body, 'hello')
+  assert.equal(firstResponse.headers['Content-Type'], 'image/png')
+  assert.equal(firstResponse.headers['Cache-Control'], 'public, max-age=31536000, immutable')
+  assert.equal(firstResponse.headers.ETag, '"product-image-7-cachetest"')
+
+  const cachedResponse = await requestApp(app, {
+    url: '/public/produtos/7/imagem',
+    headers: {
+      'if-none-match': '"product-image-7-cachetest"',
+    },
+  })
+  assert.equal(cachedResponse.statusCode, 304)
+  assert.equal(cachedResponse.body, '')
+  assert.equal(cachedResponse.headers.ETag, '"product-image-7-cachetest"')
 })
 
 test('servidor aplica CORS por allowlist e responde preflight', async () => {
@@ -291,6 +336,10 @@ test('aliases legados devem redirecionar para a loja principal', async () => {
   const clienteResponse = await requestApp(app, { url: '/cliente' })
   assert.equal(clienteResponse.statusCode, 308)
   assert.equal(clienteResponse.headers.Location, '/')
+
+  const faviconResponse = await requestApp(app, { url: '/favicon.ico' })
+  assert.equal(faviconResponse.statusCode, 308)
+  assert.equal(faviconResponse.headers.Location, '/logo-donilla.png?v=20260331a')
 })
 
 test('webhook do WhatsApp deve responder ok em texto puro', async () => {

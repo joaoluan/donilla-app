@@ -1038,7 +1038,7 @@ async function compressImageDataUrl(file) {
   const source = await readImageAsDataUrl(file);
   const isNotRecompressible = /^data:image\/(svg\+xml|gif);/i.test(source);
   const sourceBytes = estimateDataUrlBytes(source);
-  const maxBytes = 1.5 * 1024 * 1024;
+  const maxBytes = 450 * 1024;
 
   if (isNotRecompressible && sourceBytes <= maxBytes) return source;
   if (sourceBytes <= maxBytes) return source;
@@ -1057,15 +1057,15 @@ async function compressImageDataUrl(file) {
     throw new Error('Seu navegador não suporta compressão de imagem.');
   }
   const outputTypes = isWebpSupported() ? ['image/webp', 'image/jpeg'] : ['image/jpeg'];
-  const maxSide = 1100;
-  const minQuality = 0.45;
+  const maxSide = 900;
+  const minQuality = 0.4;
   const qualityStep = 0.08;
   const scaleBase = Math.min(1, maxSide / Math.max(naturalWidth, naturalHeight));
   let width = Math.max(1, Math.round(naturalWidth * scaleBase));
   let height = Math.max(1, Math.round(naturalHeight * scaleBase));
 
   for (const outputType of outputTypes) {
-    let quality = 0.82;
+    let quality = 0.78;
     let currentWidth = width;
     let currentHeight = height;
 
@@ -1084,9 +1084,9 @@ async function compressImageDataUrl(file) {
         return dataUrl;
       }
 
-      quality = 0.82;
-      currentWidth = Math.max(1, Math.round(currentWidth * 0.85));
-      currentHeight = Math.max(1, Math.round(currentHeight * 0.85));
+      quality = 0.78;
+      currentWidth = Math.max(1, Math.round(currentWidth * 0.8));
+      currentHeight = Math.max(1, Math.round(currentHeight * 0.8));
     }
   }
 

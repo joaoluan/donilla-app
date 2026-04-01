@@ -46,6 +46,7 @@ function matchRoute(path, pattern) {
 }
 
 const ROUTE_PATTERNS = {
+  publicProductImage: compileRoutePattern('/public/produtos/:id/imagem'),
   publicCustomerOrder: compileRoutePattern('/public/customer/orders/:id'),
   publicOrderStatus: compileRoutePattern('/public/orders/:id'),
   publicOrderTracking: compileRoutePattern('/public/orders/:id/tracking'),
@@ -125,6 +126,11 @@ function createRouter(prisma, deps = {}) {
 
     if (method === 'GET' && path === '/public/menu') {
       return pub.menu()
+    }
+
+    const publicProductImageMatch = matchRoute(path, ROUTE_PATTERNS.publicProductImage)
+    if (publicProductImageMatch) {
+      if (method === 'GET') return pub.productImage(publicProductImageMatch.id, req)
     }
 
     if (method === 'POST' && path === '/public/customer/login') {

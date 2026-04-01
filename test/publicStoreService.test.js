@@ -1316,3 +1316,66 @@ test('receiveAsaasWebhook deve registrar event.id e processar em segundo plano',
   assert.equal(events[0].payload.deliveryStatus, 'pendente')
   assert.equal(events[0].payload.total, '12.00')
 })
+
+test('getMenu deve trocar data URLs por endpoints publicos de imagem', async () => {
+  const service = publicStoreService({
+    categorias: {
+      findMany() {
+        return Promise.resolve([
+          {
+            id: 3,
+            nome: 'Bolos',
+            ordem_exibicao: 1,
+            produtos: [
+              {
+                id: 7,
+                nome_doce: 'Bolo de pote',
+                descricao: 'Chocolate',
+                preco: '14.00',
+                imagem_url: 'data:image/png;base64,aGVsbG8=',
+                estoque_disponivel: 5,
+                ativo: true,
+              },
+              {
+                id: 8,
+                nome_doce: 'Bolo sem foto inline',
+                descricao: 'Baunilha',
+                preco: '15.00',
+                imagem_url: 'https://cdn.donilla.test/bolo.jpg',
+                estoque_disponivel: 3,
+                ativo: true,
+              },
+            ],
+          },
+        ])
+      },
+    },
+  })
+
+  const menu = await service.getMenu()
+
+  assert.equal(menu.length, 1)
+  assert.match(menu[0].produtos[0].imagem_url, /^\/public\/produtos\/7\/imagem\?v=[a-f0-9]{12}$/)
+  assert.doesNotMatch(menu[0].produtos[0].imagem_url, /^data:image\//)
+  assert.equal(menu[0].produtos[1].imagem_url, 'https://cdn.donilla.test/bolo.jpg')
+})
+
+test('getProductImage deve decodificar a imagem e retornar cache forte', async () => {
+  const service = publicStoreService({
+    produtos: {
+      findUnique() {
+        return Promise.resolve({
+          id: 7,
+          imagem_url: 'data:image/png;base64,aGVsbG8=',
+        })
+      },
+    },
+  })
+
+  const image = await service.getProductImage(7)
+
+  assert.equal(image.contentType, 'image/png')
+  assert.equal(image.cacheControl, 'public, max-age=31536000, immutable')
+  assert.match(image.etag, /^"product-image-7-[a-f0-9]{12}"$/)
+  assert.equal(image.buffer.toString('utf8'), 'hello')
+})
