@@ -47,64 +47,90 @@ test('list encontra item sem acento usando fallback tolerante', async () => {
   assert.equal(result.items.length, 1)
   assert.equal(result.items[0].nome_doce, 'Pão de Mel')
   assert.equal(calls.findMany.length, 2)
+  assert.equal(calls.findMany[0].where.removido_em, null)
+  assert.equal(calls.count[0].where.removido_em, null)
 })
 
-test('remove exclui o produto quando nao ha vinculos', async () => {
+test('remove faz soft delete do produto quando nao ha vinculos', async () => {
   const calls = []
   const service = produtosService({
     produtos: {
-      delete(args) {
-        calls.push(['delete', args])
-        return Promise.resolve({ id: 10 })
+      findFirst(args) {
+        calls.push(['findFirst', args])
+        return Promise.resolve({ id: 10, removido_em: null })
       },
       update(args) {
         calls.push(['update', args])
         return Promise.resolve(args)
       },
     },
+    itens_pedido: {
+      count(args) {
+        calls.push(['count', args])
+        return Promise.resolve(0)
+      },
+    },
   })
 
   const result = await service.remove(10)
 
-  assert.deepEqual(result, { deleted: true, deactivated: false })
-  assert.deepEqual(calls, [['delete', { where: { id: 10 } }]])
+  assert.equal(result.deleted, true)
+  assert.equal(result.deactivated, false)
+  assert.equal(result.softDeleted, true)
+  assert.deepEqual(calls[0], ['findFirst', { where: { id: 10, removido_em: null } }])
+  assert.deepEqual(calls[1], ['count', { where: { produto_id: 10 } }])
+  assert.deepEqual(calls[2], [
+    'update',
+    {
+      where: { id: 10 },
+      data: {
+        ativo: false,
+        removido_em: calls[2][1].data.removido_em,
+      },
+    },
+  ])
+  assert.ok(calls[2][1].data.removido_em instanceof Date)
 })
 
-test('remove inativa o produto quando ha pedidos vinculados', async () => {
+test('remove sinaliza historico quando ha pedidos vinculados', async () => {
   const calls = []
   const service = produtosService({
     produtos: {
-      delete(args) {
-        calls.push(['delete', args])
-        return Promise.reject({ code: 'P2003' })
+      findFirst(args) {
+        calls.push(['findFirst', args])
+        return Promise.resolve({ id: 15, removido_em: null })
       },
       update(args) {
         calls.push(['update', args])
         return Promise.resolve({ id: 15, ativo: false })
       },
     },
-  })
-
-  const result = await service.remove(15)
-
-  assert.deepEqual(result, { deleted: false, deactivated: true })
-  assert.deepEqual(calls, [
-    ['delete', { where: { id: 15 } }],
-    ['update', { where: { id: 15 }, data: { ativo: false } }],
-  ])
-})
-
-test('remove repassa erros inesperados', async () => {
-  const service = produtosService({
-    produtos: {
-      delete() {
-        return Promise.reject(new Error('falha inesperada'))
-      },
-      update() {
-        throw new Error('nao deveria atualizar')
+    itens_pedido: {
+      count(args) {
+        calls.push(['count', args])
+        return Promise.resolve(3)
       },
     },
   })
 
-  await assert.rejects(() => service.remove(7), /falha inesperada/)
+  const result = await service.remove(15)
+
+  assert.equal(result.deleted, true)
+  assert.equal(result.deactivated, true)
+  assert.equal(result.softDeleted, true)
+  assert.deepEqual(calls[0], ['findFirst', { where: { id: 15, removido_em: null } }])
+  assert.deepEqual(calls[1], ['count', { where: { produto_id: 15 } }])
+  assert.deepEqual(calls[2][0], 'update')
+})
+
+test('remove retorna 404 quando o produto ja foi removido', async () => {
+  const service = produtosService({
+    produtos: {
+      findFirst() {
+        return Promise.resolve(null)
+      },
+    },
+  })
+
+  await assert.rejects(() => service.remove(7), /Produto nao encontrado/)
 })

@@ -33,6 +33,7 @@ function createOrderPrismaMock(options = {}) {
     pedidoUpdate: [],
     createMany: null,
     produtoUpdate: [],
+    produtoFindMany: [],
     orderAuditCreate: [],
     asaasCheckout: null,
     webhookEventCreate: [],
@@ -108,7 +109,8 @@ function createOrderPrismaMock(options = {}) {
         },
       },
       produtos: {
-        findMany() {
+        findMany(args) {
+          calls.produtoFindMany.push(args)
           return Promise.resolve(options.products || [
             {
               id: 1,
@@ -444,6 +446,7 @@ test('createOrder deve criar pedido pix aguardando pagamento de forma persistent
     assert.equal(result.status_pagamento, 'pendente')
     assert.equal(calls.createMany.length, 1)
     assert.equal(calls.createMany[0].nome_snapshot, 'Brigadeiro')
+    assert.equal(calls.produtoFindMany[0].where.removido_em, null)
     assert.equal(notifications.length, 1)
     assert.equal(notifications[0].order.status_pagamento, 'pendente')
     assert.equal(calls.orderAuditCreate[0].acao, 'pedido_criado')
@@ -1318,9 +1321,11 @@ test('receiveAsaasWebhook deve registrar event.id e processar em segundo plano',
 })
 
 test('getMenu deve trocar data URLs por endpoints publicos de imagem', async () => {
+  const calls = []
   const service = publicStoreService({
     categorias: {
-      findMany() {
+      findMany(args) {
+        calls.push(args)
         return Promise.resolve([
           {
             id: 3,
@@ -1355,6 +1360,8 @@ test('getMenu deve trocar data URLs por endpoints publicos de imagem', async () 
   const menu = await service.getMenu()
 
   assert.equal(menu.length, 1)
+  assert.equal(calls[0].where.removido_em, null)
+  assert.deepEqual(calls[0].select.produtos.where, { ativo: true, removido_em: null })
   assert.match(menu[0].produtos[0].imagem_url, /^\/public\/produtos\/7\/imagem\?v=[a-f0-9]{12}$/)
   assert.doesNotMatch(menu[0].produtos[0].imagem_url, /^data:image\//)
   assert.equal(menu[0].produtos[1].imagem_url, 'https://cdn.donilla.test/bolo.jpg')
@@ -1363,7 +1370,7 @@ test('getMenu deve trocar data URLs por endpoints publicos de imagem', async () 
 test('getProductImage deve decodificar a imagem e retornar cache forte', async () => {
   const service = publicStoreService({
     produtos: {
-      findUnique() {
+      findFirst() {
         return Promise.resolve({
           id: 7,
           imagem_url: 'data:image/png;base64,aGVsbG8=',
@@ -1378,4 +1385,19 @@ test('getProductImage deve decodificar a imagem e retornar cache forte', async (
   assert.equal(image.cacheControl, 'public, max-age=31536000, immutable')
   assert.match(image.etag, /^"product-image-7-[a-f0-9]{12}"$/)
   assert.equal(image.buffer.toString('utf8'), 'hello')
+})
+
+test('getProductImage deve ocultar produtos removidos do catalogo publico', async () => {
+  const service = publicStoreService({
+    produtos: {
+      findFirst() {
+        return Promise.resolve(null)
+      },
+    },
+  })
+
+  await assert.rejects(
+    () => service.getProductImage(7),
+    /Imagem do produto nao encontrada/,
+  )
 })

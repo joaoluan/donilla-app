@@ -3344,22 +3344,22 @@ async function removeCategoria(categoriaId) {
   const categoria = state.menuCategorias.find((item) => item.id === categoriaId);
   const vinculados = Number(categoria?._count?.produtos || 0);
   const nome = categoria?.nome ? `"${categoria.nome}" ` : '';
-  if (vinculados > 0) {
-    setStatus(
-      categoryStatusEl,
-      `A categoria ${nome}não pode ser excluída: ela possui ${vinculados} item(s) vinculado(s).`,
-      'err',
-    );
-    return;
-  }
-
-  const message = `Deseja excluir essa categoria ${nome.trim()}?`;
+  const cascadeMessage = vinculados > 0
+    ? ` Isso também retirará ${vinculados} item(s) dessa categoria do catálogo, sem apagar o histórico de vendas.`
+    : '';
+  const message = `Deseja excluir essa categoria ${nome.trim()}?${cascadeMessage}`;
   if (!confirm(message)) return;
 
   try {
-    await apiClient.deleteCategoria(categoriaId);
+    const result = await apiClient.deleteCategoria(categoriaId);
     await loadCardapioData();
-    setStatus(categoryStatusEl, 'Categoria removida.', 'ok');
+    setStatus(
+      categoryStatusEl,
+      Number(result?.produtos_removidos || 0) > 0
+        ? 'Categoria removida e os itens dela foram retirados do catálogo. O histórico de vendas foi preservado.'
+        : 'Categoria removida.',
+      'ok',
+    );
   } catch (error) {
     setStatus(categoryStatusEl, error.message, 'err');
   }
@@ -3372,7 +3372,9 @@ async function removeProduto(produtoId) {
     await loadCardapioData();
     setStatus(
       produtoStatusEl,
-      result?.deactivated
+      result?.softDeleted
+        ? 'Item removido do catálogo. O histórico de pedidos foi preservado.'
+        : result?.deactivated
         ? 'Item vinculado a pedidos antigos. Ele foi marcado como indisponível para preservar o histórico.'
         : 'Item removido.',
       'ok',

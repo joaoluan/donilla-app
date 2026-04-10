@@ -4,6 +4,53 @@ const { scoreSearchMatch } = require('../utils/search')
 const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const ALLOWED_IMAGE_MIME = ['jpeg', 'jpg', 'png', 'webp']
 
+function buildProdutoWhere(extra = {}) {
+  return {
+    removido_em: null,
+    ...extra,
+  }
+}
+
+async function findCategoriaAtiva(prisma, id) {
+  if (typeof prisma?.categorias?.findFirst === 'function') {
+    return prisma.categorias.findFirst({
+      where: {
+        id,
+        removido_em: null,
+      },
+    })
+  }
+
+  const categoria = await prisma?.categorias?.findUnique?.({
+    where: { id },
+  })
+
+  if (!categoria || categoria.removido_em) return null
+  return categoria
+}
+
+async function assertCategoriaAtiva(prisma, id) {
+  const categoria = await findCategoriaAtiva(prisma, id)
+  if (!categoria) throw new AppError(404, 'Categoria nao encontrada.')
+}
+
+async function findProdutoAtivo(prisma, id, query = {}) {
+  if (typeof prisma?.produtos?.findFirst === 'function') {
+    return prisma.produtos.findFirst({
+      where: buildProdutoWhere({ id }),
+      ...query,
+    })
+  }
+
+  const produto = await prisma?.produtos?.findUnique?.({
+    where: { id },
+    ...query,
+  })
+
+  if (!produto || produto.removido_em) return null
+  return produto
+}
+
 function compareProdutos(left, right, sort, order) {
   const direction = order === 'desc' ? -1 : 1
 
@@ -94,11 +141,11 @@ function produtosService(prisma) {
       const { page, pageSize, search, sort, order, categoria_id, ativo, disponibilidade } = params
       const skip = (page - 1) * pageSize
 
-      const where = {
+      const where = buildProdutoWhere({
         ...(categoria_id ? { categoria_id } : {}),
         ...(search ? { nome_doce: { contains: search, mode: 'insensitive' } } : {}),
         ...(ativo === undefined ? {} : { ativo }),
-      }
+      })
 
       if (disponibilidade === 'disponiveis') {
         where.ativo = true
@@ -127,10 +174,10 @@ function produtosService(prisma) {
       ])
 
       if (search && total === 0) {
-        const fallbackWhere = {
+        const fallbackWhere = buildProdutoWhere({
           ...(categoria_id ? { categoria_id } : {}),
           ...(ativo === undefined ? {} : { ativo }),
-        }
+        })
 
         if (disponibilidade === 'disponiveis') {
           fallbackWhere.ativo = true
@@ -193,8 +240,7 @@ function produtosService(prisma) {
     },
 
     async getById(id) {
-      const produto = await prisma.produtos.findUnique({
-        where: { id },
+      const produto = await findProdutoAtivo(prisma, id, {
         include: {
           categorias: { select: { id: true, nome: true } },
         },
@@ -203,31 +249,47 @@ function produtosService(prisma) {
       return produto
     },
 
-    create(data) {
+    async create(data) {
       const payload = sanitizePayload(data)
       assertProdutoImagemPayload(payload)
+      await assertCategoriaAtiva(prisma, payload.categoria_id)
       return prisma.produtos.create({ data: payload })
     },
 
-    update(id, data) {
+    async update(id, data) {
+      const produto = await findProdutoAtivo(prisma, id)
+      if (!produto) throw new AppError(404, 'Produto nao encontrado.')
+
       const payload = sanitizePayload(data)
       assertProdutoImagemPayload(payload)
+
+      if (payload.categoria_id !== undefined) {
+        await assertCategoriaAtiva(prisma, payload.categoria_id)
+      }
+
       return prisma.produtos.update({ where: { id }, data: payload })
     },
 
     async remove(id) {
-      try {
-        await prisma.produtos.delete({ where: { id } })
-        return { deleted: true, deactivated: false }
-      } catch (error) {
-        if (error?.code !== 'P2003') throw error
+      const produto = await findProdutoAtivo(prisma, id)
+      if (!produto) throw new AppError(404, 'Produto nao encontrado.')
 
-        await prisma.produtos.update({
-          where: { id },
-          data: { ativo: false },
-        })
+      const linkedOrders = typeof prisma?.itens_pedido?.count === 'function'
+        ? await prisma.itens_pedido.count({ where: { produto_id: id } })
+        : 0
 
-        return { deleted: false, deactivated: true }
+      await prisma.produtos.update({
+        where: { id },
+        data: {
+          ativo: false,
+          removido_em: new Date(),
+        },
+      })
+
+      return {
+        deleted: true,
+        deactivated: linkedOrders > 0,
+        softDeleted: true,
       }
     },
   }

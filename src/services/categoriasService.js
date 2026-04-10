@@ -1,6 +1,40 @@
 const { AppError } = require('../utils/errors')
 const { scoreSearchMatch } = require('../utils/search')
 
+function buildCategoriaWhere(extra = {}) {
+  return {
+    removido_em: null,
+    ...extra,
+  }
+}
+
+function buildCategoriaCountInclude() {
+  return {
+    _count: {
+      select: {
+        produtos: {
+          where: { removido_em: null },
+        },
+      },
+    },
+  }
+}
+
+async function findCategoriaAtiva(prisma, id) {
+  if (typeof prisma?.categorias?.findFirst === 'function') {
+    return prisma.categorias.findFirst({
+      where: buildCategoriaWhere({ id }),
+    })
+  }
+
+  const categoria = await prisma?.categorias?.findUnique?.({
+    where: { id },
+  })
+
+  if (!categoria || categoria.removido_em) return null
+  return categoria
+}
+
 function compareCategorias(left, right, sort, order) {
   const direction = order === 'desc' ? -1 : 1
 
@@ -23,9 +57,11 @@ function categoriasService(prisma) {
     async list(params) {
       const { page, pageSize, search, sort, order } = params
       const skip = (page - 1) * pageSize
-      const where = search
-        ? { nome: { contains: search, mode: 'insensitive' } }
-        : undefined
+      const where = buildCategoriaWhere(
+        search
+          ? { nome: { contains: search, mode: 'insensitive' } }
+          : {},
+      )
 
       const [items, total] = await prisma.$transaction([
         prisma.categorias.findMany({
@@ -33,23 +69,16 @@ function categoriasService(prisma) {
           orderBy: { [sort]: order },
           skip,
           take: pageSize,
-          include: {
-            _count: {
-              select: { produtos: true },
-            },
-          },
+          include: buildCategoriaCountInclude(),
         }),
         prisma.categorias.count({ where }),
       ])
 
       if (search && total === 0) {
         const fallbackItems = await prisma.categorias.findMany({
+          where: buildCategoriaWhere(),
           orderBy: { [sort]: order },
-          include: {
-            _count: {
-              select: { produtos: true },
-            },
-          },
+          include: buildCategoriaCountInclude(),
         })
 
         const rankedItems = fallbackItems
@@ -89,7 +118,7 @@ function categoriasService(prisma) {
     },
 
     async getById(id) {
-      const categoria = await prisma.categorias.findUnique({ where: { id } })
+      const categoria = await findCategoriaAtiva(prisma, id)
       if (!categoria) throw new AppError(404, 'Categoria nao encontrada.')
       return categoria
     },
@@ -98,13 +127,48 @@ function categoriasService(prisma) {
       return prisma.categorias.create({ data })
     },
 
-    update(id, data) {
+    async update(id, data) {
+      const categoria = await findCategoriaAtiva(prisma, id)
+      if (!categoria) throw new AppError(404, 'Categoria nao encontrada.')
       return prisma.categorias.update({ where: { id }, data })
     },
 
     async remove(id) {
-      await prisma.categorias.delete({ where: { id } })
-      return { deleted: true }
+      const categoria = await findCategoriaAtiva(prisma, id)
+      if (!categoria) throw new AppError(404, 'Categoria nao encontrada.')
+
+      const removidoEm = new Date()
+      const executeSoftDelete = async (tx) => {
+        const affectedProducts = await tx.produtos.updateMany({
+          where: {
+            categoria_id: id,
+            removido_em: null,
+          },
+          data: {
+            ativo: false,
+            removido_em: removidoEm,
+          },
+        })
+
+        await tx.categorias.update({
+          where: { id },
+          data: {
+            removido_em: removidoEm,
+          },
+        })
+
+        return {
+          deleted: true,
+          softDeleted: true,
+          produtos_removidos: affectedProducts.count,
+        }
+      }
+
+      if (typeof prisma.$transaction === 'function') {
+        return prisma.$transaction((tx) => executeSoftDelete(tx))
+      }
+
+      return executeSoftDelete(prisma)
     },
   }
 }

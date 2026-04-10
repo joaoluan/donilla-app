@@ -253,3 +253,4 @@ Antes de subir a API, aplique também:
 - `prisma/sql/20260330_add_order_tracking_token.sql`
 - `prisma/sql/20260330_add_broadcast_module.sql`
 - `prisma/sql/20260330_add_broadcast_human_behavior.sql`
+- `prisma/sql/20260410_add_soft_delete_produtos_categorias.sql`

@@ -1333,13 +1333,19 @@ function publicStoreService(prisma, deps = {}) {
 
     async getMenu() {
       const categorias = await prisma.categorias.findMany({
+        where: {
+          removido_em: null,
+        },
         orderBy: [{ ordem_exibicao: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
           nome: true,
           ordem_exibicao: true,
           produtos: {
-            where: { ativo: true },
+            where: {
+              ativo: true,
+              removido_em: null,
+            },
             orderBy: { id: 'asc' },
             select: {
               id: true,
@@ -1357,13 +1363,35 @@ function publicStoreService(prisma, deps = {}) {
     },
 
     async getProductImage(id) {
-      const produto = await prisma.produtos.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          imagem_url: true,
-        },
-      })
+      let produto = null
+
+      if (typeof prisma?.produtos?.findFirst === 'function') {
+        produto = await prisma.produtos.findFirst({
+          where: {
+            id,
+            ativo: true,
+            removido_em: null,
+          },
+          select: {
+            id: true,
+            imagem_url: true,
+          },
+        })
+      } else {
+        produto = await prisma.produtos.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            imagem_url: true,
+            ativo: true,
+            removido_em: true,
+          },
+        })
+
+        if (produto?.ativo === false || produto?.removido_em) {
+          produto = null
+        }
+      }
 
       if (!produto?.imagem_url) {
         throw new AppError(404, 'Imagem do produto nao encontrada.')
@@ -1401,7 +1429,11 @@ function publicStoreService(prisma, deps = {}) {
         return acc
       }, {})
       const produtos = await prisma.produtos.findMany({
-        where: { id: { in: uniqueProdutoIds }, ativo: true },
+        where: {
+          id: { in: uniqueProdutoIds },
+          ativo: true,
+          removido_em: null,
+        },
       })
 
       if (produtos.length !== uniqueProdutoIds.length) {

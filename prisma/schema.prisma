@@ -10,7 +10,10 @@ model categorias {
   id             Int        @id @default(autoincrement())
   nome           String     @db.VarChar(50)
   ordem_exibicao Int?       @default(0)
+  removido_em    DateTime?  @db.Timestamp(6)
   produtos       produtos[]
+
+  @@index([removido_em])
 }
 
 model clientes {
@@ -136,16 +139,20 @@ model asaas_webhook_events {
 }
 
 model produtos {
-  id           Int            @id @default(autoincrement())
-  categoria_id Int
-  nome_doce    String         @db.VarChar(100)
-  descricao    String?
-  preco        Decimal        @db.Decimal(10, 2)
-  imagem_url   String?
+  id                Int            @id @default(autoincrement())
+  categoria_id      Int
+  nome_doce         String         @db.VarChar(100)
+  descricao         String?
+  preco             Decimal        @db.Decimal(10, 2)
+  imagem_url        String?
   estoque_disponivel Int?
-  ativo        Boolean?       @default(true)
-  itens_pedido itens_pedido[]
-  categorias   categorias     @relation(fields: [categoria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ativo             Boolean?       @default(true)
+  removido_em       DateTime?      @db.Timestamp(6)
+  itens_pedido      itens_pedido[]
+  categorias        categorias     @relation(fields: [categoria_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([removido_em])
+  @@index([categoria_id, removido_em])
 }
 
 model usuarios {
