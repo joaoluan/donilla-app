@@ -1525,6 +1525,9 @@ export function bindBroadcastSection(ctx) {
       localState.members = [];
       localState.membersMeta = null;
       renderMembers();
+      if (silent && /fa[cç]a login/i.test(String(membersStatusEl?.textContent || ''))) {
+        setStatus(membersStatusEl, 'Crie ou selecione uma lista para gerenciar contatos.', 'muted');
+      }
       return;
     }
 
@@ -1544,8 +1547,13 @@ export function bindBroadcastSection(ctx) {
     renderLists();
     renderMembers();
 
+    const loadedMessage = `${localState.members.length} de ${Number(localState.membersMeta?.total || localState.members.length)} contato(s) carregado(s).`;
+    const isStaleSignedOutStatus = /fa[cç]a login/i.test(String(membersStatusEl?.textContent || ''));
+
     if (!silent) {
-      setStatus(membersStatusEl, `${localState.members.length} de ${Number(localState.membersMeta?.total || localState.members.length)} contato(s) carregado(s).`, 'ok');
+      setStatus(membersStatusEl, loadedMessage, 'ok');
+    } else if (isStaleSignedOutStatus) {
+      setStatus(membersStatusEl, loadedMessage, 'muted');
     }
   }
 
@@ -1645,12 +1653,15 @@ export function bindBroadcastSection(ctx) {
       setStatus(listsStatusEl, `${localState.lists.length} lista(s) pronta(s) para uso.`, 'ok');
       setStatus(templatesStatusEl, `${localState.templates.length} template(s) carregado(s).`, 'ok');
       setStatus(campaignsStatusEl, `${localState.campaigns.length} campanha(s) sincronizada(s).`, 'ok');
+      setStatus(campaignStatusEl, 'Escolha uma lista e escreva a mensagem para criar a campanha.', 'muted');
       setStatus(audienceStatusEl, 'Defina o nome da lista, adicione filtros e acompanhe a audiencia em tempo real.', 'muted');
     } catch (error) {
       setStatus(campaignsStatusEl, error.message, 'err');
+      setStatus(campaignStatusEl, error.message, 'err');
       setStatus(templatesStatusEl, error.message, 'err');
       setStatus(listsStatusEl, error.message, 'err');
       setStatus(audienceStatusEl, error.message, 'err');
+      syncAudienceSaveState();
       throw error;
     } finally {
       localState.loadPromise = null;
