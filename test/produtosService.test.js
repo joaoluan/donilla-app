@@ -51,6 +51,70 @@ test('list encontra item sem acento usando fallback tolerante', async () => {
   assert.equal(calls.count[0].where.removido_em, null)
 })
 
+test('list devolve imagem leve para o admin quando o produto usa data URL', async () => {
+  const service = produtosService({
+    produtos: {
+      findMany() {
+        return Promise.resolve([
+          {
+            id: 31,
+            nome_doce: 'Bolo de pote',
+            descricao: 'Chocolate',
+            preco: '15.00',
+            imagem_url: 'data:image/png;base64,aGVsbG8=',
+            estoque_disponivel: 4,
+            ativo: true,
+            categoria_id: 2,
+            categorias: { id: 2, nome: 'Bolos' },
+          },
+        ])
+      },
+      count() {
+        return Promise.resolve(1)
+      },
+    },
+    $transaction(actions) {
+      return Promise.all(actions)
+    },
+  })
+
+  const result = await service.list({
+    page: 1,
+    pageSize: 10,
+    search: '',
+    sort: 'nome_doce',
+    order: 'asc',
+    disponibilidade: 'all',
+  })
+
+  assert.match(result.items[0].imagem_url, /^\/public\/produtos\/31\/imagem\?v=[a-f0-9]{12}$/)
+})
+
+test('getImage deve servir imagem de item inativo para o admin', async () => {
+  const service = produtosService({
+    produtos: {
+      findFirst(args) {
+        assert.deepEqual(args, {
+          where: { id: 31, removido_em: null },
+          select: { id: true, imagem_url: true },
+        })
+
+        return Promise.resolve({
+          id: 31,
+          imagem_url: 'data:image/png;base64,aGVsbG8=',
+        })
+      },
+    },
+  })
+
+  const image = await service.getImage(31)
+
+  assert.equal(image.contentType, 'image/png')
+  assert.equal(image.cacheControl, 'private, max-age=31536000, immutable')
+  assert.match(image.etag, /^"admin-product-image-31-[a-f0-9]{12}"$/)
+  assert.equal(image.buffer.toString('utf8'), 'hello')
+})
+
 test('remove faz soft delete do produto quando nao ha vinculos', async () => {
   const calls = []
   const service = produtosService({

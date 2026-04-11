@@ -4,10 +4,10 @@ import { bindRealtimeSection } from './modules/realtime.js?v=20260328b'
 import { bindCustomersSection } from './modules/customers.js?v=20260325o'
 import { bindOrdersSection } from './modules/orders.js?v=20260328d'
 import { bindSettingsSection } from './modules/settings.js?v=20260330a'
-import { bindCatalogSection } from './modules/catalog.js?v=20260325o'
+import { bindCatalogSection } from './modules/catalog.js?v=20260410a'
 import { bindBroadcastSection } from './modules/broadcast.js?v=20260330b'
-import { createAdminStore } from './store.js?v=20260328b'
-import { createAdminApiClient } from './api.js?v=20260328a'
+import { createAdminStore } from './store.js?v=20260410c'
+import { createAdminApiClient } from './api.js?v=20260410a'
 import { brl, dateTime, dateOnly, formatPhone, escapeHtml } from '../shared/utils.js?v=20260328b'
 
 const STATUS_OPTIONS = ['pendente', 'preparando', 'saiu_para_entrega', 'entregue', 'cancelado'];
@@ -307,6 +307,9 @@ const orderAuditCache = state.orderAuditCache;
 const expandedOrderAuditIds = state.expandedOrderAuditIds;
 const passwordToggleTimeouts = new Map();
 let clearSessionUiFrameId = null;
+let categoryLoadRequestId = 0;
+let produtoLoadRequestId = 0;
+let catalogSnapshotLoadRequestId = 0;
 
 const DEFAULT_ADMIN_VIEW = 'dashboard';
 const ADMIN_VIEW_PATH_SEGMENTS = {
@@ -841,10 +844,6 @@ function clearStoredSessionTokens() {
   adminStore.clearStoredSessionTokens();
 }
 
-function clearLegacyStoredAccessToken() {
-  adminStore.clearLegacyStoredAccessToken();
-}
-
 function hasRememberedSessionPreference() {
   return adminStore.hasRememberedSessionPreference();
 }
@@ -1105,8 +1104,24 @@ function buildImagePreview(value) {
     return;
   }
 
-  produtoImagemPreviewEl.src = value;
+  produtoImagemPreviewEl.src = toAdminProductImageUrl(value);
   produtoImagemPreviewEl.classList.remove('hidden');
+}
+
+function toAdminProductImageUrl(value) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '';
+
+  return normalized.replace(/^\/public\/produtos\/(\d+)\/imagem(?=\/|\?|$)/, '/produtos/$1/imagem');
+}
+
+function normalizeAdminCatalogProduct(product) {
+  if (!product || typeof product !== 'object') return product;
+
+  return {
+    ...product,
+    imagem_url: toAdminProductImageUrl(product.imagem_url),
+  };
 }
 
 function buildQueryString(params) {
@@ -1344,8 +1359,40 @@ function populateCatalogPortalCategoryFilterOptions() {
   catalogPortalCategoryFilterEl.innerHTML = options.join('');
 }
 
+function replaceLookupMap(targetMap, items = []) {
+  targetMap.clear();
+  items.forEach((item) => {
+    const key = String(item?.id || '').trim();
+    if (!key) return;
+    targetMap.set(key, item);
+  });
+}
+
+function findEntityById(lookupMap, fallbackCollections, entityId) {
+  const normalizedId = String(entityId || '').trim();
+  if (!normalizedId) return null;
+
+  const fromLookup = lookupMap.get(normalizedId);
+  if (fromLookup) return fromLookup;
+
+  for (const items of fallbackCollections) {
+    const found = items.find((item) => String(item?.id || '').trim() === normalizedId);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+function findCategoriaById(categoriaId) {
+  return findEntityById(state.catalogCategoryMap, [state.allCategorias, state.menuCategorias], categoriaId);
+}
+
+function findProdutoById(produtoId) {
+  return findEntityById(state.catalogProductMap, [state.allMenuProdutos, state.menuProdutos], produtoId);
+}
+
 function productCategoryName(categoriaId) {
-  const categoria = state.allCategorias.find((item) => item.id === categoriaId);
+  const categoria = findCategoriaById(categoriaId);
   return categoria?.nome || 'Categoria não encontrada';
 }
 
@@ -3193,41 +3240,34 @@ function renderProdutoList() {
   renderProdutoMeta();
 }
 
-async function loadCategoryOptions() {
-  const pageSize = 100;
-  const buildCategoryOptionsQuery = (page) => buildQueryString({
-    sort: 'ordem_exibicao',
-    order: 'asc',
-    page,
-    pageSize,
-  });
-
-  const firstPayload = await apiClient.fetchCategorias(buildCategoryOptionsQuery(1));
-  const firstItems = Array.isArray(firstPayload.data) ? firstPayload.data : [];
-  const totalPages = Number(firstPayload.meta?.totalPages || 1);
-
-  const remainingPages = totalPages > 1
-    ? await Promise.all(
-      Array.from({ length: totalPages - 1 }, (_, index) => {
-        const page = index + 2;
-        return apiClient.fetchCategorias(buildCategoryOptionsQuery(page))
-          .then((payload) => (Array.isArray(payload.data) ? payload.data : []));
-      }),
-    )
+function applyCatalogSnapshot(snapshot = {}) {
+  const categorias = Array.isArray(snapshot.categorias) ? snapshot.categorias : [];
+  const produtos = Array.isArray(snapshot.produtos)
+    ? snapshot.produtos.map((produto) => normalizeAdminCatalogProduct(produto))
     : [];
 
-  const collectedCategorias = [
-    ...firstItems,
-    ...remainingPages.flat(),
-  ];
-
-  state.allCategorias = collectedCategorias;
+  state.allCategorias = categorias;
+  state.allMenuProdutos = produtos;
+  replaceLookupMap(state.catalogCategoryMap, categorias);
+  replaceLookupMap(state.catalogProductMap, produtos);
   const currentCategoryId = produtoCategoriaEl.value;
   populateCategoriaOptions(currentCategoryId);
   populateProdutoCategoriaFilterOptions();
   populateCatalogPortalCategoryFilterOptions();
   renderCatalogOverview();
   renderCatalogPortal();
+}
+
+async function loadCatalogSnapshot() {
+  const requestId = ++catalogSnapshotLoadRequestId;
+  const snapshot = await apiClient.fetchCatalogSnapshot();
+
+  if (requestId !== catalogSnapshotLoadRequestId) {
+    return snapshot;
+  }
+
+  applyCatalogSnapshot(snapshot);
+  return snapshot;
 }
 
 function categoriasQueryString() {
@@ -3241,7 +3281,13 @@ function categoriasQueryString() {
 }
 
 async function loadCategorias() {
+  const requestId = ++categoryLoadRequestId;
   const payload = await apiClient.fetchCategorias(categoriasQueryString());
+
+  if (requestId !== categoryLoadRequestId) {
+    return state.menuCategorias;
+  }
+
   state.menuCategorias = Array.isArray(payload.data) ? payload.data : [];
   state.categoryPaginationMeta = payload.meta || null;
 
@@ -3274,8 +3320,16 @@ function produtosQueryString() {
 }
 
 async function loadProdutos() {
+  const requestId = ++produtoLoadRequestId;
   const payload = await apiClient.fetchProdutos(produtosQueryString());
-  state.menuProdutos = Array.isArray(payload.data) ? payload.data : [];
+
+  if (requestId !== produtoLoadRequestId) {
+    return state.menuProdutos;
+  }
+
+  state.menuProdutos = Array.isArray(payload.data)
+    ? payload.data.map((produto) => normalizeAdminCatalogProduct(produto))
+    : [];
   state.produtoPaginationMeta = payload.meta || null;
 
   if (state.produtoPaginationMeta && produtoState.page > Number(state.produtoPaginationMeta.totalPages || 1)) {
@@ -3286,35 +3340,8 @@ async function loadProdutos() {
   renderProdutoList();
 }
 
-async function loadCatalogPortalProdutos() {
-  const collectedProdutos = [];
-  let page = 1;
-  let totalPages = 1;
-
-  while (page <= totalPages) {
-    const query = buildQueryString({
-      sort: 'nome_doce',
-      order: 'asc',
-      page,
-      pageSize: 100,
-    });
-
-    const payload = await apiClient.fetchProdutos(query);
-    const items = Array.isArray(payload.data) ? payload.data : [];
-
-    collectedProdutos.push(...items);
-    totalPages = Number(payload.meta?.totalPages || 1);
-    page += 1;
-  }
-
-  state.allMenuProdutos = collectedProdutos;
-  renderCatalogOverview();
-  renderCatalogPortal();
-}
-
 async function loadCardapioData() {
-  await loadCategoryOptions();
-  await Promise.all([loadCategorias(), loadProdutos(), loadCatalogPortalProdutos()]);
+  await Promise.all([loadCatalogSnapshot(), loadCategorias(), loadProdutos()]);
 }
 
 function populateProdutoForm(produto) {
@@ -3725,15 +3752,20 @@ const api = {
   renderDeliveryFeeList,
   loadDeliveryFees,
   removeDeliveryFee,
+  createCategoria: apiClient.createCategoria,
+  updateCategoria: apiClient.updateCategoria,
+  createProduto: apiClient.createProduto,
+  updateProduto: apiClient.updateProduto,
+  findCategoriaById,
+  findProdutoById,
   populateCategoriaOptions,
   populateProdutoCategoriaFilterOptions,
   populateCatalogPortalCategoryFilterOptions,
   resetCategoriaForm,
   resetProdutoForm,
-  loadCategoryOptions,
+  loadCatalogSnapshot,
   loadCategorias,
   loadProdutos,
-  loadCatalogPortalProdutos,
   loadCardapioData,
   renderCatalogOverview,
   renderCatalogPortal,
@@ -3799,7 +3831,6 @@ if (logoutBtnEl) {
 }
 
 syncAdminViewFromLocation({ replace: true });
-clearLegacyStoredAccessToken();
 updateRememberedLoginUi();
 setLoginPasswordAssist(LOGIN_PASSWORD_ASSIST_DEFAULT);
 applySessionUi();

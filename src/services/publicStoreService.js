@@ -1,4 +1,3 @@
-const { createHash } = require('node:crypto')
 const { AppError } = require('../utils/errors')
 const { signToken, verifyToken } = require('../utils/jwt')
 const { hashPassword, verifyPassword } = require('../utils/password')
@@ -22,50 +21,17 @@ const {
   isStrongCustomerPassword,
   CUSTOMER_PASSWORD_RULE_MESSAGE,
 } = require('../validators/publicOrderValidator')
+const {
+  parseImageDataUrl,
+  buildImageVersion,
+  normalizeCatalogProductImage,
+} = require('../utils/catalogMedia')
 
 const CLIENT_SESSION_TTL_SECONDS = 3600
 const PRODUCT_IMAGE_CACHE_CONTROL = 'public, max-age=31536000, immutable'
 
-function parseImageDataUrl(dataUrl) {
-  const normalized = String(dataUrl || '').trim()
-  if (!normalized) return null
-
-  const match = normalized.match(/^data:image\/([a-z0-9.+-]+);base64,(.*)$/i)
-  if (!match) return null
-
-  const [, mimeSubtype, base64Payload = ''] = match
-  const base64 = base64Payload.replace(/\s/g, '')
-  if (!base64) return null
-
-  return {
-    mimeSubtype: mimeSubtype.toLowerCase(),
-    base64,
-    normalized,
-  }
-}
-
-function buildImageVersion(value) {
-  return createHash('sha1').update(String(value || '')).digest('hex').slice(0, 12)
-}
-
-function buildPublicProductImagePath(productId, imageUrl) {
-  const parsedId = Number(productId || 0)
-  if (!Number.isInteger(parsedId) || parsedId <= 0) return null
-
-  const parsedImage = parseImageDataUrl(imageUrl)
-  if (!parsedImage) return null
-
-  return `/public/produtos/${parsedId}/imagem?v=${buildImageVersion(parsedImage.normalized)}`
-}
-
 function normalizePublicCatalogProduct(product) {
-  if (!product || typeof product !== 'object') return product
-
-  const imagePath = buildPublicProductImagePath(product.id, product.imagem_url)
-  return {
-    ...product,
-    imagem_url: imagePath || product.imagem_url || null,
-  }
+  return normalizeCatalogProductImage(product)
 }
 
 function normalizePublicMenuCategory(category) {

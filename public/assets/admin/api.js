@@ -10,6 +10,14 @@ export function createAdminApiClient({ state, store }) {
     };
   }
 
+  async function sendAuthenticatedJson(path, method, payload) {
+    return parseResponse(await fetch(path, {
+      method,
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(payload),
+    }));
+  }
+
   async function parseEnvelope(response) {
     let payload = null;
     try {
@@ -102,6 +110,10 @@ export function createAdminApiClient({ state, store }) {
     return parseEnvelope(await fetch(withQuery('/admin/customers', query), { headers: authHeaders() }));
   }
 
+  async function fetchCatalogSnapshot() {
+    return parseResponse(await fetch('/admin/catalog', { headers: authHeaders() }));
+  }
+
   async function fetchCustomerDetail(customerId) {
     return parseResponse(await fetch(`/admin/customers/${customerId}`, { headers: authHeaders() }));
   }
@@ -182,6 +194,14 @@ export function createAdminApiClient({ state, store }) {
     }));
   }
 
+  async function createCategoria(payload) {
+    return sendAuthenticatedJson('/categorias', 'POST', payload);
+  }
+
+  async function updateCategoria(id, payload) {
+    return sendAuthenticatedJson(`/categorias/${id}`, 'PUT', payload);
+  }
+
   async function fetchCategorias(query = '') {
     return parseEnvelope(await fetch(withQuery('/categorias', query), { headers: authHeaders() }));
   }
@@ -195,6 +215,14 @@ export function createAdminApiClient({ state, store }) {
 
   async function fetchProdutos(query = '') {
     return parseEnvelope(await fetch(withQuery('/produtos', query), { headers: authHeaders() }));
+  }
+
+  async function createProduto(payload) {
+    return sendAuthenticatedJson('/produtos', 'POST', payload);
+  }
+
+  async function updateProduto(id, payload) {
+    return sendAuthenticatedJson(`/produtos/${id}`, 'PUT', payload);
   }
 
   async function deleteProduto(id) {
@@ -215,6 +243,7 @@ export function createAdminApiClient({ state, store }) {
     fetchDashboard,
     fetchOrders,
     fetchCustomers,
+    fetchCatalogSnapshot,
     fetchCustomerDetail,
     fetchOrderAudit,
     fetchStoreSettings,
@@ -230,9 +259,13 @@ export function createAdminApiClient({ state, store }) {
     deleteFlow,
     fetchActiveFlowSessions,
     deleteDeliveryFee,
+    createCategoria,
+    updateCategoria,
     fetchCategorias,
     deleteCategoria,
     fetchProdutos,
+    createProduto,
+    updateProduto,
     deleteProduto,
   };
 }

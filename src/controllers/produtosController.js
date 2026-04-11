@@ -6,6 +6,16 @@ const {
 } = require('../validators/produtosValidator')
 const { parseProdutosListQuery } = require('../validators/listQueryValidator')
 
+function requestHasMatchingEtag(req, etag) {
+  const header = req?.headers?.['if-none-match'] || req?.headers?.['If-None-Match']
+  if (!header || !etag) return false
+
+  return String(header)
+    .split(',')
+    .map((value) => value.trim())
+    .includes(etag)
+}
+
 function produtosController(service) {
   return {
     async list(url) {
@@ -18,6 +28,34 @@ function produtosController(service) {
       const id = parseProdutoId(idParam)
       const data = await service.getById(id)
       return { statusCode: 200, data }
+    },
+
+    async image(idParam, req) {
+      const id = parseProdutoId(idParam)
+      const image = await service.getImage(id)
+      const headers = {
+        'Cache-Control': image.cacheControl,
+        ETag: image.etag,
+      }
+
+      if (requestHasMatchingEtag(req, image.etag)) {
+        return {
+          statusCode: 304,
+          rawBody: '',
+          contentType: image.contentType,
+          headers,
+        }
+      }
+
+      return {
+        statusCode: 200,
+        rawBody: image.buffer,
+        contentType: image.contentType,
+        headers: {
+          ...headers,
+          'Content-Length': String(image.buffer.length),
+        },
+      }
     },
 
     async create(req) {

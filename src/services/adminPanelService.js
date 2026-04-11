@@ -5,6 +5,7 @@ const { buildPublicOrderTrackingPath, buildPublicOrderTrackingUrl } = require('.
 const { STORE_OPERATION_TIMEZONE, resolveStoreAvailability } = require('../utils/storeHours')
 const { assertSafeExternalUrl } = require('../utils/security')
 const { scoreSearchMatch } = require('../utils/search')
+const { normalizeCatalogProductImage } = require('../utils/catalogMedia')
 const { createOrderAuditService } = require('./orderAuditService')
 
 function normalizeDeliveryFeeData(data) {
@@ -827,6 +828,36 @@ function getOrderNotificationInclude() {
   }
 }
 
+function normalizeCatalogCategory(category, productCountByCategoryId = new Map()) {
+  return {
+    id: category.id,
+    nome: category.nome,
+    ordem_exibicao: category.ordem_exibicao ?? 0,
+    _count: {
+      produtos: Number(productCountByCategoryId.get(category.id) || 0),
+    },
+  }
+}
+
+function normalizeCatalogProduct(product) {
+  return normalizeCatalogProductImage({
+    id: product.id,
+    categoria_id: product.categoria_id,
+    nome_doce: product.nome_doce,
+    descricao: product.descricao || null,
+    preco: product.preco,
+    imagem_url: product.imagem_url || null,
+    estoque_disponivel: product.estoque_disponivel,
+    ativo: product.ativo !== false,
+    categorias: product.categorias
+      ? {
+          id: product.categorias.id,
+          nome: product.categorias.nome,
+        }
+      : null,
+  }, { audience: 'admin' })
+}
+
 function toNotificationOrderData(order) {
   return {
     id: order.id,
@@ -1323,6 +1354,53 @@ function adminPanelService(prisma, deps = {}) {
     async getStoreSettings() {
       const config = await getStoreSettingsConfig()
       return decorateStoreSettings(config)
+    },
+
+    async getCatalogSnapshot() {
+      const [categorias, produtos] = await prisma.$transaction([
+        prisma.categorias.findMany({
+          where: { removido_em: null },
+          orderBy: [{ ordem_exibicao: 'asc' }, { nome: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            nome: true,
+            ordem_exibicao: true,
+          },
+        }),
+        prisma.produtos.findMany({
+          where: { removido_em: null },
+          orderBy: [{ categoria_id: 'asc' }, { nome_doce: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            categoria_id: true,
+            nome_doce: true,
+            descricao: true,
+            preco: true,
+            imagem_url: true,
+            estoque_disponivel: true,
+            ativo: true,
+            categorias: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+        }),
+      ])
+
+      const normalizedProducts = produtos.map(normalizeCatalogProduct)
+      const productCountByCategoryId = normalizedProducts.reduce((acc, product) => {
+        const key = Number(product.categoria_id || 0)
+        if (!key) return acc
+        acc.set(key, (acc.get(key) || 0) + 1)
+        return acc
+      }, new Map())
+
+      return {
+        categorias: categorias.map((category) => normalizeCatalogCategory(category, productCountByCategoryId)),
+        produtos: normalizedProducts,
+      }
     },
 
     async updateStoreSettings(data) {

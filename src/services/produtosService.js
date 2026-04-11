@@ -1,8 +1,14 @@
 const { AppError } = require('../utils/errors')
 const { scoreSearchMatch } = require('../utils/search')
+const {
+  buildImageVersion,
+  normalizeCatalogProductImage,
+  parseImageDataUrl,
+} = require('../utils/catalogMedia')
 
 const MAX_DATA_URL_BYTES = 2 * 1024 * 1024
 const ALLOWED_IMAGE_MIME = ['jpeg', 'jpg', 'png', 'webp']
+const PRODUCT_IMAGE_CACHE_CONTROL = 'private, max-age=31536000, immutable'
 
 function buildProdutoWhere(extra = {}) {
   return {
@@ -35,6 +41,23 @@ async function assertCategoriaAtiva(prisma, id) {
 }
 
 async function findProdutoAtivo(prisma, id, query = {}) {
+  if (typeof prisma?.produtos?.findFirst === 'function') {
+    return prisma.produtos.findFirst({
+      where: buildProdutoWhere({ id }),
+      ...query,
+    })
+  }
+
+  const produto = await prisma?.produtos?.findUnique?.({
+    where: { id },
+    ...query,
+  })
+
+  if (!produto || produto.removido_em) return null
+  return produto
+}
+
+async function findProdutoNaoRemovido(prisma, id, query = {}) {
   if (typeof prisma?.produtos?.findFirst === 'function') {
     return prisma.produtos.findFirst({
       where: buildProdutoWhere({ id }),
@@ -160,7 +183,7 @@ function produtosService(prisma) {
         ? [{ categorias: { nome: order } }, { nome_doce: 'asc' }]
         : { [sort]: order }
 
-      const [items, total] = await prisma.$transaction([
+      const [rawItems, total] = await prisma.$transaction([
         prisma.produtos.findMany({
           where,
           orderBy,
@@ -172,6 +195,7 @@ function produtosService(prisma) {
         }),
         prisma.produtos.count({ where }),
       ])
+      const items = rawItems.map(normalizeCatalogProductImage)
 
       if (search && total === 0) {
         const fallbackWhere = buildProdutoWhere({
@@ -210,7 +234,7 @@ function produtosService(prisma) {
             if (right.score !== left.score) return right.score - left.score
             return compareProdutos(left.item, right.item, sort, order)
           })
-          .map((entry) => entry.item)
+          .map((entry) => normalizeCatalogProductImage(entry.item))
 
         const fallbackTotal = rankedItems.length
         const totalPages = Math.max(1, Math.ceil(fallbackTotal / pageSize))
@@ -246,14 +270,41 @@ function produtosService(prisma) {
         },
       })
       if (!produto) throw new AppError(404, 'Produto nao encontrado.')
-      return produto
+      return normalizeCatalogProductImage(produto)
+    },
+
+    async getImage(id) {
+      const produto = await findProdutoNaoRemovido(prisma, id, {
+        select: {
+          id: true,
+          imagem_url: true,
+        },
+      })
+      if (!produto?.imagem_url) {
+        throw new AppError(404, 'Imagem do produto nao encontrada.')
+      }
+
+      const parsedImage = parseImageDataUrl(produto.imagem_url)
+      if (!parsedImage) {
+        throw new AppError(404, 'Imagem do produto indisponivel.')
+      }
+
+      const buffer = Buffer.from(parsedImage.base64, 'base64')
+      const version = buildImageVersion(parsedImage.normalized)
+
+      return {
+        buffer,
+        contentType: `image/${parsedImage.mimeSubtype}`,
+        etag: `"admin-product-image-${produto.id}-${version}"`,
+        cacheControl: PRODUCT_IMAGE_CACHE_CONTROL,
+      }
     },
 
     async create(data) {
       const payload = sanitizePayload(data)
       assertProdutoImagemPayload(payload)
       await assertCategoriaAtiva(prisma, payload.categoria_id)
-      return prisma.produtos.create({ data: payload })
+      return normalizeCatalogProductImage(await prisma.produtos.create({ data: payload }))
     },
 
     async update(id, data) {
@@ -267,7 +318,7 @@ function produtosService(prisma) {
         await assertCategoriaAtiva(prisma, payload.categoria_id)
       }
 
-      return prisma.produtos.update({ where: { id }, data: payload })
+      return normalizeCatalogProductImage(await prisma.produtos.update({ where: { id }, data: payload }))
     },
 
     async remove(id) {

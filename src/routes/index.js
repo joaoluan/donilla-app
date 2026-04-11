@@ -54,6 +54,7 @@ const ROUTE_PATTERNS = {
   apiOrderDetail: compileRoutePattern('/api/orders/:id'),
   apiCheckoutRetry: compileRoutePattern('/api/checkout/:id/retry'),
   categoriaById: compileRoutePattern('/categorias/:id'),
+  produtoImageById: compileRoutePattern('/produtos/:id/imagem'),
   produtoById: compileRoutePattern('/produtos/:id'),
   usuarioResetPassword: compileRoutePattern('/usuarios/:id/reset-password'),
   usuarioById: compileRoutePattern('/usuarios/:id'),
@@ -262,6 +263,13 @@ function createRouter(prisma, deps = {}) {
       return produtos.create(req)
     }
 
+    const produtoImageByIdMatch = matchRoute(path, ROUTE_PATTERNS.produtoImageById)
+    if (produtoImageByIdMatch) {
+      if (method === 'GET') {
+        return produtos.image(produtoImageByIdMatch.id, req)
+      }
+    }
+
     const produtoByIdMatch = matchRoute(path, ROUTE_PATTERNS.produtoById)
     if (produtoByIdMatch) {
       if (method === 'GET') return produtos.getById(produtoByIdMatch.id)
@@ -311,6 +319,11 @@ function createRouter(prisma, deps = {}) {
     if (method === 'GET' && path === '/admin/customers') {
       requireRole(req, 'admin')
       return admin.customers(url)
+    }
+
+    if (method === 'GET' && path === '/admin/catalog') {
+      requireRole(req, 'admin')
+      return admin.catalog()
     }
 
     const adminCustomerByIdMatch = matchRoute(path, ROUTE_PATTERNS.adminCustomerById)

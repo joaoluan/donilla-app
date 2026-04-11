@@ -6,7 +6,7 @@ const STORAGE_KEYS = {
 };
 
 const OBJECT_STATE_KEYS = ['dashboardFilters', 'ordersState', 'customersState', 'categoryState', 'produtoState', 'catalogPortalState'];
-const MAP_STATE_KEYS = ['orderAuditCache'];
+const MAP_STATE_KEYS = ['orderAuditCache', 'catalogCategoryMap', 'catalogProductMap'];
 const SET_STATE_KEYS = ['expandedOrderAuditIds'];
 
 function readStoredValue(key) {
@@ -80,7 +80,7 @@ function createCatalogPortalState() {
 
 function createInitialAdminState(defaults = {}) {
   return {
-    accessToken: '',
+    accessToken: readStoredValue(STORAGE_KEYS.accessToken),
     refreshToken: readStoredValue(STORAGE_KEYS.refreshToken),
     currentUser: null,
     allOrders: [],
@@ -112,6 +112,8 @@ function createInitialAdminState(defaults = {}) {
     produtoState: createProdutoState(defaults.produto),
     catalogPortalState: createCatalogPortalState(),
     orderAuditCache: new Map(),
+    catalogCategoryMap: new Map(),
+    catalogProductMap: new Map(),
     expandedOrderAuditIds: new Set(),
   };
 }
@@ -150,12 +152,6 @@ export function createAdminStore({ defaults = {} } = {}) {
     [localStorage, sessionStorage].forEach((storage) => {
       storage.removeItem(STORAGE_KEYS.accessToken);
       storage.removeItem(STORAGE_KEYS.refreshToken);
-    });
-  }
-
-  function clearLegacyStoredAccessToken() {
-    [localStorage, sessionStorage].forEach((storage) => {
-      storage.removeItem(STORAGE_KEYS.accessToken);
     });
   }
 
@@ -214,7 +210,6 @@ export function createAdminStore({ defaults = {} } = {}) {
   return {
     state,
     clearStoredSessionTokens,
-    clearLegacyStoredAccessToken,
     hasRememberedSessionPreference,
     getRememberedUsername,
     storeRememberedUsername,

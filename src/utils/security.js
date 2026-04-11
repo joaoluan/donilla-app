@@ -46,6 +46,10 @@ function matchesPathPrefix(path, prefix) {
   return normalizedPath === normalizedPrefix || normalizedPath.startsWith(`${normalizedPrefix}/`)
 }
 
+function isPublicProductImagePath(path) {
+  return /^\/public\/produtos\/\d+\/imagem$/.test(String(path || '').trim())
+}
+
 const RATE_LIMIT_RULES = [
   {
     key: 'auth-login',
@@ -116,10 +120,20 @@ const RATE_LIMIT_RULES = [
     message: 'Muitas consultas. Tente novamente em instantes.',
   },
   {
+    key: 'public-product-image',
+    methods: ['GET'],
+    matcher(path) {
+      return isPublicProductImagePath(path)
+    },
+    maxRequests: 300,
+    windowMs: 60 * 1000,
+    message: 'Muitas requisicoes de imagem. Tente novamente em instantes.',
+  },
+  {
     key: 'public-namespace',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     matcher(path) {
-      return matchesPathPrefix(path, '/public')
+      return matchesPathPrefix(path, '/public') && !isPublicProductImagePath(path)
     },
     maxRequests: 60,
     windowMs: 60 * 1000,

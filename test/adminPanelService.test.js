@@ -14,6 +14,16 @@ function createPrismaMock() {
   return {
     calls,
     prisma: {
+      categorias: {
+        findMany() {
+          return Promise.resolve([])
+        },
+      },
+      produtos: {
+        findMany() {
+          return Promise.resolve([])
+        },
+      },
       pedidos: {
         findUnique(args) {
           calls.findUnique.push(args)
@@ -40,6 +50,68 @@ function createPrismaMock() {
     },
   }
 }
+
+test('getCatalogSnapshot devolve categorias e produtos com imagem leve e contagem agregada', async () => {
+  const calls = {
+    categoriasFindMany: [],
+    produtosFindMany: [],
+  }
+  const prisma = {
+    categorias: {
+      findMany(args) {
+        calls.categoriasFindMany.push(args)
+        return Promise.resolve([
+          { id: 2, nome: 'Bolos', ordem_exibicao: 1 },
+          { id: 3, nome: 'Brigadeiros', ordem_exibicao: 2 },
+        ])
+      },
+    },
+    produtos: {
+      findMany(args) {
+        calls.produtosFindMany.push(args)
+        return Promise.resolve([
+          {
+            id: 31,
+            categoria_id: 2,
+            nome_doce: 'Bolo de pote',
+            descricao: 'Chocolate',
+            preco: '15.00',
+            imagem_url: 'data:image/png;base64,aGVsbG8=',
+            estoque_disponivel: 4,
+            ativo: true,
+            categorias: { id: 2, nome: 'Bolos' },
+          },
+          {
+            id: 32,
+            categoria_id: 2,
+            nome_doce: 'Bolo de cenoura',
+            descricao: null,
+            preco: '18.00',
+            imagem_url: null,
+            estoque_disponivel: 2,
+            ativo: true,
+            categorias: { id: 2, nome: 'Bolos' },
+          },
+        ])
+      },
+    },
+    $transaction(actions) {
+      return Promise.all(actions)
+    },
+  }
+  const service = adminPanelService(prisma)
+
+  const result = await service.getCatalogSnapshot()
+
+  assert.equal(calls.categoriasFindMany.length, 1)
+  assert.equal(calls.produtosFindMany.length, 1)
+  assert.deepEqual(result.categorias, [
+    { id: 2, nome: 'Bolos', ordem_exibicao: 1, _count: { produtos: 2 } },
+    { id: 3, nome: 'Brigadeiros', ordem_exibicao: 2, _count: { produtos: 0 } },
+  ])
+  assert.match(result.produtos[0].imagem_url, /^\/produtos\/31\/imagem\?v=[a-f0-9]{12}$/)
+  assert.equal(result.produtos[1].imagem_url, null)
+})
 
 function createCustomerListPrismaMock(customers = []) {
   const calls = {

@@ -50,6 +50,11 @@ function adminController(service, deps = {}) {
       return { statusCode: 200, data }
     },
 
+    async catalog() {
+      const data = await service.getCatalogSnapshot()
+      return { statusCode: 200, data }
+    },
+
     async updateOrderStatus(req, idParam) {
       const id = parseOrderId(idParam)
       const body = await parseJsonBody(req)

@@ -37,6 +37,20 @@ export function bindCatalogSection(ctx) {
   const debouncedRenderCatalogPortal = helpers.createDebounce(180, () => {
     api.renderCatalogPortal();
   });
+  const loadCategoriasSafe = () => {
+    if (!state.accessToken) return Promise.resolve([]);
+    return api.loadCategorias().catch((error) => {
+      helpers.setStatus(dom.categoryStatusEl, error.message, 'err');
+      return [];
+    });
+  };
+  const loadProdutosSafe = () => {
+    if (!state.accessToken) return Promise.resolve([]);
+    return api.loadProdutos().catch((error) => {
+      helpers.setStatus(dom.produtoStatusEl, error.message, 'err');
+      return [];
+    });
+  };
 
   const focusCategoriaEditor = ({ reset = false } = {}) => {
     if (reset) {
@@ -90,7 +104,7 @@ export function bindCatalogSection(ctx) {
     const categoryEditBtn = event.target.closest('button[data-catalog-quick-category]');
     if (categoryEditBtn) {
       const categoriaId = Number(categoryEditBtn.dataset.catalogQuickCategory);
-      const categoria = state.allCategorias.find((item) => item.id === categoriaId);
+      const categoria = api.findCategoriaById(categoriaId);
       if (categoria) {
         api.startCategoriaEdit(categoria);
         focusCategoriaEditor();
@@ -101,7 +115,7 @@ export function bindCatalogSection(ctx) {
     const productEditBtn = event.target.closest('button[data-catalog-quick-product]');
     if (productEditBtn) {
       const produtoId = Number(productEditBtn.dataset.catalogQuickProduct);
-      const produto = state.allMenuProdutos.find((item) => item.id === produtoId);
+      const produto = api.findProdutoById(produtoId);
       if (produto) {
         api.populateProdutoForm(produto);
         focusProdutoEditor();
@@ -110,8 +124,7 @@ export function bindCatalogSection(ctx) {
   });
 
   const debouncedLoadCategorias = helpers.createDebounce(250, () => {
-    if (!state.accessToken) return;
-    api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
+    loadCategoriasSafe();
   });
 
   bindEvent(dom.categorySearchInputEl, 'input', () => {
@@ -123,21 +136,19 @@ export function bindCatalogSection(ctx) {
   bindEvent(dom.categorySortInputEl, 'change', () => {
     state.categoryState.sort = dom.categorySortInputEl.value || 'ordem_exibicao';
     state.categoryState.page = 1;
-    if (!state.accessToken) return;
-    api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
+    loadCategoriasSafe();
   });
 
   bindEvent(dom.categoryPageSizeInputEl, 'change', () => {
     state.categoryState.pageSize = Number(dom.categoryPageSizeInputEl.value || 10);
     state.categoryState.page = 1;
-    if (!state.accessToken) return;
-    api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
+    loadCategoriasSafe();
   });
 
   bindEvent(dom.categoryPrevBtnEl, 'click', async () => {
     if (state.categoryState.page <= 1 || !state.accessToken) return;
     state.categoryState.page -= 1;
-    await api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
+    await loadCategoriasSafe();
   });
 
   bindEvent(dom.categoryNextBtnEl, 'click', async () => {
@@ -145,12 +156,11 @@ export function bindCatalogSection(ctx) {
     const totalPages = Number(state.categoryPaginationMeta?.totalPages || 1);
     if (state.categoryState.page >= totalPages) return;
     state.categoryState.page += 1;
-    await api.loadCategorias().catch((error) => helpers.setStatus(dom.categoryStatusEl, error.message, 'err'));
+    await loadCategoriasSafe();
   });
 
   const debouncedLoadProdutos = helpers.createDebounce(250, () => {
-    if (!state.accessToken) return;
-    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+    loadProdutosSafe();
   });
 
   bindEvent(dom.produtoSearchInputEl, 'input', () => {
@@ -162,35 +172,31 @@ export function bindCatalogSection(ctx) {
   bindEvent(dom.produtoSortInputEl, 'change', () => {
     state.produtoState.sort = dom.produtoSortInputEl.value || 'nome_doce';
     state.produtoState.page = 1;
-    if (!state.accessToken) return;
-    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+    loadProdutosSafe();
   });
 
   bindEvent(dom.produtoDisponibilidadeFilterEl, 'change', () => {
     state.produtoState.disponibilidade = dom.produtoDisponibilidadeFilterEl.value || 'all';
     state.produtoState.page = 1;
-    if (!state.accessToken) return;
-    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+    loadProdutosSafe();
   });
 
   bindEvent(dom.produtoCategoriaFilterEl, 'change', () => {
     state.produtoState.categoria_id = dom.produtoCategoriaFilterEl.value || 'all';
     state.produtoState.page = 1;
-    if (!state.accessToken) return;
-    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+    loadProdutosSafe();
   });
 
   bindEvent(dom.produtoPageSizeInputEl, 'change', () => {
     state.produtoState.pageSize = Number(dom.produtoPageSizeInputEl.value || 12);
     state.produtoState.page = 1;
-    if (!state.accessToken) return;
-    api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+    loadProdutosSafe();
   });
 
   bindEvent(dom.produtoPrevBtnEl, 'click', async () => {
     if (state.produtoState.page <= 1 || !state.accessToken) return;
     state.produtoState.page -= 1;
-    await api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+    await loadProdutosSafe();
   });
 
   bindEvent(dom.produtoNextBtnEl, 'click', async () => {
@@ -198,7 +204,7 @@ export function bindCatalogSection(ctx) {
     const totalPages = Number(state.produtoPaginationMeta?.totalPages || 1);
     if (state.produtoState.page >= totalPages) return;
     state.produtoState.page += 1;
-    await api.loadProdutos().catch((error) => helpers.setStatus(dom.produtoStatusEl, error.message, 'err'));
+    await loadProdutosSafe();
   });
 
   bindEvent(dom.categoryFormEl, 'submit', async (event) => {
@@ -219,20 +225,15 @@ export function bindCatalogSection(ctx) {
       return;
     }
 
-    const path = isEditing ? `/categorias/${dom.categoryIdEl.value}` : '/categorias';
-    const method = isEditing ? 'PUT' : 'POST';
-
     helpers.setStatus(dom.categoryStatusEl, `${isEditing ? 'Atualizando' : 'Salvando'} categoria...`, 'muted');
     dom.categorySubmitBtn.disabled = true;
 
     try {
-      const response = await fetch(path, {
-        method,
-        headers: helpers.authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(payload),
-      });
-
-      await helpers.parseResponse(response);
+      if (isEditing) {
+        await api.updateCategoria(dom.categoryIdEl.value, payload);
+      } else {
+        await api.createCategoria(payload);
+      }
       await api.loadCardapioData();
       api.resetCategoriaForm();
       helpers.setStatus(dom.categoryStatusEl, isEditing ? 'Categoria atualizada.' : 'Categoria salva.', 'ok');
@@ -291,16 +292,11 @@ export function bindCatalogSection(ctx) {
       }
 
       const isEditing = Boolean(dom.produtoIdEl.value);
-      const path = isEditing ? `/produtos/${dom.produtoIdEl.value}` : '/produtos';
-      const method = isEditing ? 'PUT' : 'POST';
-
-      const response = await fetch(path, {
-        method,
-        headers: helpers.authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(payload),
-      });
-
-      await helpers.parseResponse(response);
+      if (isEditing) {
+        await api.updateProduto(dom.produtoIdEl.value, payload);
+      } else {
+        await api.createProduto(payload);
+      }
       await api.loadCardapioData();
       api.resetProdutoForm();
       helpers.setStatus(dom.produtoStatusEl, isEditing ? 'Item atualizado.' : 'Item salvo.', 'ok');
@@ -344,7 +340,7 @@ export function bindCatalogSection(ctx) {
     const btnEdit = event.target.closest('button[data-category-edit]');
     if (btnEdit) {
       const id = Number(btnEdit.dataset.categoryEdit);
-      const categoria = state.menuCategorias.find((item) => item.id === id);
+      const categoria = api.findCategoriaById(id);
       if (categoria) {
         api.startCategoriaEdit(categoria);
         focusCategoriaEditor();
@@ -365,7 +361,7 @@ export function bindCatalogSection(ctx) {
     const btnEdit = event.target.closest('button[data-produto-edit]');
     if (btnEdit) {
       const id = Number(btnEdit.dataset.produtoEdit);
-      const produto = state.menuProdutos.find((item) => item.id === id);
+      const produto = api.findProdutoById(id);
       if (produto) {
         api.populateProdutoForm(produto);
         focusProdutoEditor();

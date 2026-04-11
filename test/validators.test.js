@@ -72,11 +72,28 @@ test('validateCreateProduto deve converter tipos validos', () => {
   assert.equal(data.ativo, true)
 })
 
+test('validateCreateProduto deve aceitar descricao nula', () => {
+  const data = validateCreateProduto({
+    categoria_id: '1',
+    nome_doce: 'Bolo de Pote',
+    preco: '18.9',
+    descricao: null,
+  })
+
+  assert.equal(data.descricao, null)
+})
+
 test('validateUpdateProduto deve rejeitar preco invalido', () => {
   assert.throws(
     () => validateUpdateProduto({ preco: 'abc' }),
     (error) => error instanceof AppError && error.message === 'preco invalido.',
   )
+})
+
+test('validateUpdateProduto deve aceitar descricao nula', () => {
+  const data = validateUpdateProduto({ descricao: null })
+
+  assert.deepEqual(data, { descricao: null })
 })
 
 test('parseCategoriasListQuery deve aplicar defaults', () => {

@@ -252,6 +252,43 @@ test('rota publica de imagem do produto deve reutilizar etag quando nao mudou', 
   assert.equal(cachedResponse.headers.ETag, '"product-image-7-cachetest"')
 })
 
+test('rota de imagem do produto deve servir cache para item inativo sem depender de header Authorization', async () => {
+  const app = createApp({
+    produtos: {
+      findFirst(args) {
+        assert.deepEqual(args, {
+          where: { id: 7, removido_em: null },
+          select: { id: true, imagem_url: true },
+        })
+
+        return Promise.resolve({
+          id: 7,
+          imagem_url: 'data:image/png;base64,aGVsbG8=',
+        })
+      },
+    },
+  })
+
+  const firstResponse = await requestApp(app, {
+    url: '/produtos/7/imagem',
+  })
+  assert.equal(firstResponse.statusCode, 200)
+  assert.equal(firstResponse.body, 'hello')
+  assert.equal(firstResponse.headers['Content-Type'], 'image/png')
+  assert.equal(firstResponse.headers['Cache-Control'], 'private, max-age=31536000, immutable')
+  assert.match(firstResponse.headers.ETag, /^"admin-product-image-7-[a-f0-9]{12}"$/)
+
+  const cachedResponse = await requestApp(app, {
+    url: '/produtos/7/imagem',
+    headers: {
+      'if-none-match': firstResponse.headers.ETag,
+    },
+  })
+  assert.equal(cachedResponse.statusCode, 304)
+  assert.equal(cachedResponse.body, '')
+  assert.equal(cachedResponse.headers.ETag, firstResponse.headers.ETag)
+})
+
 test('servidor aplica CORS por allowlist e responde preflight', async () => {
   const previousAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS
   const previousAllowCredentials = process.env.CORS_ALLOW_CREDENTIALS
@@ -861,6 +898,51 @@ test('namespace publico deve aplicar rate limit generico nas rotas /public/*', a
   assert.equal(lastResponse.headers['RateLimit-Policy'], '60;w=60')
   assert.equal(lastResponse.headers['Retry-After'], '60')
   assert.match(lastResponse.body, /API publica/i)
+})
+
+test('imagens publicas do produto devem usar rate limit dedicado sem cair no limite generico de /public', async () => {
+  const app = createApp({}, {
+    storeService: {
+      getProductImage() {
+        return Promise.resolve({
+          buffer: Buffer.from('hello'),
+          contentType: 'image/png',
+          etag: '"product-image-7-cachetest"',
+          cacheControl: 'public, max-age=31536000, immutable',
+        })
+      },
+    },
+  })
+
+  let lastResponse = null
+
+  for (let attempt = 0; attempt < 61; attempt += 1) {
+    lastResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/public/produtos/7/imagem',
+      headers: {
+        'x-forwarded-for': '198.51.100.34',
+      },
+    })
+  }
+
+  assert.equal(lastResponse.statusCode, 200)
+
+  for (let attempt = 61; attempt < 301; attempt += 1) {
+    lastResponse = await requestApp(app, {
+      method: 'GET',
+      url: '/public/produtos/7/imagem',
+      headers: {
+        'x-forwarded-for': '198.51.100.34',
+      },
+    })
+  }
+
+  assert.equal(lastResponse.statusCode, 429)
+  assert.equal(lastResponse.headers['RateLimit-Limit'], '300')
+  assert.equal(lastResponse.headers['RateLimit-Policy'], '300;w=60')
+  assert.equal(lastResponse.headers['Retry-After'], '60')
+  assert.match(lastResponse.body, /imagem/i)
 })
 
 test('namespace de checkout deve aplicar rate limit generico em /api/checkout/*', async () => {
