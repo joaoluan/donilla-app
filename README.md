@@ -1,4 +1,36 @@
-# donilla
+# Donilla Commerce Platform
+
+Aplicação de comércio eletrônico que conecta catálogo, pedidos, pagamento e atendimento por WhatsApp. Projeto independente de João Moura, com backend em Node.js, PostgreSQL e Prisma, interface web e operação em Docker.
+
+## Visão do projeto
+
+- Catálogo e loja pública, carrinho e criação de pedidos.
+- Checkout hospedado no Asaas, processamento de webhooks e trilha de auditoria de pedidos.
+- Acompanhamento público do pedido por link com token.
+- Painel administrativo com atualização em tempo real por Server-Sent Events (SSE).
+- Integração com WPPConnect para notificações e consulta de pedidos pelo WhatsApp.
+- Módulos de campanhas e fluxos de atendimento.
+
+## Para conhecer o código
+
+| Tema | Onde começar |
+| --- | --- |
+| Inicialização da aplicação | [`index.js`](index.js) |
+| Modelagem de dados | [`prisma/schema.prisma`](prisma/schema.prisma) e migrações em `prisma/sql` |
+| Integração de pagamentos | Contratos e fluxo documentados na seção **Asaas Checkout** abaixo |
+| Testes de regras e integrações | [`test/`](test/) |
+| Verificação de fluxos web | Scripts `smoke:catalog`, `smoke:broadcast` e `smoke:flows` em [`package.json`](package.json) |
+| Execução em contêineres | [`docker-compose.yml`](docker-compose.yml) |
+
+## Decisões e limites
+
+- O checkout é hospedado no provedor de pagamentos; credenciais e validação dos webhooks ficam no backend.
+- Eventos de pagamento registram seu identificador e geram auditoria do pedido.
+- O SSE usa um broker em memória: a distribuição entre múltiplas instâncias exige um barramento compartilhado, conforme descrito abaixo.
+
+[Portfólio e contexto profissional](https://joaomoura.dev.br/) · [Perfil GitHub](https://github.com/joaoluan)
+
+## Documentação de desenvolvimento e operação
 
 ## Ambiente
 
