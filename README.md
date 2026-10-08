@@ -1,6 +1,14 @@
-# Donilla Commerce Platform
+# Donilla — código legado, descontinuado
 
-Aplicação de comércio eletrônico que conecta catálogo, pedidos, pagamento e atendimento por WhatsApp. Projeto independente de João Moura, com backend em Node.js, PostgreSQL e Prisma, interface web e operação em Docker.
+Esta aplicação serviu de base ao **MyFoodLink** e evoluiu para a plataforma SaaS de restaurantes. Hoje, a **Donilla opera como um tenant do MyFoodLink**.
+
+O código deste repositório está **descontinuado** e permanece como registro histórico. A operação atual da Donilla é mantida no MyFoodLink, em repositórios privados. Este repositório não representa a implementação atual da plataforma nem deve ser usado como referência de implantação da Donilla atual.
+
+[Case atual do MyFoodLink](https://joaomoura.dev.br/#case) · [Perfil GitHub](https://github.com/joaoluan)
+
+## Aplicação original
+
+A versão histórica conectava catálogo, pedidos, pagamento e atendimento por WhatsApp, com backend em Node.js, PostgreSQL e Prisma, interface web e operação em Docker.
 
 ## Visão do projeto
 
@@ -30,7 +38,9 @@ Aplicação de comércio eletrônico que conecta catálogo, pedidos, pagamento e
 
 [Portfólio e contexto profissional](https://joaomoura.dev.br/) · [Perfil GitHub](https://github.com/joaoluan)
 
-## Documentação de desenvolvimento e operação
+## Documentação histórica de desenvolvimento e operação
+
+As instruções abaixo descrevem o sistema legado. Não se aplicam à operação atual da Donilla no MyFoodLink.
 
 ## Ambiente
 
